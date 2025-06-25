@@ -1,0 +1,5 @@
+{
+    "/api/*": "/$1",
+    "/api/metrics": "/metrics?_page=:page&_limit=:size&_sort=timestamp&_order=desc",
+    "/api/metrics/filter": "/metrics?type=:type&timestamp_gte=:start&timestamp_lte=:end"
+}

@@ -1,0 +1,21 @@
+{
+  "name": "websocket-server",
+  "version": "1.0.0",
+  "description": "A WebSocket server for simulating IoT device data.",
+  "main": "src/server.ts",
+  "scripts": {
+    "start": "ts-node src/server.ts",
+    "build": "tsc",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "dependencies": {
+    "ws": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.1",
+    "ts-node": "^10.0.0",
+    "typescript": "^4.0.0"
+  },
+  "author": "",
+  "license": "ISC"
+}
