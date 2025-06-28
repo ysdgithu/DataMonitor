@@ -1,12 +1,13 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
-import type { 
+import type {
   BaseMetric,
-  ValueMetric, 
-  DeviceTypeMetric, 
+  ValueMetric,
+  DeviceTypeMetric,
   RequestCountMetric
 } from '../utils/metrics'
 import { METRIC_TYPES } from '../utils/metrics'
+import { useDataWorker } from '../utils/useDataWorker'
 
 interface MetricsState {
   metricsData: Record<string, any[]>
@@ -28,25 +29,30 @@ export const useChartStore = defineStore('chart', {
   }),
 
   actions: {
-    async fetchMetricData(params: { 
-      type: string, 
-      timestamp_gte: number,  // 修改参数名称
-      timestamp_lte: number   // 修改参数名称
+    async fetchMetricData(params: {
+      type: string,
+      timestamp_gte: number,
+      timestamp_lte: number
     }) {
       if (params.timestamp_gte > DATA_END_TIME ){
-        params.timestamp_gte=DATA_START_TIME
+        params.timestamp_gte = DATA_START_TIME
       }
       try {
         const response = await axios.get('/metrics', {
           baseURL: 'http://localhost:3000',
           params
         })
+        let data = response.data
+        // 超过5000条数据用worker处理
+        if (Array.isArray(data) && data.length > 5000) {
+          const { processData } = useDataWorker()
+          data = await processData(data)
+          console.log('数据处理完成', data.length)
+        }
         this.metricsData = {
           ...this.metricsData,
-          [params.type]: response.data
+          [params.type]: data
         }
-        console.log('获取数据成功', response.data[0])
-        //if (response.data[0].)
         this.loading = true
       } catch (err) {
         this.error = `获取${params.type}数据失败`
@@ -86,14 +92,14 @@ export const useChartStore = defineStore('chart', {
     deviceTypeChartData: (state) => {
       const data = state.metricsData[METRIC_TYPES.DEVICE_TYPE] || []
       const latestData = new Map<string, DeviceTypeMetric>()
-      
+
       data.forEach((item: DeviceTypeMetric) => {
         const existing = latestData.get(item.deviceType)
         if (!existing || item.timestamp > existing.timestamp) {
           latestData.set(item.deviceType, item)
         }
       })
-      
+
       return Array.from(latestData.values()).map(item => ({
         name: item.deviceType,
         value: item.count

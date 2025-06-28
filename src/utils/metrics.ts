@@ -1,3 +1,11 @@
+export interface MetricData {
+  type: string
+  timestamp: number
+  value?: number
+  deviceType?: string
+  count?: number
+}
+
 export interface BaseMetric {
   id: number
   type: string
