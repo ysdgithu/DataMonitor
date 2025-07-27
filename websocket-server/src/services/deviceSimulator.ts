@@ -31,6 +31,7 @@ export class DeviceSimulator {
 
         this.intervalId = setInterval(() => {
             this.latestData = [];
+            const startTime = Date.now();
             for (let i = 0; i < this.deviceCount; i++) {
                 const deviceId = `device_${i}`;
                 const timestamp = Date.now();
@@ -102,7 +103,8 @@ export class DeviceSimulator {
                     location
                 });
             }
-        }, 1000);
+            console.log(`[DeviceSimulator] 数据生成完成，时间: ${new Date(startTime).toLocaleString()}，设备数: ${this.deviceCount}，总数据量: ${this.latestData.length}`);
+        }, 10000); 
     }
 
     // 手动关闭数据生成

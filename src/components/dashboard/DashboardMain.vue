@@ -9,16 +9,16 @@
         <el-option label="自定义" value="custom" />
       </el-select>
       <el-button-group>
-        <el-button 
-          type="primary" 
+        <el-button
+          type="primary"
           :icon="VideoPlay"
           :class="{ 'is-active': store.isMonitoring }"
           @click="startMonitoring"
         >
           开始
         </el-button>
-        <el-button 
-          type="primary" 
+        <el-button
+          type="primary"
           :icon="VideoPause"
           :class="{ 'is-active': !store.isMonitoring }"
           @click="stopMonitoring"
@@ -37,26 +37,26 @@
             <div class="panel-header">核心指标</div>
           </template>
           <el-row :gutter="20" class="metrics-grid">
-            <el-col :span="12" v-for="metric in metrics" :key="metric.title">
+            <el-col :span="12" v-for="metric in coreMetricStore.boardList" :key="metric.name">
               <div class="metric-item">
                 <div class="metric-header">
-                  {{ metric.title }}
-                  <el-tag :type="metric.trend === 'up' ? 'success' : 'danger'" size="small">
-                    {{ metric.change }}
-                  </el-tag>
+                  {{ metric.name }}
+                  <!-- <el-tag :type="metric.status === 'up' ? 'success' : 'danger'" size="small">
+                    {{ metric.value }}
+                  </el-tag> -->
                 </div>
                 <div class="metric-value">{{ metric.value }}</div>
               </div>
             </el-col>
           </el-row>
         </el-card>
-        <el-card class="chart-card metrics-panel" 
+        <el-card class="chart-card metrics-panel"
         @click="openHistory('device_type')">
           <template #header>
             <div class="panel-header">设备类型分布</div>
           </template>
-          <BaseChart 
-            :options="deviceTypeChartOptions" 
+          <BaseChart
+            :options="deviceTypeChartOptions"
             :loading="store.loading"
             style="height: 220px;"
           />
@@ -87,8 +87,8 @@
           <template #header>
             <div class="panel-header">请求量统计</div>
           </template>
-          <BaseChart 
-            :options="requestCountChartOptions" 
+          <BaseChart
+            :options="requestCountChartOptions"
             :loading="store.loading"
             style="height: 220px;"
           />
@@ -113,7 +113,11 @@ import HistoryDataDialog from '../dialog/HistoryDataDialog.vue'
 import { createLineChart, createBarChart, createPieChart, createMapChart } from '../../utils/chartOptions'
 import { registerChinaMap } from '../../utils/chinaMap'
 import { useChartStore } from '../../stores/chart'
-
+import { useCoreMetricStore } from '../../stores/CoreMetricData'
+import { useRealtimeStore } from '../../stores/realtime'
+const realtimeStore = useRealtimeStore()
+const coreMetricStore = useCoreMetricStore()
+console.log(coreMetricStore.boardList)
 const timeRange = ref('1h')
 const fl = ref(false)
 const metrics = ref([
@@ -125,13 +129,13 @@ const metrics = ref([
 const store = useChartStore()
 const fetchData = async () => {
   // 获取设备类型分布数据
-  await store.fetchMetricData({ 
+  await store.fetchMetricData({
     type: 'device_type',
     //timestamp_gte: Date.now() - 60 * 60 * 1000, // 1620000000
     timestamp_gte: 1620000000,
     timestamp_lte: Date.now()})
   // 获取请求量统计数据
-  await store.fetchMetricData({ 
+  await store.fetchMetricData({
     type: 'request_count',
     timestamp_gte: 1620000000, // 1620000000
     timestamp_lte: Date.now()})
@@ -148,7 +152,7 @@ const requestCountChartOptions = computed(() => createBarChart({
   xAxis: {
     type: 'category',
     data: store.requestCountChartData.xAxis,
-    axisLabel: { 
+    axisLabel: {
       interval: 0,
       rotate: 45,
       color: '#E5E7EB'
@@ -177,6 +181,8 @@ onMounted(() => {
     }
   }
   initMap()
+  // 启动实时监控
+  realtimeStore.setMonitoring(true)
   startMonitoring()
   fetchData()
 })
@@ -289,7 +295,7 @@ const openHistory = (type: string) => {
 :deep(.el-card) {
   background-color: #243142;
   border: none;
-  box-shadow: 
+  box-shadow:
     0 8px 24px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
   border-radius: 12px;
@@ -319,7 +325,7 @@ const openHistory = (type: string) => {
 }
 
 /* Tag样式调整 */
-:deep(.el-tag--success) {                     
+:deep(.el-tag--success) {
   background: linear-gradient(45deg, rgba(0, 255, 136, 0.1), rgba(0, 255, 136, 0.2));
   border: 1px solid rgba(0, 255, 136, 0.5);
   color: #00FF88;

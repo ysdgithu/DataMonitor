@@ -1,20 +1,24 @@
 import { ref } from 'vue'
+import type {
+  CoreMetricData,
+  EnvironmentData,
+  DeviceTelemetryData,
+  DeviceStatusData
+} from './type' // 路径根据实际情况调整
 
+// WebSocket 连接参数配置
 interface WebSocketOptions {
-  url: string          // WebSocket URL
-  maxRetries?: number  
-  retryDelay?: number
+  url: string          // WebSocket 服务器地址
+  maxRetries?: number  // 最大重连次数（可选，默认3）
+  retryDelay?: number  // 重连延迟（毫秒，可选，默认1000）
 }
-// 设备数据接口
-interface DeviceData {
-  type: string
-  value: number
-  timestamp: number
-}
+
+// 统一设备数据类型
+type DeviceData = CoreMetricData | EnvironmentData | DeviceTelemetryData | DeviceStatusData
 
 export function useWebSocket(options: WebSocketOptions) {
   const { url, maxRetries = 3, retryDelay = 1000 } = options
-  
+
   const ws = ref<WebSocket | null>(null)
   const isConnected = ref(false)
   const retryCount = ref(0)
@@ -72,7 +76,7 @@ export function useWebSocket(options: WebSocketOptions) {
     const delay = retryDelay * Math.pow(2, retryCount.value - 1) // 指数退避策略
 
     console.log(`Attempting to reconnect in ${delay}ms... (Attempt ${retryCount.value})`)
-    
+
     if (retryTimeout) {
       clearTimeout(retryTimeout)
     }
@@ -87,12 +91,12 @@ export function useWebSocket(options: WebSocketOptions) {
       ws.value.close()
       ws.value = null
     }
-    
+
     if (retryTimeout) {
       clearTimeout(retryTimeout)
       retryTimeout = null
     }
-    
+
     isConnected.value = false
     retryCount.value = 0
   }

@@ -19,7 +19,7 @@ const store = useChartStore()
 
 // WebSocket连接
 const { isConnected, retryCount, lastMessage, connect, disconnect } = useWebSocket({
-  url: 'ws://localhost:8080',
+  url: 'ws://localhost:808',
   maxRetries: 3,
   retryDelay: 1000
 })
@@ -45,15 +45,15 @@ watch(() => store.isMonitoring, (isMonitoring) => {
 // 处理图表数据
 const formatChartData = computed(() => {
   const data = store.chartData || []
-  const times = data.map(item => 
-    new Date(item[0]).toLocaleTimeString('zh-CN', { 
-      hour: '2-digit', 
+  const times = data.map(item =>
+    new Date(item[0]).toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
       minute: '2-digit',
       second: '2-digit'
     })
   )
   const values = data.map(item => item[1])
-  
+
   return {
     xAxis: times,
     series: values
