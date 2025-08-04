@@ -30,38 +30,73 @@ export const useRealtimeStore = defineStore('realtime', () => {
   })
 
   // 处理并分组数据
-  function handleRealtimeMessage(data: DeviceData) {
+  function handleRealtimeMessage(message: { type: string; data: any; timestamp: number }) {
     if (!isMonitoring.value) return
 
-    const key =
-      (data as any).category ||
-      (data as any).type ||
-      (data as any).dataType ||
-      (data as any).status ||
-      'unknown'
+    const { type, data } = message;
 
-    if (!dataGroupMap.value[key]) dataGroupMap.value[key] = []
-    dataGroupMap.value[key].push(data)
-    if (dataGroupMap.value[key].length > MAX_POINTS) {
-      dataGroupMap.value[key].shift()
+    // 根据消息类型处理数据
+    switch (type) {
+      case 'core_metrics':
+        // 核心指标数据是数组
+        if (Array.isArray(data)) {
+          data.forEach(metric => {
+            const key = metric.category;
+            if (!dataGroupMap.value[key]) dataGroupMap.value[key] = [];
+            dataGroupMap.value[key].push(metric);
+            if (dataGroupMap.value[key].length > MAX_POINTS) {
+              dataGroupMap.value[key].shift();
+            }
+
+            // 推送到核心指标store
+            const coreMetricStore = useCoreMetricStore();
+            coreMetricStore.pushMetricData(metric as CoreMetricData);
+          });
+        }
+        break;
+
+      case 'environment':
+        // 环境数据是单个对象
+        const envKey = data.type;
+        if (!dataGroupMap.value[envKey]) dataGroupMap.value[envKey] = [];
+        dataGroupMap.value[envKey].push(data);
+        if (dataGroupMap.value[envKey].length > MAX_POINTS) {
+          dataGroupMap.value[envKey].shift();
+        }
+        break;
+
+      case 'device_status':
+        // 设备状态数据是数组
+        if (Array.isArray(data)) {
+          data.forEach(status => {
+            const key = 'device_status';
+            if (!dataGroupMap.value[key]) dataGroupMap.value[key] = [];
+            dataGroupMap.value[key].push(status);
+            if (dataGroupMap.value[key].length > MAX_POINTS) {
+              dataGroupMap.value[key].shift();
+            }
+          });
+        }
+        break;
+
+      case 'telemetry':
+        // 通信数据是单个对象
+        const telemetryKey = data.dataType;
+        if (!dataGroupMap.value[telemetryKey]) dataGroupMap.value[telemetryKey] = [];
+        dataGroupMap.value[telemetryKey].push(data);
+        if (dataGroupMap.value[telemetryKey].length > MAX_POINTS) {
+          dataGroupMap.value[telemetryKey].shift();
+        }
+        break;
     }
 
-    console.log(`[realtime] 分组:${key} 当前数量:${dataGroupMap.value[key].length}`)
-
-    // 如果是核心指标数据，推送到核心指标store
-    if ('category' in data && ['cpu', 'memory', 'network', 'online'].includes((data as any).category)) {
-      const coreMetricStore = useCoreMetricStore()
-      coreMetricStore.pushMetricData(data as CoreMetricData)
-    }
+    console.log(`[realtime] 处理${type}数据 时间:`, new Date(message.timestamp).toLocaleTimeString());
   }
 
-  // 监听 WebSocket 消息（改为批量处理）
+  // 监听 WebSocket 消息
   watch(lastMessage, (msg) => {
-    if (msg && msg.version === 2) {
-      console.log('[realtime] 收到v2数据 时间:', new Date(msg.timestamp).toLocaleTimeString(), '数量:', msg.data.length)
-      msg.data.forEach(handleRealtimeMessage)
-    } else if (msg) {
-      console.warn('[realtime] 丢弃旧格式数据', msg)
+    if (msg) {
+      handleRealtimeMessage(msg);
     }
   })
 

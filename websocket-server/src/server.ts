@@ -25,7 +25,7 @@ function startNormalMode() {
     setInterval(() => {
         const dataList = deviceSimulator.getLatestData();
         dataProcessor.processAndPush(dataList);
-    }, 1000);
+    }, 8000);
 }
 
 function startHighConcurrencyMode() {
@@ -34,7 +34,7 @@ function startHighConcurrencyMode() {
     const normalInterval = setInterval(() => {
         const dataList = deviceSimulator.getLatestData();
         dataProcessor.processAndPush(dataList);
-    }, 1000);
+    }, 8000);
 
     setTimeout(() => {
         clearInterval(normalInterval);
@@ -43,7 +43,7 @@ function startHighConcurrencyMode() {
         const highInterval = setInterval(() => {
             const dataList = deviceSimulator.getLatestData();
             dataProcessor.processAndPush(dataList);
-        }, 1000);
+        }, 8000);
 
         setTimeout(() => {
             clearInterval(highInterval);

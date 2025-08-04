@@ -80,20 +80,38 @@ export class DataProcessor {
     }
 
     // 处理数据并推送
-    public processAndPush(dataList: DeviceDataType[]) {
-        for (const data of dataList) {
-            // 分级赋值 dataStatus
-            data.dataStatus = getDataStatus(data);
+    public processAndPush(messages: { type: string; data: any }[]) {
+        for (const message of messages) {
+            // 为数据添加状态标记
+            if (Array.isArray(message.data)) {
+                message.data = message.data.map(item => ({
+                    ...item,
+                    dataStatus: getDataStatus(item)
+                }));
+            } else {
+                message.data = {
+                    ...message.data,
+                    dataStatus: getDataStatus(message.data)
+                };
+            }
 
             // 推送至所有客户端
             for (const ws of this.wsClients) {
                 if (ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify(data));
+                    ws.send(JSON.stringify({
+                        type: message.type,
+                        data: message.data,
+                        timestamp: Date.now()
+                    }));
                 }
             }
 
             // 写入数据库
-            saveToDatabase(data);
+            if (Array.isArray(message.data)) {
+                message.data.forEach(item => saveToDatabase(item));
+            } else {
+                saveToDatabase(message.data);
+            }
         }
     }
 }
