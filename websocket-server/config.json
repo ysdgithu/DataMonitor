@@ -1,0 +1,94 @@
+{
+  "server": {
+    "websocket": {
+      "port": 8080,
+      "host": "localhost"
+    },
+    "api": {
+      "port": 3002,
+      "host": "localhost",
+      "cors": {
+        "enabled": true,
+        "origins": ["http://localhost:5173", "http://localhost:3000"]
+      }
+    }
+  },
+  "database": {
+    "type": "sqlite",
+    "path": "./data/monitor.db",
+    "options": {
+      "autoInit": true,
+      "backup": {
+        "enabled": false,
+        "interval": "24h",
+        "keepDays": 7
+      }
+    }
+  },
+  "simulator": {
+    "normal": {
+      "deviceCount": 100,
+      "intervals": {
+        "coreMetrics": 3000,
+        "environment": 1000,
+        "deviceStatus": 6000,
+        "telemetry": 4000
+      }
+    },
+    "highConcurrency": {
+      "deviceCount": 50000,
+      "duration": 20000,
+      "warmupTime": 10000
+    }
+  },
+  "dataProcessor": {
+    "thresholds": {
+      "cpu": {
+        "warning": 90,
+        "error": 95
+      },
+      "memory": {
+        "warning": 90,
+        "error": 95
+      },
+      "network": {
+        "warning": 150,
+        "error": 180
+      },
+      "online": {
+        "warning": 60,
+        "error": 30
+      },
+      "temperature": {
+        "warning": 35,
+        "error": 40
+      },
+      "upload_frequency": {
+        "warning": 80,
+        "error": 100
+      }
+    },
+    "batchSize": 100,
+    "asyncWrite": true
+  },
+  "logging": {
+    "level": "info",
+    "console": true,
+    "file": {
+      "enabled": false,
+      "path": "./logs/app.log",
+      "maxSize": "10MB",
+      "maxFiles": 5
+    }
+  },
+  "monitoring": {
+    "healthCheck": {
+      "enabled": true,
+      "interval": 30000
+    },
+    "metrics": {
+      "enabled": true,
+      "collectInterval": 60000
+    }
+  }
+}

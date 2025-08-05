@@ -8,6 +8,7 @@ import {
     DeviceTelemetryData,
     DeviceStatusData,
 } from '../types/index';
+import { DataModel, CoreMetricRecord, EnvironmentRecord, TelemetryRecord, DeviceStatusRecord } from '../database/models';
 
 // 添加类型定义
 type DeviceDataType = CoreMetricData | EnvironmentData | DeviceTelemetryData | DeviceStatusData;
@@ -59,15 +60,14 @@ function getDataStatus(data: DeviceDataType): 'normal' | 'warning' | 'error' {
     return 'normal';
 }
 
-// 伪数据库写入函数
-function saveToDatabase(data: DeviceDataType) {
-    // 实际可接入数据库
-    // db.save(data);
-}
-
 // 数据处理器类
 export class DataProcessor {
     private wsClients: Set<WebSocket> = new Set();
+    private dataModel: DataModel;
+
+    constructor() {
+        this.dataModel = new DataModel();
+    }
 
     // 注册客户端
     public addClient(ws: WebSocket) {
@@ -80,7 +80,7 @@ export class DataProcessor {
     }
 
     // 处理数据并推送
-    public processAndPush(messages: { type: string; data: any }[]) {
+    public async processAndPush(messages: { type: string; data: any }[]) {
         for (const message of messages) {
             // 为数据添加状态标记
             if (Array.isArray(message.data)) {
@@ -106,12 +106,47 @@ export class DataProcessor {
                 }
             }
 
-            // 写入数据库
-            if (Array.isArray(message.data)) {
-                message.data.forEach(item => saveToDatabase(item));
-            } else {
-                saveToDatabase(message.data);
+            // 异步写入数据库（不阻塞WebSocket推送）
+            this.saveToDatabase(message.type, message.data).catch(error => {
+                console.error(`数据库写入失败 [${message.type}]:`, error);
+            });
+        }
+    }
+
+    // 数据库写入方法
+    private async saveToDatabase(type: string, data: any): Promise<void> {
+        try {
+            switch (type) {
+                case 'core_metrics':
+                    if (Array.isArray(data)) {
+                        await this.dataModel.insertCoreMetrics(data as CoreMetricRecord[]);
+                    }
+                    break;
+
+                case 'environment':
+                    if (!Array.isArray(data)) {
+                        await this.dataModel.insertEnvironmentData(data as EnvironmentRecord);
+                    }
+                    break;
+
+                case 'device_status':
+                    if (Array.isArray(data)) {
+                        await this.dataModel.insertDeviceStatus(data as DeviceStatusRecord[]);
+                    }
+                    break;
+
+                case 'telemetry':
+                    if (!Array.isArray(data)) {
+                        await this.dataModel.insertTelemetryData(data as TelemetryRecord);
+                    }
+                    break;
+
+                default:
+                    console.warn(`未知的数据类型: ${type}`);
             }
+        } catch (error) {
+            console.error(`数据库写入错误 [${type}]:`, error);
+            throw error;
         }
     }
 }

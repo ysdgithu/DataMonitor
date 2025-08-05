@@ -2,7 +2,7 @@
   <el-main class="dashboard-main">
     <!-- 控制栏 -->
     <el-card class="control-bar">
-      <el-button type="primary" plain>历史数据</el-button>
+      <el-button type="primary" plain @click="showHistoryPanel = true">历史数据查询</el-button>
       <el-select v-model="timeRange" class="time-range">
         <el-option label="最近1小时" value="1h" />
         <el-option label="最近24小时" value="24h" />
@@ -98,6 +98,16 @@
       v-model="showHistory"
       :type="currentType"
     />
+
+    <!-- 历史数据查询面板弹窗 -->
+    <el-dialog
+      v-model="showHistoryPanel"
+      title="历史数据查询"
+      width="90%"
+      :before-close="handleCloseHistoryPanel"
+    >
+      <HistoryDataPanel />
+    </el-dialog>
   </el-main>
 </template>
 
@@ -107,6 +117,7 @@ import { Loading } from '@element-plus/icons-vue'
 import BaseChart from '../charts/BaseChart.vue'
 import RealTimeChart from '../charts/RealTimeChart.vue'
 import HistoryDataDialog from '../dialog/HistoryDataDialog.vue'
+import HistoryDataPanel from './HistoryDataPanel.vue'
 import { createLineChart, createBarChart, createPieChart, createMapChart } from '../../utils/chartOptions'
 import { registerChinaMap } from '../../utils/chinaMap'
 import { useChartStore } from '../../stores/chart'
@@ -116,6 +127,7 @@ const realtimeStore = useRealtimeStore()  // 实时监控
 const coreMetricStore = useCoreMetricStore()   // 核心指标
 const timeRange = ref('1h')
 const fl = ref(false)
+const showHistoryPanel = ref(false)
 
 const store = useChartStore()
 const fetchData = async () => {
@@ -221,6 +233,10 @@ const currentType = ref('')
 const openHistory = (type: string) => {
   currentType.value = type
   showHistory.value = true
+}
+
+const handleCloseHistoryPanel = () => {
+  showHistoryPanel.value = false
 }
 </script>
 
