@@ -46,28 +46,28 @@ export class DeviceSimulator {
                 deviceId: "000",
                 timestamp,
                 category: 'cpu',
-                value: 30 + Math.random() * 40, // 30-70%
+                value: 30 + Math.random() * 70, // 30-70%
                 location
             },
             {
                 deviceId: "000",
                 timestamp,
                 category: 'memory',
-                value: 40 + Math.random() * 30, // 40-70%
+                value: 40 + Math.random() * 60, // 40-70%
                 location
             },
             {
                 deviceId: "000",
                 timestamp,
                 category: 'network',
-                value: 50 + Math.random() * 100, // 50-150
+                value: 50 + Math.random() * 100, // 50-180
                 location
             },
             {
                 deviceId: "000",
                 timestamp,
                 category: 'online',
-                value: Math.random() > 0.1 ? 1 : 0, // 90%概率在线
+                value: 60 + Math.random() * 40, // 60-100
                 location
             }
         ];

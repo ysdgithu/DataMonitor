@@ -41,11 +41,8 @@
               <div class="metric-item">
                 <div class="metric-header">
                   {{ metric.name }}
-                  <!-- <el-tag :type="metric.status === 'up' ? 'success' : 'danger'" size="small">
-                    {{ metric.value }}
-                  </el-tag> -->
                 </div>
-                <div class="metric-value">{{ metric.value }}</div>
+                <div class="metric-value" :class="metric.status">{{ metric.value }}</div>
               </div>
             </el-col>
           </el-row>
@@ -115,17 +112,11 @@ import { registerChinaMap } from '../../utils/chinaMap'
 import { useChartStore } from '../../stores/chart'
 import { useCoreMetricStore } from '../../stores/CoreMetricData'
 import { useRealtimeStore } from '../../stores/realtime'
-const realtimeStore = useRealtimeStore()
-const coreMetricStore = useCoreMetricStore()
-console.log(coreMetricStore.boardList)
+const realtimeStore = useRealtimeStore()  // 实时监控
+const coreMetricStore = useCoreMetricStore()   // 核心指标
 const timeRange = ref('1h')
 const fl = ref(false)
-const metrics = ref([
-  { title: 'CPU占用率', value: '32%', trend: 'up', change: '▲2%', type: 'cpu' },
-  { title: '内存使用', value: '4.2GB/8GB', trend: 'down', change: '▼5%', type: 'memory' },
-  { title: '网络延迟', value: '68ms', trend: 'up', change: '▲3ms', type: 'network' },
-  { title: '活跃设备数', value: '142', trend: 'up', change: '▲12', type: 'devices' },
-])
+
 const store = useChartStore()
 const fetchData = async () => {
   // 获取设备类型分布数据
@@ -493,6 +484,19 @@ const openHistory = (type: string) => {
   font-weight: bold;
   text-align: center;
   margin-top: 6px;  /* 减小上边距 */
+}
+
+/* 状态颜色 */
+.metric-value.normal {
+  color: #67C23A;  /* 绿色 */
+}
+
+.metric-value.warning {
+  color: #E6A23C;  /* 黄色 */
+}
+
+.metric-value.error {
+  color: #F56C6C;  /* 红色 */
 }
 
 .panel-header {
