@@ -14,7 +14,7 @@ app.use(express.json());
 const dataModel = new DataModel();
 
 // 健康检查接口
-app.get('/health', (req, res) => {
+app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: Date.now() });
 });
 

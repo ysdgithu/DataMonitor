@@ -202,7 +202,7 @@ export class HistoryApi {
             await this.healthCheck();
             return true;
         } catch (error) {
-            console.error('API连接检查失败:', error);
+            console.log('API连接检查失败:', error);
             return false;
         }
     }
@@ -213,6 +213,7 @@ export const historyApi = HistoryApi.getInstance();
 
 // 时间范围选项
 export const TIME_RANGE_OPTIONS = [
+    
     { label: '最近1小时', value: 1 },
     { label: '最近6小时', value: 6 },
     { label: '最近12小时', value: 12 },

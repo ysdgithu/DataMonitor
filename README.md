@@ -163,10 +163,6 @@ npm start high     # 高并发测试模式
 npm run dev
 ```
 
-### 访问地址
-- **前端界面**：http://localhost:5173
-- **API接口**：http://localhost:3002
-- **WebSocket**：ws://localhost:8080
 
 ## 💡 使用指南
 
@@ -197,27 +193,6 @@ curl "http://localhost:3002/api/environment?type=temperature&limit=10"
 
 # 获取数据概览
 curl http://localhost:3002/api/overview
-```
-
-## 🛠 开发环境
-
-### 推荐工具
-- **编辑器**：[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar)
-- **Node.js**：16.0.0 或更高版本
-- **包管理器**：npm 或 yarn
-
-### 主要脚本
-```bash
-# 前端开发
-npm run dev              # 启动开发服务器
-npm run build            # 生产环境打包
-npm run lint             # 代码风格检查
-npm run type-check       # TypeScript类型检查
-
-# 后端开发
-cd websocket-server
-npm start                # 启动WebSocket和API服务器
-npm run init-db          # 初始化数据库
 ```
 
 ## 📊 数据格式说明
@@ -257,11 +232,6 @@ npm run init-db          # 初始化数据库
 }
 ```
 
-### 数据状态说明
-- **normal**：正常数据
-- **warning**：警告状态（如CPU > 90%）
-- **error**：错误状态（如CPU > 95%）
-
 ## 🔧 配置说明
 
 ### 异常检测阈值
@@ -290,26 +260,6 @@ npm run init-db          # 初始化数据库
 
 ## ❓ 常见问题
 
-### 启动问题
-**Q: 端口被占用怎么办？**
-A: 修改 `websocket-server/config.json` 中的端口配置，或关闭占用端口的程序。
-
-**Q: 数据库初始化失败？**
-A: 确保有写入权限，手动运行 `cd websocket-server && npm run init-db`。
-
-**Q: WebSocket连接失败？**
-A: 检查防火墙设置，确保8080端口可访问。
-
-### 开发问题
-**Q: TypeScript类型报错？**
-A: 确保安装了Volar插件，禁用Vetur插件。
-
-**Q: 历史数据查询无结果？**
-A: 确保后端服务正常运行，检查API连接状态。
-
-**Q: 图表不显示？**
-A: 检查浏览器控制台错误，确保ECharts正确加载。
-
 ## 📈 性能指标
 
 - **实时延迟**：< 10ms
@@ -325,34 +275,4 @@ A: 检查浏览器控制台错误，确保ECharts正确加载。
 - [WebSocket服务器说明](websocket-server/README.md)
 - [原有数据模拟说明](db/Readme.md)
 
-## 🤝 贡献指南
 
-欢迎提交 Issue 和 Pull Request！
-
-### 开发流程
-1. Fork 本仓库
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
-
-### 代码规范
-- 使用 TypeScript 进行类型检查
-- 遵循 ESLint 代码规范
-- 添加适当的注释和文档
-
-## 📄 许可证
-
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
-
----
-
-## 🎯 项目亮点
-
-- ✅ **实时性与持久化并存**：创新的异步架构设计
-- ✅ **高性能优化**：支持高并发场景，性能表现优异
-- ✅ **易于部署**：一键启动脚本，零配置数据库
-- ✅ **可扩展性**：支持从SQLite升级到PostgreSQL
-- ✅ **完整的监控方案**：实时监控 + 历史分析 + 异常检测
-
-适合作为学习项目、毕业设计或实际生产环境的监控系统基础框架。

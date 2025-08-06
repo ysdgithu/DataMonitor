@@ -19,7 +19,7 @@
       <div class="query-controls">
         <el-row :gutter="16">
           <el-col :span="6">
-            <el-select v-model="queryParams.dataType" placeholder="选择数据类型" @change="onDataTypeChange">
+            <el-select v-model="queryParams.dataType" placeholder="选择数据类型" @change="queryData()">
               <el-option label="核心指标" value="coreMetrics" />
               <el-option label="环境数据" value="environment" />
               <el-option label="设备状态" value="deviceStatus" />
@@ -28,7 +28,7 @@
           </el-col>
           
           <el-col :span="6" v-if="queryParams.dataType">
-            <el-select v-model="queryParams.category" placeholder="选择具体类型">
+            <el-select v-model="queryParams.category" placeholder="选择具体类型" @change="queryData()">
               <el-option 
                 v-for="option in categoryOptions" 
                 :key="option.value"
@@ -59,8 +59,8 @@
 
       <!-- 连接状态 -->
       <div class="connection-status">
-        <el-tag :type="connectionStatus ? 'success' : 'danger'" size="small">
-          {{ connectionStatus ? 'API连接正常' : 'API连接失败' }}
+        <el-tag :type="initializing ? 'info' : (connectionStatus ? 'success' : 'danger')" size="small">
+          {{ initializing ? '正在连接...' : (connectionStatus ? 'API连接正常' : 'API连接失败') }}
         </el-tag>
         <span class="status-text">
           最后更新: {{ lastUpdateTime }}
@@ -68,21 +68,18 @@
       </div>
 
       <!-- 数据展示 -->
-      <div class="data-display" v-if="chartData.length > 0">
-        <div class="chart-container">
-          <div ref="chartRef" style="width: 100%; height: 400px;"></div>
-        </div>
-        
+      <div class="data-display" v-if="tableData.length > 0">
         <!-- 数据表格 -->
-        <el-table :data="tableData" style="width: 100%; margin-top: 20px;" max-height="300">
-          <el-table-column prop="time" label="时间" width="180" />
-          <el-table-column prop="value" label="数值" width="120">
+        <el-table :data="tableData" style="width: 100%; margin-top: 20px; padding: 5px 10px;" max-height="300">
+          <el-table-column prop="time" label="时间" />
+          <el-table-column prop="category" label="类型" />
+          <el-table-column prop="value" label="数值">
             <template #default="scope">
               {{ typeof scope.row.value === 'number' ? scope.row.value.toFixed(2) : scope.row.value }}
               {{ scope.row.unit || '' }}
             </template>
           </el-table-column>
-          <el-table-column prop="status" label="状态" width="100">
+          <el-table-column prop="status" label="状态" >
             <template #default="scope">
               <el-tag 
                 :type="getStatusType(scope.row.status)" 
@@ -92,14 +89,14 @@
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="deviceId" label="设备ID" />
+          <!-- <el-table-column prop="deviceId" label="设备ID" /> -->
         </el-table>
       </div>
 
       <!-- 无数据提示 -->
-      <div v-else-if="!loading" class="no-data">
+      <!-- <div v-else-if="!loading" class="no-data">
         <el-empty description="暂无历史数据" />
-      </div>
+      </div> -->
 
       <!-- 加载状态 -->
       <div v-if="loading" class="loading-container">
@@ -112,17 +109,15 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, nextTick } from 'vue';
 import { ElMessage } from 'element-plus';
-import * as echarts from 'echarts';
 import { historyApi, TIME_RANGE_OPTIONS, DATA_TYPE_OPTIONS, type QueryParams } from '@/utils/historyApi';
+// 后期考虑写个防抖处理
 
 // 响应式数据
 const loading = ref(false);
+const initializing = ref(true); // 添加初始化状态
 const connectionStatus = ref(false);
 const lastUpdateTime = ref('');
-const chartData = ref<any[]>([]);
 const tableData = ref<any[]>([]);
-const chartRef = ref<HTMLElement>();
-let chartInstance: echarts.ECharts | null = null;
 
 // 查询参数
 const queryParams = reactive({
@@ -141,64 +136,6 @@ const categoryOptions = computed(() => {
   return DATA_TYPE_OPTIONS[queryParams.dataType as keyof typeof DATA_TYPE_OPTIONS] || [];
 });
 
-// 初始化图表
-const initChart = () => {
-  if (chartRef.value) {
-    chartInstance = echarts.init(chartRef.value);
-  }
-};
-
-// 更新图表
-const updateChart = () => {
-  if (!chartInstance || chartData.value.length === 0) return;
-
-  const option = {
-    title: {
-      text: `${getCategoryLabel()} 历史趋势`,
-      left: 'center'
-    },
-    tooltip: {
-      trigger: 'axis',
-      formatter: (params: any) => {
-        const data = params[0];
-        return `
-          时间: ${data.name}<br/>
-          数值: ${data.value}${chartData.value[0]?.unit || ''}<br/>
-          状态: ${getStatusText(chartData.value[data.dataIndex]?.status)}
-        `;
-      }
-    },
-    xAxis: {
-      type: 'category',
-      data: chartData.value.map(item => item.time)
-    },
-    yAxis: {
-      type: 'value',
-      name: getCategoryLabel()
-    },
-    series: [{
-      data: chartData.value.map(item => item.value),
-      type: 'line',
-      smooth: true,
-      itemStyle: {
-        color: (params: any) => {
-          const status = chartData.value[params.dataIndex]?.status;
-          return status === 'error' ? '#F56C6C' : 
-                 status === 'warning' ? '#E6A23C' : '#67C23A';
-        }
-      }
-    }]
-  };
-
-  chartInstance.setOption(option);
-};
-
-// 获取类型标签
-const getCategoryLabel = () => {
-  const options = categoryOptions.value;
-  const option = options.find(opt => opt.value === queryParams.category);
-  return option?.label || '';
-};
 
 // 获取状态类型
 const getStatusType = (status: string) => {
@@ -220,26 +157,26 @@ const getStatusText = (status: string) => {
   }
 };
 
-// 数据类型变化
-const onDataTypeChange = () => {
-  const options = categoryOptions.value;
-  if (options.length > 0) {
-    queryParams.category = options[0].value;
-  }
-};
 
 // 时间范围变化
-const onTimeRangeChange = () => {
+const onTimeRangeChange = async () => {
   const now = Date.now();
   queryParams.endTime = now;
   queryParams.startTime = now - (queryParams.timeRange * 60 * 60 * 1000);
+  // 时间范围变化时自动查询
+  if (queryParams.dataType && queryParams.category) {
+    queryData();
+  }
 };
 
 // 查询数据
 const queryData = async () => {
   loading.value = true;
   try {
-    onTimeRangeChange();
+    // 更新时间范围，但不触发自动查询
+    const now = Date.now();
+    queryParams.endTime = now;
+    queryParams.startTime = now - (queryParams.timeRange * 60 * 60 * 1000);
     
     let data: any[] = [];
     
@@ -258,15 +195,37 @@ const queryData = async () => {
         return;
     }
 
-    chartData.value = data;
+    // 如果能获取到数据，说明API是正常的
+    connectionStatus.value = true;
+    
+    console.log(data[0])
+    // 获取当前类型的显示标签
+    const currentCategory = categoryOptions.value.find(
+      option => option.value === queryParams.category
+    );
+
+    // 根据数据类型设置默认单位
+    const getDefaultUnit = () => {
+      switch (queryParams.category) {
+        case 'cpu': return '%';
+        case 'online': return '%';
+        case 'memory': return 'MB';
+        case 'network': return 'ms';
+        case 'temperature': return '℃';
+        case 'upload_frequency': return 'Hz';
+        default: return '';
+      }
+    };
+
+    // 表格数据项设置
     tableData.value = data.map(item => ({
       ...item,
       time: new Date(item.timestamp).toLocaleString(),
-      deviceId: getDeviceId()
+      category: currentCategory?.label || queryParams.category,
+      unit: item.unit || getDefaultUnit() // 如果后端没有提供单位，使用默认单位
     }));
 
     await nextTick();
-    updateChart();
     
     lastUpdateTime.value = new Date().toLocaleTimeString();
     ElMessage.success(`查询到 ${data.length} 条历史数据`);
@@ -279,15 +238,6 @@ const queryData = async () => {
   }
 };
 
-// 获取设备ID
-const getDeviceId = () => {
-  switch (queryParams.dataType) {
-    case 'coreMetrics': return '000';
-    case 'environment': return '001';
-    case 'telemetry': return '002';
-    default: return 'unknown';
-  }
-};
 
 // 刷新数据
 const refreshData = () => {
@@ -298,19 +248,22 @@ const refreshData = () => {
 
 // 检查连接状态
 const checkConnection = async () => {
-  connectionStatus.value = await historyApi.checkConnection();
+  try {
+    connectionStatus.value = await historyApi.checkConnection();
+    // 如果连接正常，自动查询一次数据
+    if (connectionStatus.value) {
+      await queryData();
+    }
+  } finally {
+    // 无论成功失败，都标记初始化完成
+    initializing.value = false;
+  }
 };
 
 // 组件挂载
 onMounted(async () => {
-  await checkConnection();
-  initChart();
   onTimeRangeChange();
-  
-  // 如果连接正常，自动查询一次数据
-  if (connectionStatus.value) {
-    await queryData();
-  }
+  await checkConnection();
 });
 </script>
 

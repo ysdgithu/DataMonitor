@@ -132,25 +132,25 @@ export class DeviceSimulator {
         // 核心指标 - 3秒更新一次
         this.coreMetricsIntervalId = setInterval(() => {
             this.generateCoreMetrics();
-            console.log(`[DeviceSimulator] 核心指标数据已更新 - ${new Date().toLocaleString()}`);
+            //console.log(`[DeviceSimulator] 核心指标数据已更新 - ${new Date().toLocaleString()}`);
         }, 3000);
 
         // 环境数据（温度） - 1秒更新一次（高频）
         this.environmentIntervalId = setInterval(() => {
             this.generateEnvironmentData();
-            console.log(`[DeviceSimulator] 环境数据已更新 - ${new Date().toLocaleString()}`);
+            //console.log(`[DeviceSimulator] 环境数据已更新 - ${new Date().toLocaleString()}`);
         }, 1000);
 
         // 设备状态 - 6秒更新一次
         this.statusIntervalId = setInterval(() => {
             this.generateStatusData();
-            console.log(`[DeviceSimulator] 设备状态已更新 - ${new Date().toLocaleString()}`);
+            //console.log(`[DeviceSimulator] 设备状态已更新 - ${new Date().toLocaleString()}`);
         }, 6000);
 
         // 通信数据 - 4秒更新一次
         this.telemetryIntervalId = setInterval(() => {
             this.generateTelemetryData();
-            console.log(`[DeviceSimulator] 通信数据已更新 - ${new Date().toLocaleString()}`);
+            //console.log(`[DeviceSimulator] 通信数据已更新 - ${new Date().toLocaleString()}`);
         }, 4000);
     }
 
