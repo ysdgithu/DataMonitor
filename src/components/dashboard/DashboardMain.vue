@@ -78,7 +78,11 @@
       <el-col :span="6" >
         <el-card class="chart-card panel-header" style="margin-bottom: 10px;">
           <template #header>实时温度变化</template>
-          <RealTimeChart />
+           <BaseChart
+            :options="environmentDataChartOptions"
+            :loading="store.loading"
+            style="height: 220px;"
+          />
         </el-card>
         <el-card class="chart-card" @click="openHistory('request_count')">
           <template #header>
@@ -115,16 +119,17 @@
 import { ref, onMounted, computed } from 'vue'
 import { Loading } from '@element-plus/icons-vue'
 import BaseChart from '../charts/BaseChart.vue'
-import RealTimeChart from '../charts/RealTimeChart.vue'
 import HistoryDataDialog from '../dialog/HistoryDataDialog.vue'
 import HistoryDataPanel from './HistoryDataPanel.vue'
 import { createLineChart, createBarChart, createPieChart, createMapChart } from '../../utils/chartOptions'
 import { registerChinaMap } from '../../utils/chinaMap'
 import { useChartStore } from '../../stores/chart'
 import { useCoreMetricStore } from '../../stores/CoreMetricData'
+import { useEnvironmentDataStore } from '../../stores/EnvironmentData'
 import { useRealtimeStore } from '../../stores/realtime'
 const realtimeStore = useRealtimeStore()  // 实时监控
 const coreMetricStore = useCoreMetricStore()   // 核心指标
+const environmentDataStore = useEnvironmentDataStore();  //环境数据
 const timeRange = ref('1h')
 const fl = ref(false)
 const showHistoryPanel = ref(false)
@@ -149,6 +154,19 @@ const deviceTypeChartOptions = computed(() => createPieChart({
   series: store.deviceTypeChartData,
 }))
 
+//环境数据统计图表配置
+const environmentDataChartOptions = computed(() => {
+  const boardList = environmentDataStore.boardList;
+  // 确保数据按时间戳排序
+  const sortedData = [...boardList].sort((a, b) => a.timestamp - b.timestamp);
+  // 只取最新的10条数据
+  const recentData = sortedData.slice(-10);
+
+  return createLineChart({
+    series: recentData.map(item => item.value),
+    xAxis: recentData.map(item => new Date(item.timestamp).toLocaleTimeString())
+  });
+})
 // 请求量统计图表配置
 const requestCountChartOptions = computed(() => createBarChart({
   series: store.requestCountChartData.values,

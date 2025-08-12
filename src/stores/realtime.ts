@@ -4,6 +4,7 @@ import { ref, watch } from 'vue'
 import { useWebSocket } from '../utils/useWebSocket'
 import type { DeviceData, CoreMetricData } from '../utils/type'
 import { useCoreMetricStore } from './CoreMetricData'
+import { useEnvironmentDataStore } from './EnvironmentData'
 
 const MAX_POINTS = 20
 
@@ -34,6 +35,7 @@ export const useRealtimeStore = defineStore('realtime', () => {
     if (!isMonitoring.value) return
 
     const { type, data } = message;
+    console.log('收到WebSocket消息:', type, data);  // 添加调试日志
 
     // 根据消息类型处理数据
     switch (type) {
@@ -63,6 +65,9 @@ export const useRealtimeStore = defineStore('realtime', () => {
         if (dataGroupMap.value[envKey].length > MAX_POINTS) {
           dataGroupMap.value[envKey].shift();
         }
+        //推送store
+        const environmentDataStore = useEnvironmentDataStore();
+        environmentDataStore.pushEnvironmentData(data);
         break;
 
       case 'device_status':

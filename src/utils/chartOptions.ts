@@ -25,7 +25,7 @@ export const createLineChart = (data: LineChartData): EChartsOption => {
 
   return {
     xAxis: {
-      show: false,
+      show: true,
       type: 'category',
       boundaryGap: false,
       data: displayXAxis,
