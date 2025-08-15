@@ -9,22 +9,6 @@
         <el-option label="自定义" value="custom" />
       </el-select>
       <el-button-group>
-        <el-button
-          type="primary"
-          :icon="VideoPlay"
-          :class="{ 'is-active': store.isMonitoring }"
-          @click="startMonitoring"
-        >
-          开始
-        </el-button>
-        <el-button
-          type="primary"
-          :icon="VideoPause"
-          :class="{ 'is-active': !store.isMonitoring }"
-          @click="stopMonitoring"
-        >
-          暂停
-        </el-button>
       </el-button-group>
     </el-card>
 
@@ -52,17 +36,16 @@
           <template #header>
             <div class="panel-header">设备类型分布</div>
           </template>
-          <BaseChart
-            :options="deviceTypeChartOptions"
-            :loading="store.loading"
+          <!-- <BaseChart
+            :options=" "
             style="height: 220px;"
-          />
+          /> -->
         </el-card>
       </el-col>
 
       <!-- 中间地图区域 -->
       <el-col :span="12">
-        <el-card class="map-card panel-header"  @click="openHistory(metric.type)">
+        <el-card class="map-card panel-header">
           <template #header>设备地理分布</template>
           <div v-if="fl">
             <BaseChart :options="MapChartOptions" style="height: 500px;"/>
@@ -80,7 +63,6 @@
           <template #header>实时温度变化</template>
            <BaseChart
             :options="environmentDataChartOptions"
-            :loading="store.loading"
             style="height: 220px;"
           />
         </el-card>
@@ -90,7 +72,6 @@
           </template>
           <BaseChart
             :options="requestCountChartOptions"
-            :loading="store.loading"
             style="height: 220px;"
           />
         </el-card>
@@ -119,11 +100,9 @@
 import { ref, onMounted, computed } from 'vue'
 import { Loading } from '@element-plus/icons-vue'
 import BaseChart from '../charts/BaseChart.vue'
-import HistoryDataDialog from '../dialog/HistoryDataDialog.vue'
 import HistoryDataPanel from './HistoryDataPanel.vue'
 import { createLineChart, createBarChart, createPieChart, createMapChart } from '../../utils/chartOptions'
 import { registerChinaMap } from '../../utils/chinaMap'
-import { useChartStore } from '../../stores/chart'
 import { useCoreMetricStore } from '../../stores/CoreMetricData'
 import { useEnvironmentDataStore } from '../../stores/EnvironmentData'
 import { useDeviceTelemetryDataStore } from '../../stores/DeviceTelemetryData'
@@ -136,12 +115,6 @@ const timeRange = ref('1h')
 const fl = ref(false)
 const showHistoryPanel = ref(false)
 
-const store = useChartStore()
-
-// 设备类型分布图表配置
-const deviceTypeChartOptions = computed(() => createPieChart({
-  series: store.deviceTypeChartData,
-}))
 
 //环境数据统计图表配置
 const environmentDataChartOptions = computed(() => {
@@ -166,14 +139,6 @@ const requestCountChartOptions = computed(() => createBarChart({
   maxPoints: 10  // 限制显示最新的20条数据
 }))
 
-// 控制方法
-const startMonitoring = () => {
-  store.startMonitoring()
-}
-
-const stopMonitoring = () => {
-  store.stopMonitoring()
-}
 
 // 注册地图+读取数据
 onMounted(() => {
@@ -188,7 +153,6 @@ onMounted(() => {
   initMap()
   // 启动实时监控
   realtimeStore.setMonitoring(true)
-  startMonitoring()
 })
 
 // 模拟地理分布数据
