@@ -126,28 +126,17 @@ import { registerChinaMap } from '../../utils/chinaMap'
 import { useChartStore } from '../../stores/chart'
 import { useCoreMetricStore } from '../../stores/CoreMetricData'
 import { useEnvironmentDataStore } from '../../stores/EnvironmentData'
+import { useDeviceTelemetryDataStore } from '../../stores/DeviceTelemetryData'
 import { useRealtimeStore } from '../../stores/realtime'
 const realtimeStore = useRealtimeStore()  // 实时监控
 const coreMetricStore = useCoreMetricStore()   // 核心指标
-const environmentDataStore = useEnvironmentDataStore();  //环境数据
+const environmentDataStore = useEnvironmentDataStore()  //环境数据
+const telemetryData=useDeviceTelemetryDataStore()  //通信数据
 const timeRange = ref('1h')
 const fl = ref(false)
 const showHistoryPanel = ref(false)
 
 const store = useChartStore()
-const fetchData = async () => {
-  // 获取设备类型分布数据
-  await store.fetchMetricData({
-    type: 'device_type',
-    //timestamp_gte: Date.now() - 60 * 60 * 1000, // 1620000000
-    timestamp_gte: 1620000000,
-    timestamp_lte: Date.now()})
-  // 获取请求量统计数据
-  await store.fetchMetricData({
-    type: 'request_count',
-    timestamp_gte: 1620000000, // 1620000000
-    timestamp_lte: Date.now()})
-}
 
 // 设备类型分布图表配置
 const deviceTypeChartOptions = computed(() => createPieChart({
@@ -167,18 +156,13 @@ const environmentDataChartOptions = computed(() => {
     xAxis: recentData.map(item => new Date(item.timestamp).toLocaleTimeString())
   });
 })
+
 // 请求量统计图表配置
 const requestCountChartOptions = computed(() => createBarChart({
-  series: store.requestCountChartData.values,
+  series: telemetryData.boardData.map(item => item.value),
   xAxis: {
-    type: 'category',
-    data: store.requestCountChartData.xAxis,
-    axisLabel: {
-      interval: 0,
-      rotate: 45,
-      color: '#E5E7EB'
-    }
-  },
+    type:'category',
+    data: telemetryData.boardData.map(item => new Date(item.timestamp).toLocaleTimeString())},
   maxPoints: 10  // 限制显示最新的20条数据
 }))
 
@@ -205,7 +189,6 @@ onMounted(() => {
   // 启动实时监控
   realtimeStore.setMonitoring(true)
   startMonitoring()
-  fetchData()
 })
 
 // 模拟地理分布数据

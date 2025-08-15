@@ -5,6 +5,7 @@ import { useWebSocket } from '../utils/useWebSocket'
 import type { DeviceData, CoreMetricData } from '../utils/type'
 import { useCoreMetricStore } from './CoreMetricData'
 import { useEnvironmentDataStore } from './EnvironmentData'
+import { useDeviceTelemetryDataStore } from './DeviceTelemetryData'
 
 const MAX_POINTS = 20
 
@@ -92,6 +93,9 @@ export const useRealtimeStore = defineStore('realtime', () => {
         if (dataGroupMap.value[telemetryKey].length > MAX_POINTS) {
           dataGroupMap.value[telemetryKey].shift();
         }
+        const deviceStatusStore = useDeviceTelemetryDataStore();
+        deviceStatusStore.pushDeviceTelemetryData(data);
+        console.log('1111'+JSON.stringify(data));
         break;
     }
 
