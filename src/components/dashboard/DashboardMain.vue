@@ -46,21 +46,17 @@
       <!-- 中间地图区域 -->
       <el-col :span="12">
         <el-card class="map-card panel-header">
-          <template #header>设备地理分布</template>
-          <div v-if="fl">
-            <BaseChart :options="MapChartOptions" style="height: 500px;"/>
-          </div>
-          <div v-else class="loading-placeholder">
-            <el-icon class="is-loading"><Loading /></el-icon>
-            <span>地图数据加载中...</span>
-          </div>
+          <template #header>
+            <div class="panel-header">工厂车间地图</div>
+          </template>
+          <FactoryMap></FactoryMap>
         </el-card>
       </el-col>
 
       <!-- 右侧图表 -->
       <el-col :span="6" >
         <el-card class="chart-card panel-header" style="margin-bottom: 10px;">
-          <template #header>实时温度变化</template>
+          <template #header>实时环境温度</template>
            <BaseChart
             :options="environmentDataChartOptions"
             style="height: 220px;"
@@ -68,7 +64,7 @@
         </el-card>
         <el-card class="chart-card" @click="openHistory('request_count')">
           <template #header>
-            <div class="panel-header">请求量统计</div>
+            <div class="panel-header">实时通信数据</div>
           </template>
           <BaseChart
             :options="requestCountChartOptions"
@@ -98,15 +94,14 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { Loading } from '@element-plus/icons-vue'
 import BaseChart from '../charts/BaseChart.vue'
 import HistoryDataPanel from './HistoryDataPanel.vue'
 import { createLineChart, createBarChart, createPieChart, createMapChart } from '../../utils/chartOptions'
-import { registerChinaMap } from '../../utils/chinaMap'
 import { useCoreMetricStore } from '../../stores/CoreMetricData'
 import { useEnvironmentDataStore } from '../../stores/EnvironmentData'
 import { useDeviceTelemetryDataStore } from '../../stores/DeviceTelemetryData'
 import { useRealtimeStore } from '../../stores/realtime'
+import FactoryMap from '../FactoryMap.vue'
 const realtimeStore = useRealtimeStore()  // 实时监控
 const coreMetricStore = useCoreMetricStore()   // 核心指标
 const environmentDataStore = useEnvironmentDataStore()  //环境数据
@@ -142,55 +137,9 @@ const requestCountChartOptions = computed(() => createBarChart({
 
 // 注册地图+读取数据
 onMounted(() => {
-  const initMap = async () => {
-    try {
-      await registerChinaMap()
-      fl.value = true
-    } catch (error) {
-      console.error('地图数据加载失败:', error)
-    }
-  }
-  initMap()
   // 启动实时监控
   realtimeStore.setMonitoring(true)
 })
-
-// 模拟地理分布数据
-const MapChartOptions = ref(createMapChart({
-  series: [
-    { name: '北京市', value: 85 },
-    { name: '天津市', value: 76 },
-    { name: '河北省', value: 92 },
-    { name: '山西省', value: 68 },
-    { name: '内蒙古自治区', value: 45 },
-    { name: '辽宁省', value: 63 },
-    { name: '吉林省', value: 57 },
-    { name: '黑龙江省', value: 82 },
-    { name: '上海市', value: 93 },
-    { name: '江苏省', value: 88 },
-    { name: '浙江省', value: 91 },
-    { name: '安徽省', value: 72 },
-    { name: '福建省', value: 77 },
-    { name: '江西省', value: 65 },
-    { name: '山东省', value: 89 },
-    { name: '河南省', value: 78 },
-    { name: '湖北省', value: 75 },
-    { name: '湖南省', value: 70 },
-    { name: '广东省', value: 95 },
-    { name: '广西壮族自治区', value: 58 },
-    { name: '海南省', value: 43 },
-    { name: '重庆市', value: 69 },
-    { name: '四川省', value: 73 },
-    { name: '贵州省', value: 52 },
-    { name: '云南省', value: 48 },
-    { name: '西藏自治区', value: 35 },
-    { name: '陕西省', value: 66 },
-    { name: '甘肃省', value: 47 },
-    { name: '青海省', value: 38 },
-    { name: '宁夏回族自治区', value: 42 },
-    { name: '新疆维吾尔自治区', value: 55 }
-  ]
-}))
 
 const showHistory = ref(false)
 const currentType = ref('')

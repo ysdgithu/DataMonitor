@@ -4,7 +4,8 @@ import {
     EnvironmentData,
     DeviceTelemetryData,
     DeviceStatusData,
-    GeoPoint
+    GeoPoint,
+    FactoryDevice
 } from '../types/index';
 // 该文件为设备模拟器，用于模拟生成数据
 // 包含正常数据、异常数据，模拟设备连接和断开连接（可手动控制），模拟高并发情况（5万条以上数据量）
@@ -21,11 +22,13 @@ export class DeviceSimulator {
     private environmentIntervalId: NodeJS.Timeout | null = null; // 环境数据定时器
     private statusIntervalId: NodeJS.Timeout | null = null; // 设备状态定时器
     private telemetryIntervalId: NodeJS.Timeout | null = null; // 通信数据定时器
+    private factoryDevicesIntervalId: NodeJS.Timeout | null = null; // 工厂设备数据定时器
     private latestData: {
         coreMetrics?: CoreMetricData[];
         environment?: EnvironmentData;
         deviceStatus?: DeviceStatusData[];
         telemetry?: DeviceTelemetryData;
+        factoryDevices?: FactoryDevice[];
     } = {}; // 按类型存储最新数据
     private readonly defaultDeviceCount: number = 100; // 默认设备数量
 
@@ -105,21 +108,135 @@ export class DeviceSimulator {
     }
 
     // 生成设备状态数据（多设备）
-    private generateStatusData() {
-        const timestamp = Date.now();
-        this.latestData.deviceStatus = Array(this.deviceCount).fill(null).map((_, i) => ({
-            deviceId: `device_${i}`,
+    // private generateStatusData() {
+    //     const timestamp = Date.now();
+    //     this.latestData.deviceStatus = Array(this.deviceCount).fill(null).map((_, i) => ({
+    //         deviceId: `device_${i}`,
+    //         timestamp,
+    //         status: ['online', 'offline', 'warning', 'error'][Math.floor(Math.random() * 4)] as DeviceStatusData['status'],
+    //         lastUpdate: timestamp,
+    //         batteryLevel: Math.floor(Math.random() * 100),
+    //         location: {
+    //             lat: 39 + Math.random(),
+    //             lng: 116 + Math.random(),
+    //             accuracy: Math.floor(Math.random() * 10) + 1
+    //         }
+    //     }));
+    // }
+
+    // 生成工厂地图中的设备信息
+private generateFactoryDevices() {
+    const timestamp = Date.now();
+    const getRandomStatus = (): 'online' | 'offline' | 'warning' | 'error' => {
+        const rand = Math.random();
+        if (rand > 0.9) return 'error';
+        if (rand > 0.8) return 'warning';
+        if (rand > 0.95) return 'offline';
+        return 'online';
+    };
+
+    const devices: FactoryDevice[] = [
+        // 生产区设备
+        {
+            deviceId: 'prod-001',
+            name: '数控机床A1',
+            type: '数控机床',
             timestamp,
-            status: ['online', 'offline', 'warning', 'error'][Math.floor(Math.random() * 4)] as DeviceStatusData['status'],
-            lastUpdate: timestamp,
-            batteryLevel: Math.floor(Math.random() * 100),
-            location: {
-                lat: 39 + Math.random(),
-                lng: 116 + Math.random(),
-                accuracy: Math.floor(Math.random() * 10) + 1
+            x: 100,
+            y: 100,
+            status: getRandomStatus(),
+            zone: 'production',
+            position: '1区1排',
+            parameters: {
+                temperature: 35 + Math.random() * 20, // 35-55°C
+                power: 70 + Math.random() * 30 // 70-100%
             }
-        }));
-    }
+        },
+        {
+            deviceId: 'prod-002',
+            name: '数控机床A2',
+            type: '数控机床',
+            timestamp,
+            x: 200,
+            y: 100,
+            status: getRandomStatus(),
+            zone: 'production',
+            position: '1区2排',
+            parameters: {
+                temperature: 35 + Math.random() * 20,
+                power: 70 + Math.random() * 30
+            }
+        },
+        // 仓储区设备
+        {
+            deviceId: 'stor-001',
+            name: '自动货架A',
+            type: '自动货架',
+            timestamp,
+            x: 450,
+            y: 80,
+            status: getRandomStatus(),
+            zone: 'storage',
+            position: '2区1排',
+            parameters: {
+                power: 60 + Math.random() * 40
+            }
+        },
+        // 办公区设备
+        {
+            deviceId: 'off-001',
+            name: '服务器机柜',
+            type: '服务器',
+            timestamp,
+            x: 450,
+            y: 300,
+            status: getRandomStatus(),
+            zone: 'office',
+            position: '3区1排',
+            parameters: {
+                temperature: 38 + Math.random() * 12, // 38-50°C
+                power: 80 + Math.random() * 20 // 80-100%
+            }
+        },
+        // 检测区设备
+        {
+            deviceId: 'test-001',
+            name: 'X射线检测仪',
+            type: '检测设备',
+            timestamp,
+            x: 680,
+            y: 280,
+            status: getRandomStatus(),
+            zone: 'testing',
+            position: '4区1排',
+            parameters: {
+                temperature: 30 + Math.random() * 15,
+                power: 75 + Math.random() * 25
+            }
+        },
+        // 维护区设备
+        {
+            deviceId: 'main-001',
+            name: '空压机A',
+            type: '空压机',
+            timestamp,
+            x: 100,
+            y: 350,
+            status: getRandomStatus(),
+            zone: 'maintenance',
+            position: '5区1排',
+            parameters: {
+                temperature: 50 + Math.random() * 25, // 50-75°C
+                pressure: 7 + Math.random() * 3, // 7-10 bar
+                vibration: 1 + Math.random(), // 1-2 m/s²
+                power: 85 + Math.random() * 15 // 85-100%
+            }
+        }
+    ] as const;
+
+    this.latestData.factoryDevices = devices;
+}
+
 
     // 手动控制开关，启动数据生成
     public start(deviceCount?: number, highConcurrency?: boolean) {
@@ -141,17 +258,20 @@ export class DeviceSimulator {
             //console.log(`[DeviceSimulator] 环境数据已更新 - ${new Date().toLocaleString()}`);
         }, 1000);
 
-        // 设备状态 - 6秒更新一次
-        this.statusIntervalId = setInterval(() => {
-            this.generateStatusData();
-            //console.log(`[DeviceSimulator] 设备状态已更新 - ${new Date().toLocaleString()}`);
-        }, 6000);
+        // 初始生成工厂设备数据
+        this.generateFactoryDevices();
 
         // 通信数据 - 4秒更新一次
         this.telemetryIntervalId = setInterval(() => {
             this.generateTelemetryData();
             //console.log(`[DeviceSimulator] 通信数据已更新 - ${new Date().toLocaleString()}`);
         }, 4000);
+
+        // 工厂设备数据 - 5秒更新一次
+        this.factoryDevicesIntervalId = setInterval(() => {
+            this.generateFactoryDevices();
+            //console.log(`[DeviceSimulator] 工厂设备数据已更新 - ${new Date().toLocaleString()}`);
+        }, 5000);
     }
 
     // 手动关闭数据生成
@@ -172,6 +292,10 @@ export class DeviceSimulator {
             clearInterval(this.telemetryIntervalId);
             this.telemetryIntervalId = null;
         }
+        if (this.factoryDevicesIntervalId) {
+            clearInterval(this.factoryDevicesIntervalId);
+            this.factoryDevicesIntervalId = null;
+        }
         this.running = false;
     }
 
@@ -190,6 +314,9 @@ export class DeviceSimulator {
         }
         if (this.latestData.telemetry) {
             result.push({ type: 'telemetry', data: this.latestData.telemetry });
+        }
+        if (this.latestData.factoryDevices) {
+            result.push({ type: 'factory_devices', data: this.latestData.factoryDevices });
         }
 
         return result;
