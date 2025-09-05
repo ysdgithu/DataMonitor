@@ -51,14 +51,14 @@ export type DeviceTypeData = {
 };
 
 // 工厂地图中的设备信息
-export type FactoryDevice = BaseDataPoint &{
+export type FactoryDevice = BaseDataPoint & {
   name: string             // 设备名称，如"数控机床A1"
   type: string             // 设备类型，如"数控机床"、"机器人"等
   x: number                // 设备在SVG坐标系中的横向位置
   y: number                // 设备在SVG坐标系中的纵向位置
   status: 'online' | 'offline' | 'warning' | 'error'  // 设备运行状态：在线、离线、警告、错误
   zone: string             // 设备所属区域的标识符，对应FactoryZone的id
-  position: string         // 设备在工厂中的位置编码，如 "1区3排"  'production','storage','office','testing','maintenance'
+  position: string         // 设备在工厂中的位置编码，如 "1区3排"
   parameters?: {
     temperature?: number   // 设备温度，单位：摄氏度（°C）
     pressure?: number      // 压力值，单位：bar

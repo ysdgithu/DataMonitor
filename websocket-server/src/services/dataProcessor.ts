@@ -7,11 +7,12 @@ import {
     EnvironmentData,
     DeviceTelemetryData,
     DeviceStatusData,
+    FactoryDevice,
 } from '../types/index';
-import { DataModel, CoreMetricRecord, EnvironmentRecord, TelemetryRecord, DeviceStatusRecord } from '../database/models';
+import { DataModel, CoreMetricRecord, EnvironmentRecord, TelemetryRecord, DeviceStatusRecord, FactoryDeviceRecord } from '../database/models';
 
 // 添加类型定义
-type DeviceDataType = CoreMetricData | EnvironmentData | DeviceTelemetryData | DeviceStatusData;
+type DeviceDataType = CoreMetricData | EnvironmentData | DeviceTelemetryData | DeviceStatusData | FactoryDevice;
 
 // 分级异常判定阈值
 const THRESHOLDS = {
@@ -47,7 +48,7 @@ function getDataStatus(data: DeviceDataType): 'normal' | 'warning' | 'error' {
             return 'normal';
         }
     }
-    if ('type' in data && data.type === 'temperature') {
+    if ('type' in data && data.type === 'temperature' && 'value' in data) {
         if (data.value >= THRESHOLDS.temperature.error) return 'error';
         if (data.value >= THRESHOLDS.temperature.warning) return 'warning';
         return 'normal';
@@ -55,6 +56,12 @@ function getDataStatus(data: DeviceDataType): 'normal' | 'warning' | 'error' {
     if ('dataType' in data && data.dataType === 'upload_frequency') {
         if (data.value >= THRESHOLDS.upload_frequency.error) return 'error';
         if (data.value >= THRESHOLDS.upload_frequency.warning) return 'warning';
+        return 'normal';
+    }
+    // 工厂设备数据根据设备状态直接映射
+    if ('status' in data && 'zone' in data) {
+        if (data.status === 'error') return 'error';
+        if (data.status === 'warning') return 'warning';
         return 'normal';
     }
     return 'normal';
@@ -138,6 +145,12 @@ export class DataProcessor {
                 case 'telemetry':
                     if (!Array.isArray(data)) {
                         await this.dataModel.insertTelemetryData(data as TelemetryRecord);
+                    }
+                    break;
+
+                case 'factory_devices':
+                    if (Array.isArray(data)) {
+                        await this.dataModel.insertFactoryDevices(data as FactoryDeviceRecord[]);
                     }
                     break;
 

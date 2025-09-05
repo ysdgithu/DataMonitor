@@ -29,6 +29,9 @@ const wss = new WebSocket.Server({ port: 8080 });
 const deviceSimulator = new DeviceSimulator();
 const dataProcessor = new DataProcessor();
 
+// 设置设备模拟器的数据处理器
+deviceSimulator.setDataProcessor(dataProcessor);
+
 wss.on('connection', (ws: WebSocket) => {
     console.log('New client connected');
     dataProcessor.addClient(ws);

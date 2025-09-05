@@ -7,6 +7,7 @@ import {
     GeoPoint,
     FactoryDevice
 } from '../types/index';
+import { DataProcessor } from './dataProcessor';
 // 该文件为设备模拟器，用于模拟生成数据
 // 包含正常数据、异常数据，模拟设备连接和断开连接（可手动控制），模拟高并发情况（5万条以上数据量）
 // 设备连接断开接口：start，stop
@@ -18,6 +19,7 @@ export class DeviceSimulator {
     private running: boolean = false; // 是否正在生成数据
     private highConcurrency: boolean = false; // 是否处于高并发模式
     private deviceCount: number = 100; // 当前模拟设备数量
+    private dataProcessor?: DataProcessor; // 数据处理器
     private coreMetricsIntervalId: NodeJS.Timeout | null = null; // 核心指标定时器
     private environmentIntervalId: NodeJS.Timeout | null = null; // 环境数据定时器
     private statusIntervalId: NodeJS.Timeout | null = null; // 设备状态定时器
@@ -32,7 +34,10 @@ export class DeviceSimulator {
     } = {}; // 按类型存储最新数据
     private readonly defaultDeviceCount: number = 100; // 默认设备数量
 
-
+    // 设置数据处理器
+    public setDataProcessor(dataProcessor: DataProcessor) {
+        this.dataProcessor = dataProcessor;
+    }
 
     // 生成核心指标数据
     private generateCoreMetrics() {
@@ -107,135 +112,101 @@ export class DeviceSimulator {
         };
     }
 
-    // 生成设备状态数据（多设备）
-    // private generateStatusData() {
-    //     const timestamp = Date.now();
-    //     this.latestData.deviceStatus = Array(this.deviceCount).fill(null).map((_, i) => ({
-    //         deviceId: `device_${i}`,
-    //         timestamp,
-    //         status: ['online', 'offline', 'warning', 'error'][Math.floor(Math.random() * 4)] as DeviceStatusData['status'],
-    //         lastUpdate: timestamp,
-    //         batteryLevel: Math.floor(Math.random() * 100),
-    //         location: {
-    //             lat: 39 + Math.random(),
-    //             lng: 116 + Math.random(),
-    //             accuracy: Math.floor(Math.random() * 10) + 1
-    //         }
-    //     }));
-    // }
+
 
     // 生成工厂地图中的设备信息
-private generateFactoryDevices() {
-    const timestamp = Date.now();
-    const getRandomStatus = (): 'online' | 'offline' | 'warning' | 'error' => {
-        const rand = Math.random();
-        if (rand > 0.9) return 'error';
-        if (rand > 0.8) return 'warning';
-        if (rand > 0.95) return 'offline';
-        return 'online';
-    };
-
-    const devices: FactoryDevice[] = [
-        // 生产区设备
-        {
-            deviceId: 'prod-001',
-            name: '数控机床A1',
-            type: '数控机床',
-            timestamp,
-            x: 100,
-            y: 100,
-            status: getRandomStatus(),
-            zone: 'production',
-            position: '1区1排',
-            parameters: {
-                temperature: 35 + Math.random() * 20, // 35-55°C
-                power: 70 + Math.random() * 30 // 70-100%
-            }
-        },
-        {
-            deviceId: 'prod-002',
-            name: '数控机床A2',
-            type: '数控机床',
-            timestamp,
-            x: 200,
-            y: 100,
-            status: getRandomStatus(),
-            zone: 'production',
-            position: '1区2排',
-            parameters: {
-                temperature: 35 + Math.random() * 20,
-                power: 70 + Math.random() * 30
-            }
-        },
-        // 仓储区设备
-        {
-            deviceId: 'stor-001',
-            name: '自动货架A',
-            type: '自动货架',
-            timestamp,
-            x: 450,
-            y: 80,
-            status: getRandomStatus(),
-            zone: 'storage',
-            position: '2区1排',
-            parameters: {
-                power: 60 + Math.random() * 40
-            }
-        },
-        // 办公区设备
-        {
-            deviceId: 'off-001',
-            name: '服务器机柜',
-            type: '服务器',
-            timestamp,
-            x: 450,
-            y: 300,
-            status: getRandomStatus(),
-            zone: 'office',
-            position: '3区1排',
-            parameters: {
-                temperature: 38 + Math.random() * 12, // 38-50°C
-                power: 80 + Math.random() * 20 // 80-100%
-            }
-        },
-        // 检测区设备
-        {
-            deviceId: 'test-001',
-            name: 'X射线检测仪',
-            type: '检测设备',
-            timestamp,
-            x: 680,
-            y: 280,
-            status: getRandomStatus(),
-            zone: 'testing',
-            position: '4区1排',
-            parameters: {
-                temperature: 30 + Math.random() * 15,
-                power: 75 + Math.random() * 25
-            }
-        },
-        // 维护区设备
-        {
-            deviceId: 'main-001',
-            name: '空压机A',
-            type: '空压机',
-            timestamp,
-            x: 100,
-            y: 350,
-            status: getRandomStatus(),
-            zone: 'maintenance',
-            position: '5区1排',
-            parameters: {
-                temperature: 50 + Math.random() * 25, // 50-75°C
-                pressure: 7 + Math.random() * 3, // 7-10 bar
-                vibration: 1 + Math.random(), // 1-2 m/s²
-                power: 85 + Math.random() * 15 // 85-100%
+    private async generateFactoryDevices() {
+        // 定义设备类型数组
+        const deviceTypes = ['数控机床', '装配线', '焊接机器人', '质检设备', '自动货架', '输送带', '充电桩', '环境监控', 
+            '服务器', '网络设备', 'UPS', '检测设备', '分析设备', '空压机', '冷却设备', '电力设备', '处理设备'];
+        // 定义区域数组
+        const zones = ['production', 'storage', 'office', 'testing', 'maintenance'];
+        // 定义位置编码数组
+        const positions = [
+            '1区1排', '1区2排', '1区3排', '1区4排', '1区5排',
+            '2区1排', '2区2排', '2区3排', '2区4排', '2区5排',
+            '3区1排', '3区2排', '3区3排',
+            '4区1排', '4区2排', '4区3排',
+            '5区1排', '5区2排', '5区3排', '5区4排', '5区5排'
+        ];
+        // 各区范围
+        const zoneRanges = {
+            production: {
+              x: { min: 70, max: 330 },
+              y: { min: 70, max: 230 }
+            },
+            storage: {
+              x: { min: 420, max: 730 },
+              y: { min: 70, max: 180 }
+            },
+            office: {
+              x: { min: 420, max: 580 },
+              y: { min: 270, max: 380 }
+            },
+            testing: {
+              x: { min: 670, max: 730 },
+              y: { min: 270, max: 380 }
+            },
+            maintenance: {
+              x: { min: 70, max: 330 },
+              y: { min: 320, max: 530 }
             }
         }
-    ] as const;
 
-    this.latestData.factoryDevices = devices;
-}
+        const getRandomStatus = (): 'online' | 'offline' | 'warning' | 'error' => {
+            const rand = Math.random();
+            if (rand > 0.9) return 'error';
+            if (rand > 0.8) return 'warning';
+            if (rand > 0.95) return 'offline';
+            return 'online';
+        };
+
+        // 生成10个设备的数据
+        const timestamp = Date.now();
+        const devices: FactoryDevice[] = Array.from({ length: 10 }, (_, index) => {
+            const deviceNumber = (1001 + index).toString().padStart(4, '0');
+            // 先确定区域
+            const zone = zones[Math.floor(Math.random() * zones.length)];
+            // 根据区域生成对应范围内的x,y坐标
+            const range = zoneRanges[zone as keyof typeof zoneRanges];
+            const x = Math.floor(Math.random() * (range.x.max - range.x.min)) + range.x.min;
+            const y = Math.floor(Math.random() * (range.y.max - range.y.min)) + range.y.min;
+            
+            return {
+                deviceId: deviceNumber,
+                name: `设备${deviceNumber}`,
+                timestamp: timestamp,
+                type: deviceTypes[Math.floor(Math.random() * deviceTypes.length)],
+                x,
+                y,
+                status: getRandomStatus(),
+                zone,
+                position: positions[Math.floor(Math.random() * positions.length)],
+                location: {
+                    lat: 39.5 + (Math.random() - 0.5) * 0.1, // 添加一些随机性
+                    lng: 116.5 + (Math.random() - 0.5) * 0.1,
+                    accuracy: 1
+                },
+                parameters: {
+                    temperature: Math.round((20 + Math.random() * 40) * 10) / 10, // 20-60°C
+                    pressure: Math.round((1 + Math.random() * 9) * 10) / 10, // 1-10 bar
+                    vibration: Math.round(Math.random() * 3 * 10) / 10, // 0-3 m/s²
+                    power: Math.round((50 + Math.random() * 50)) // 50-100%
+                }
+            };
+        });
+        
+        // 更新最新数据
+        this.latestData.factoryDevices = devices;
+
+        // 推送工厂设备数据
+        if (this.dataProcessor) {
+            await this.dataProcessor.processAndPush([{
+                type: 'factory_devices',
+                data: devices
+            }]);
+        }
+    }
 
 
     // 手动控制开关，启动数据生成
@@ -259,7 +230,7 @@ private generateFactoryDevices() {
         }, 1000);
 
         // 初始生成工厂设备数据
-        this.generateFactoryDevices();
+        this.generateFactoryDevices().catch(console.error);
 
         // 通信数据 - 4秒更新一次
         this.telemetryIntervalId = setInterval(() => {
@@ -269,7 +240,7 @@ private generateFactoryDevices() {
 
         // 工厂设备数据 - 5秒更新一次
         this.factoryDevicesIntervalId = setInterval(() => {
-            this.generateFactoryDevices();
+            this.generateFactoryDevices().catch(console.error);
             //console.log(`[DeviceSimulator] 工厂设备数据已更新 - ${new Date().toLocaleString()}`);
         }, 5000);
     }

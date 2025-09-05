@@ -173,6 +173,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { Plus, Minus, Refresh } from '@element-plus/icons-vue'
 import type { FactoryDevice, FactoryZone } from '@/utils/type'
+import { useFactoryDeviceDataStore } from '@/stores/FactoryDeviceData'
 
 // 响应式数据
 const mapContainer = ref<HTMLElement>()
@@ -228,39 +229,43 @@ const zones = ref<FactoryZone[]>([
   }
 ])
 
+const factoryDeviceDataStore = useFactoryDeviceDataStore()
+// 使用计算属性来保持数据响应性
+const devices = computed(() => factoryDeviceDataStore.allDevices)
+
 // 示例设备数据
-const devices = ref<FactoryDevice[]>([
-  // 生产区设备
-  { id: 'prod-001', name: '数控机床A1', type: '数控机床', lastUpdate: Date.now(), x: 100, y: 100, status: 'online', zone: 'production', position: '1区1排', parameters: { temperature: 45, power: 85 } },
-  { id: 'prod-002', name: '数控机床A2', type: '数控机床',lastUpdate: Date.now(),x: 200, y: 100, status: 'online', zone: 'production', position: '1区2排', parameters: { temperature: 42, power: 78 } },
-  { id: 'prod-003', name: '装配线B1', type: '装配线',lastUpdate: Date.now(), x: 150, y: 150, status: 'warning', zone: 'production', position: '1区3排', parameters: { temperature: 38, vibration: 2.1 } },
-  { id: 'prod-004', name: '焊接机器人C1', type: '焊接机器人',lastUpdate: Date.now(), x: 250, y: 150, status: 'online', zone: 'production', position: '1区4排', parameters: { temperature: 55, power: 92 } },
-  { id: 'prod-005', name: '质检设备D1', type: '质检设备',lastUpdate: Date.now(), x: 300, y: 200, status: 'offline', zone: 'production', position: '1区5排', parameters: { temperature: 25 } },
+// const devices = ref<FactoryDevice[]>([
+//   // 生产区设备
+//   { id: 'prod-001', name: '数控机床A1', type: '数控机床', lastUpdate: Date.now(), x: 100, y: 100, status: 'online', zone: 'production', position: '1区1排', parameters: { temperature: 45, power: 85 } },
+//   { id: 'prod-002', name: '数控机床A2', type: '数控机床',lastUpdate: Date.now(),x: 200, y: 100, status: 'online', zone: 'production', position: '1区2排', parameters: { temperature: 42, power: 78 } },
+//   { id: 'prod-003', name: '装配线B1', type: '装配线',lastUpdate: Date.now(), x: 150, y: 150, status: 'warning', zone: 'production', position: '1区3排', parameters: { temperature: 38, vibration: 2.1 } },
+//   { id: 'prod-004', name: '焊接机器人C1', type: '焊接机器人',lastUpdate: Date.now(), x: 250, y: 150, status: 'online', zone: 'production', position: '1区4排', parameters: { temperature: 55, power: 92 } },
+//   { id: 'prod-005', name: '质检设备D1', type: '质检设备',lastUpdate: Date.now(), x: 300, y: 200, status: 'offline', zone: 'production', position: '1区5排', parameters: { temperature: 25 } },
 
-  // 仓储区设备
-  { id: 'stor-001', name: '自动货架A', type: '自动货架',lastUpdate: Date.now(), x: 450, y: 80, status: 'online', zone: 'storage', position: '2区1排', parameters: { temperature: 28, power: 45 } },
-  { id: 'stor-002', name: '自动货架B', type: '自动货架',lastUpdate: Date.now(), x: 550, y: 80, status: 'online', zone: 'storage', position: '2区2排', parameters: { temperature: 26, power: 42 } },
-  { id: 'stor-003', name: '输送带系统', type: '输送带', lastUpdate: Date.now(),x: 650, y: 120, status: 'online', zone: 'storage', position: '2区3排', parameters: { temperature: 32, power: 38 } },
-  { id: 'stor-004', name: '叉车充电桩', type: '充电桩', lastUpdate: Date.now(),x: 500, y: 150, status: 'warning', zone: 'storage', position: '2区4排', parameters: { power: 95 } },
-  { id: 'stor-005', name: '温湿度监控', type: '环境监控',lastUpdate: Date.now(), x: 600, y: 170, status: 'online', zone: 'storage', position: '2区5排', parameters: { temperature: 24, pressure: 1013 } },
+//   // 仓储区设备
+//   { id: 'stor-001', name: '自动货架A', type: '自动货架',lastUpdate: Date.now(), x: 450, y: 80, status: 'online', zone: 'storage', position: '2区1排', parameters: { temperature: 28, power: 45 } },
+//   { id: 'stor-002', name: '自动货架B', type: '自动货架',lastUpdate: Date.now(), x: 550, y: 80, status: 'online', zone: 'storage', position: '2区2排', parameters: { temperature: 26, power: 42 } },
+//   { id: 'stor-003', name: '输送带系统', type: '输送带', lastUpdate: Date.now(),x: 650, y: 120, status: 'online', zone: 'storage', position: '2区3排', parameters: { temperature: 32, power: 38 } },
+//   { id: 'stor-004', name: '叉车充电桩', type: '充电桩', lastUpdate: Date.now(),x: 500, y: 150, status: 'warning', zone: 'storage', position: '2区4排', parameters: { power: 95 } },
+//   { id: 'stor-005', name: '温湿度监控', type: '环境监控',lastUpdate: Date.now(), x: 600, y: 170, status: 'online', zone: 'storage', position: '2区5排', parameters: { temperature: 24, pressure: 1013 } },
 
-  // 办公区设备
-  { id: 'off-001', name: '服务器机柜', type: '服务器', lastUpdate: Date.now(),x: 450, y: 300, status: 'online', zone: 'office', position: '3区1排', parameters: { temperature: 35, power: 78 } },
-  { id: 'off-002', name: '网络交换机', type: '网络设备', lastUpdate: Date.now(),x: 500, y: 320, status: 'online', zone: 'office', position: '3区2排', parameters: { temperature: 28, power: 25 } },
-  { id: 'off-003', name: 'UPS电源', type: 'UPS', lastUpdate: Date.now(),x: 550, y: 350, status: 'online', zone: 'office', position: '3区3排', parameters: { power: 65 } },
+//   // 办公区设备
+//   { id: 'off-001', name: '服务器机柜', type: '服务器', lastUpdate: Date.now(),x: 450, y: 300, status: 'online', zone: 'office', position: '3区1排', parameters: { temperature: 35, power: 78 } },
+//   { id: 'off-002', name: '网络交换机', type: '网络设备', lastUpdate: Date.now(),x: 500, y: 320, status: 'online', zone: 'office', position: '3区2排', parameters: { temperature: 28, power: 25 } },
+//   { id: 'off-003', name: 'UPS电源', type: 'UPS', lastUpdate: Date.now(),x: 550, y: 350, status: 'online', zone: 'office', position: '3区3排', parameters: { power: 65 } },
 
-  // 检测区设备
-  { id: 'test-001', name: 'X射线检测仪', type: '检测设备', lastUpdate: Date.now(),x: 680, y: 280, status: 'online', zone: 'testing', position: '4区1排', parameters: { temperature: 40, power: 120 } },
-  { id: 'test-002', name: '超声波检测仪', type: '检测设备',lastUpdate: Date.now(), x: 720, y: 320, status: 'error', zone: 'testing', position: '4区2排', parameters: { temperature: 22 } },
-  { id: 'test-003', name: '光谱分析仪', type: '分析设备', lastUpdate: Date.now(),x: 700, y: 360, status: 'online', zone: 'testing', position: '4区3排', parameters: { temperature: 45, power: 85 } },
+//   // 检测区设备
+//   { id: 'test-001', name: 'X射线检测仪', type: '检测设备', lastUpdate: Date.now(),x: 680, y: 280, status: 'online', zone: 'testing', position: '4区1排', parameters: { temperature: 40, power: 120 } },
+//   { id: 'test-002', name: '超声波检测仪', type: '检测设备',lastUpdate: Date.now(), x: 720, y: 320, status: 'error', zone: 'testing', position: '4区2排', parameters: { temperature: 22 } },
+//   { id: 'test-003', name: '光谱分析仪', type: '分析设备', lastUpdate: Date.now(),x: 700, y: 360, status: 'online', zone: 'testing', position: '4区3排', parameters: { temperature: 45, power: 85 } },
 
-  // 维护区设备
-  { id: 'main-001', name: '空压机A', type: '空压机', lastUpdate: Date.now(),x: 100, y: 350, status: 'online', zone: 'maintenance', position: '5区1排', parameters: { temperature: 65, pressure: 8.5, power: 110 } },
-  { id: 'main-002', name: '空压机B', type: '空压机', lastUpdate: Date.now(),x: 150, y: 380, status: 'warning', zone: 'maintenance', position: '5区2排', parameters: { temperature: 72, pressure: 8.2, power: 105 } },
-  { id: 'main-003', name: '冷却塔', type: '冷却设备',lastUpdate: Date.now(), x: 200, y: 420, status: 'online', zone: 'maintenance', position: '5区3排', parameters: { temperature: 18, power: 75 } },
-  { id: 'main-004', name: '变压器', type: '电力设备',lastUpdate: Date.now(), x: 280, y: 450, status: 'online', zone: 'maintenance', position: '5区4排', parameters: { temperature: 55, power: 200 } },
-  { id: 'main-005', name: '废料处理器', type: '处理设备',lastUpdate: Date.now(), x: 120, y: 500, status: 'offline', zone: 'maintenance', position: '5区5排', parameters: { temperature: 30 } }
-])
+//   // 维护区设备
+//   { id: 'main-001', name: '空压机A', type: '空压机', lastUpdate: Date.now(),x: 100, y: 350, status: 'online', zone: 'maintenance', position: '5区1排', parameters: { temperature: 65, pressure: 8.5, power: 110 } },
+//   { id: 'main-002', name: '空压机B', type: '空压机', lastUpdate: Date.now(),x: 150, y: 380, status: 'warning', zone: 'maintenance', position: '5区2排', parameters: { temperature: 72, pressure: 8.2, power: 105 } },
+//   { id: 'main-003', name: '冷却塔', type: '冷却设备',lastUpdate: Date.now(), x: 200, y: 420, status: 'online', zone: 'maintenance', position: '5区3排', parameters: { temperature: 18, power: 75 } },
+//   { id: 'main-004', name: '变压器', type: '电力设备',lastUpdate: Date.now(), x: 280, y: 450, status: 'online', zone: 'maintenance', position: '5区4排', parameters: { temperature: 55, power: 200 } },
+//   { id: 'main-005', name: '废料处理器', type: '处理设备',lastUpdate: Date.now(), x: 120, y: 500, status: 'offline', zone: 'maintenance', position: '5区5排', parameters: { temperature: 30 } }
+// ])
 
 // ===== 工具方法 =====
 /**

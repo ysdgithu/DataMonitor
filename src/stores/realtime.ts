@@ -2,21 +2,34 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import { useWebSocket } from '../utils/useWebSocket'
-import type { DeviceData, CoreMetricData } from '../utils/type'
+import type { 
+  CoreMetricData,
+  EnvironmentData,
+  DeviceTelemetryData,
+  DeviceStatusData,
+  FactoryDevice
+} from '../utils/type'
 import { useCoreMetricStore } from './CoreMetricData'
 import { useEnvironmentDataStore } from './EnvironmentData'
 import { useDeviceTelemetryDataStore } from './DeviceTelemetryData'
+import { useFactoryDeviceDataStore } from './FactoryDeviceData'
 
 const MAX_POINTS = 20
 
+// 所有可能的设备数据类型
+type AllDeviceData = CoreMetricData | EnvironmentData | DeviceTelemetryData | DeviceStatusData | FactoryDevice
+
 // 按类型分组的数据结构
-type DataGroupMap = Record<string, DeviceData[]>
+type DataGroupMap = Record<string, AllDeviceData[]>
 
 export const useRealtimeStore = defineStore('realtime', () => {
   // 监控开关
   const isMonitoring = ref(false)
   // 按类型分组的数据
   const dataGroupMap = ref<DataGroupMap>({})
+  // dataGroupMap={
+  //  factory_devices:FactoryDevice[]}
+  
 
   // WebSocket 相关状态
   const {
@@ -71,16 +84,19 @@ export const useRealtimeStore = defineStore('realtime', () => {
         environmentDataStore.pushEnvironmentData(data);
         break;
 
-      case 'device_status':
+      case 'factory_devices':
         // 设备状态数据是数组
         if (Array.isArray(data)) {
-          data.forEach(status => {
-            const key = 'device_status';
+          data.forEach(device => {
+            const key = 'factory_devices';
             if (!dataGroupMap.value[key]) dataGroupMap.value[key] = [];
-            dataGroupMap.value[key].push(status);
+            dataGroupMap.value[key].push(device);
             if (dataGroupMap.value[key].length > MAX_POINTS) {
               dataGroupMap.value[key].shift();
             }
+            const factoryDeviceDataStore=useFactoryDeviceDataStore()
+            factoryDeviceDataStore.pushFactoryDeviceData(device);
+            //console.log('factory_devices'+JSON.stringify(dataGroupMap.value[key]));
           });
         }
         break;

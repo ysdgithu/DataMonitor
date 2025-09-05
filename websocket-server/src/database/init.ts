@@ -91,7 +91,29 @@ async function initDatabase() {
             )
         `);
 
-        // 5. 数据统计表
+        // 5. 工厂设备数据表
+        await dbRun(`
+            CREATE TABLE IF NOT EXISTS factory_devices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                device_id VARCHAR(50) NOT NULL,
+                timestamp BIGINT NOT NULL,
+                name VARCHAR(100) NOT NULL,
+                type VARCHAR(50) NOT NULL,
+                x INTEGER NOT NULL,
+                y INTEGER NOT NULL,
+                status VARCHAR(20) NOT NULL,
+                zone VARCHAR(50) NOT NULL,
+                position VARCHAR(50) NOT NULL,
+                parameters TEXT,
+                data_status VARCHAR(10) DEFAULT 'normal',
+                latitude REAL,
+                longitude REAL,
+                accuracy INTEGER,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // 6. 数据统计表
         await dbRun(`
             CREATE TABLE IF NOT EXISTS data_statistics (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -122,6 +144,9 @@ async function initDatabase() {
             'CREATE INDEX IF NOT EXISTS idx_device_status_status ON device_status(status)',
             'CREATE INDEX IF NOT EXISTS idx_telemetry_device_time ON telemetry_data(device_id, timestamp)',
             'CREATE INDEX IF NOT EXISTS idx_telemetry_type_time ON telemetry_data(data_type, timestamp)',
+            'CREATE INDEX IF NOT EXISTS idx_factory_device_time ON factory_devices(device_id, timestamp)',
+            'CREATE INDEX IF NOT EXISTS idx_factory_zone_time ON factory_devices(zone, timestamp)',
+            'CREATE INDEX IF NOT EXISTS idx_factory_status_time ON factory_devices(status, timestamp)',
             'CREATE INDEX IF NOT EXISTS idx_statistics_date_type ON data_statistics(date, data_type)'
         ];
 

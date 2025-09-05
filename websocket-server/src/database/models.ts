@@ -4,7 +4,8 @@ import {
     CoreMetricData,
     EnvironmentData,
     DeviceTelemetryData,
-    DeviceStatusData
+    DeviceStatusData,
+    FactoryDevice
 } from '../types/index';
 
 // 扩展数据类型，添加数据库字段
@@ -21,6 +22,10 @@ interface TelemetryRecord extends DeviceTelemetryData {
 }
 
 interface DeviceStatusRecord extends DeviceStatusData {
+    dataStatus: 'normal' | 'warning' | 'error';
+}
+
+interface FactoryDeviceRecord extends FactoryDevice {
     dataStatus: 'normal' | 'warning' | 'error';
 }
 
@@ -125,6 +130,33 @@ class DataModel {
             data.location?.lng || null,
             data.location?.accuracy || null
         ]);
+    }
+
+    // 插入工厂设备数据
+    async insertFactoryDevices(data: FactoryDeviceRecord[]): Promise<void> {
+        const columns = [
+            'device_id', 'timestamp', 'name', 'type', 'x', 'y', 'status', 'zone', 'position',
+            'parameters', 'data_status', 'latitude', 'longitude', 'accuracy'
+        ];
+
+        const rows = data.map(item => [
+            item.deviceId,
+            item.timestamp,
+            item.name,
+            item.type,
+            item.x,
+            item.y,
+            item.status,
+            item.zone,
+            item.position,
+            JSON.stringify(item.parameters || {}),
+            item.dataStatus,
+            item.location?.lat || null,
+            item.location?.lng || null,
+            item.location?.accuracy || null
+        ]);
+
+        await this.db.batchInsert('factory_devices', columns, rows);
     }
 
     // 查询核心指标数据
@@ -318,6 +350,46 @@ class DataModel {
         const hoursAgo = Date.now() - (hours * 60 * 60 * 1000);
         return await this.db.all(sql, [hoursAgo, hoursAgo, hoursAgo, dataType]);
     }
+
+    // 查询工厂设备数据
+    async queryFactoryDevices(params: QueryParams): Promise<any[]> {
+        let sql = 'SELECT * FROM factory_devices WHERE 1=1';
+        const sqlParams: any[] = [];
+
+        if (params.deviceId) {
+            sql += ' AND device_id = ?';
+            sqlParams.push(params.deviceId);
+        }
+
+        if (params.status) {
+            sql += ' AND status = ?';
+            sqlParams.push(params.status);
+        }
+
+        if (params.startTime) {
+            sql += ' AND timestamp >= ?';
+            sqlParams.push(params.startTime);
+        }
+
+        if (params.endTime) {
+            sql += ' AND timestamp <= ?';
+            sqlParams.push(params.endTime);
+        }
+
+        sql += ' ORDER BY timestamp DESC';
+
+        if (params.limit) {
+            sql += ' LIMIT ?';
+            sqlParams.push(params.limit);
+
+            if (params.offset) {
+                sql += ' OFFSET ?';
+                sqlParams.push(params.offset);
+            }
+        }
+
+        return await this.db.all(sql, sqlParams);
+    }
 }
 
-export { DataModel, QueryParams, CoreMetricRecord, EnvironmentRecord, TelemetryRecord, DeviceStatusRecord };
+export { DataModel, QueryParams, CoreMetricRecord, EnvironmentRecord, TelemetryRecord, DeviceStatusRecord, FactoryDeviceRecord };

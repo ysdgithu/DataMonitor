@@ -48,12 +48,10 @@ export type DeviceTypeData = {
   deviceList: string[]; // 该类型设备ID列表
 };
 
-// 工厂地图中的设备信息接口定义
-export interface FactoryDevice {
-  id: string                // 设备唯一标识符
+// 工厂地图中的设备信息
+export type FactoryDevice = BaseDataPoint & {
   name: string             // 设备名称，如"数控机床A1"
   type: string             // 设备类型，如"数控机床"、"机器人"等
-  lastUpdate: number;       // 最后一次数据更新时间戳（Unix时间戳，毫秒）
   x: number                // 设备在SVG坐标系中的横向位置
   y: number                // 设备在SVG坐标系中的纵向位置
   status: 'online' | 'offline' | 'warning' | 'error'  // 设备运行状态：在线、离线、警告、错误
