@@ -30,8 +30,23 @@ export const useRealtimeStore = defineStore('realtime', () => {
   const dataGroupMap = ref<DataGroupMap>({})
 
   // 获取WebSocket URL并添加调试信息
-  const wsUrl = import.meta.env.VITE_WS_URL || 'ws://8.134.137.185:8080'
+  const getWebSocketUrl = () => {
+    const envUrl = import.meta.env.VITE_WS_URL
+    if (envUrl) {
+      return envUrl
+    }
+
+    // 根据当前协议自动选择WebSocket协议
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const defaultUrl = `${protocol}//8.134.137.185:8080`
+
+    console.log('[Realtime Store] 自动选择协议:', protocol)
+    return defaultUrl
+  }
+
+  const wsUrl = getWebSocketUrl()
   console.log('[Realtime Store] WebSocket URL:', wsUrl)
+  console.log('[Realtime Store] 当前页面协议:', window.location.protocol)
   console.log('[Realtime Store] 环境变量:', import.meta.env)
 
   // WebSocket 相关状态

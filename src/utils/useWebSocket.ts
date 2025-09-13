@@ -62,6 +62,13 @@ export function useWebSocket(options: WebSocketOptions) {
       console.error('[WebSocket] 连接错误:', error)
       console.error('[WebSocket] 连接URL:', url)
       console.error('[WebSocket] 当前状态:', ws.value?.readyState)
+
+      // 检查是否是协议问题
+      if (url.startsWith('ws://') && window.location.protocol === 'https:') {
+        console.error('[WebSocket] 协议不匹配: HTTPS页面无法连接到WS服务器')
+        console.error('[WebSocket] 建议: 使用WSS协议或在HTTP环境下测试')
+      }
+
       isConnected.value = false
     }
 
