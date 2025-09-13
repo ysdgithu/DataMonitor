@@ -1,4 +1,4 @@
-import type { MetricData } from './metrics'
+import type { MetricData } from './type'
 
 // 数据聚合函数
 function heavyCalculation(rawData: MetricData[]) {
@@ -53,6 +53,11 @@ function aggregateMetricData(data: MetricData[]) {
     max: Math.max(...data.map(d => d.value || 0)),
     min: Math.min(...data.map(d => d.value || 0))
   }
+}
+
+function processMetrics(data: MetricData[]) {
+  // 确保所有用到 deviceType 和 count 的地方都有正确的类型
+  return data.filter(item => item.deviceType && item.count)
 }
 
 // 监听主线程消息

@@ -7,7 +7,8 @@ import type {
   EnvironmentData,
   DeviceTelemetryData,
   DeviceStatusData,
-  FactoryDevice
+  FactoryDevice,
+  WebSocketMessage
 } from '../utils/type'
 import { useCoreMetricStore } from './CoreMetricData'
 import { useEnvironmentDataStore } from './EnvironmentData'
@@ -45,12 +46,6 @@ export const useRealtimeStore = defineStore('realtime', () => {
     maxRetries: 5,
     retryDelay: 2000
   })
-
-  interface WebSocketMessage {
-    type: string;
-    data: any;
-    timestamp: number;
-  }
 
   // 处理并分组数据
   function handleRealtimeMessage(message: WebSocketMessage) {

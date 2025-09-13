@@ -73,3 +73,19 @@ export interface FactoryZone {
   path: string            // SVG路径数据，定义区域的形状和位置
   description?: string    // 区域的详细描述信息（可选）
 }
+
+export interface WebSocketMessage {
+  type: string;
+  data: any;
+  timestamp: number;
+}
+
+export interface MetricData {
+  deviceId: string;
+  deviceType: string;
+  type: string; // 添加缺失的 type 属性
+  timestamp: number;
+  value: number;
+  count?: number;
+  // ...其他必要的字段
+}

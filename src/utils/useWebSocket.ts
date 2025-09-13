@@ -3,7 +3,8 @@ import type {
   CoreMetricData,
   EnvironmentData,
   DeviceTelemetryData,
-  DeviceStatusData
+  DeviceStatusData,
+  WebSocketMessage
 } from './type' // 路径根据实际情况调整
 
 // WebSocket 连接参数配置
@@ -22,9 +23,10 @@ export function useWebSocket(options: WebSocketOptions) {
   const ws = ref<WebSocket | null>(null)
   const isConnected = ref(false)
   const retryCount = ref(0)
-  const lastMessage = ref<DeviceData | null>(null)
+  const lastMessage = ref<WebSocketMessage | null>(null)
 
-  let retryTimeout: NodeJS.Timeout | null = null
+  // 将 NodeJS.Timeout 改为 number
+  let retryTimeout: number | null = null
 
   const connect = () => {
     console.log(`[WebSocket] 尝试连接到: ${url}`)
@@ -49,7 +51,7 @@ export function useWebSocket(options: WebSocketOptions) {
 
     ws.value.onmessage = (event: MessageEvent) => {
       try {
-        const data: DeviceData = JSON.parse(event.data)
+        const data: WebSocketMessage = JSON.parse(event.data)
         lastMessage.value = data
       } catch (error) {
         console.error('[WebSocket] 消息解析失败:', error, '原始数据:', event.data)
