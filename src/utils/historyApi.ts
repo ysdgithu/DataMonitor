@@ -1,7 +1,7 @@
 // 历史数据API接口
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:3002/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002/api';
 
 // 查询参数接口
 export interface QueryParams {
@@ -104,7 +104,7 @@ export class HistoryApi {
     async getCoreMetricsTrend(category: string, hours: number = 24): Promise<any[]> {
         const endTime = Date.now();
         const startTime = endTime - (hours * 60 * 60 * 1000);
-        
+
         const response = await this.getCoreMetrics({
             category,
             startTime,
@@ -127,7 +127,7 @@ export class HistoryApi {
     async getEnvironmentTrend(type: string = 'temperature', hours: number = 24): Promise<any[]> {
         const endTime = Date.now();
         const startTime = endTime - (hours * 60 * 60 * 1000);
-        
+
         const response = await this.getEnvironmentData({
             dataType: type,
             startTime,
@@ -151,7 +151,7 @@ export class HistoryApi {
     async getDeviceStatusStats(hours: number = 24): Promise<any> {
         const endTime = Date.now();
         const startTime = endTime - (hours * 60 * 60 * 1000);
-        
+
         const response = await this.getDeviceStatus({
             startTime,
             endTime,
@@ -177,7 +177,7 @@ export class HistoryApi {
     async getTelemetryTrend(dataType: string = 'upload_frequency', hours: number = 24): Promise<any[]> {
         const endTime = Date.now();
         const startTime = endTime - (hours * 60 * 60 * 1000);
-        
+
         const response = await this.getTelemetryData({
             dataType,
             startTime,
@@ -213,7 +213,7 @@ export const historyApi = HistoryApi.getInstance();
 
 // 时间范围选项
 export const TIME_RANGE_OPTIONS = [
-    
+
     { label: '最近1小时', value: 1 },
     { label: '最近6小时', value: 6 },
     { label: '最近12小时', value: 12 },
@@ -243,3 +243,4 @@ export const DATA_TYPE_OPTIONS = {
         { label: '错误', value: 'error' }
     ]
 };
+

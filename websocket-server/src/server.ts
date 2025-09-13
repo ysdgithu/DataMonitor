@@ -97,8 +97,8 @@ async function main() {
         console.log('WebSocket server running in NORMAL mode');
     }
 
-    console.log('WebSocket server is running on ws://localhost:8080');
-    console.log('API server is running on http://localhost:3002');
+    console.log('WebSocket server is running');
+    console.log('API server is running');
     console.log('=== 系统启动完成 ===');
 }
 

@@ -27,11 +27,13 @@ export function useWebSocket(options: WebSocketOptions) {
   let retryTimeout: NodeJS.Timeout | null = null
 
   const connect = () => {
+    console.log(`[WebSocket] 尝试连接到: ${url}`)
+
     try {
       ws.value = new WebSocket(url)
       setupWebSocketListeners()
     } catch (error) {
-      console.error('WebSocket connection error:', error)
+      console.error('[WebSocket] 连接创建失败:', error)
       handleReconnect()
     }
   }
@@ -40,7 +42,7 @@ export function useWebSocket(options: WebSocketOptions) {
     if (!ws.value) return
 
     ws.value.onopen = () => {
-      console.log('WebSocket connected')
+      console.log('[WebSocket] 连接成功')
       isConnected.value = true
       retryCount.value = 0
     }
@@ -50,17 +52,23 @@ export function useWebSocket(options: WebSocketOptions) {
         const data: DeviceData = JSON.parse(event.data)
         lastMessage.value = data
       } catch (error) {
-        console.error('Error parsing WebSocket message:', error)
+        console.error('[WebSocket] 消息解析失败:', error, '原始数据:', event.data)
       }
     }
 
     ws.value.onerror = (error) => {
-      console.error('WebSocket error:', error)
+      console.error('[WebSocket] 连接错误:', error)
+      console.error('[WebSocket] 连接URL:', url)
+      console.error('[WebSocket] 当前状态:', ws.value?.readyState)
       isConnected.value = false
     }
 
-    ws.value.onclose = () => {
-      console.log('WebSocket closed')
+    ws.value.onclose = (event) => {
+      console.log('[WebSocket] 连接关闭:', {
+        code: event.code,
+        reason: event.reason,
+        wasClean: event.wasClean
+      })
       isConnected.value = false
       handleReconnect()
     }
@@ -68,14 +76,14 @@ export function useWebSocket(options: WebSocketOptions) {
     // 处理重连逻辑
   const handleReconnect = () => {
     if (retryCount.value >= maxRetries) {
-      console.log('Max retry attempts reached')
+      console.log('[WebSocket] 达到最大重连次数，停止重连')
       return
     }
 
     retryCount.value++
-    const delay = retryDelay * Math.pow(2, retryCount.value - 1) // 指数退避策略
+    const delay = retryDelay * Math.pow(2, retryCount.value - 1)
 
-    console.log(`Attempting to reconnect in ${delay}ms... (Attempt ${retryCount.value})`)
+    console.log(`[WebSocket] ${delay}ms后进行第${retryCount.value}次重连...`)
 
     if (retryTimeout) {
       clearTimeout(retryTimeout)
@@ -124,3 +132,4 @@ export function useWebSocket(options: WebSocketOptions) {
     sendMessage
   }
 }
+

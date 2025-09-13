@@ -2,7 +2,7 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import { useWebSocket } from '../utils/useWebSocket'
-import type { 
+import type {
   CoreMetricData,
   EnvironmentData,
   DeviceTelemetryData,
@@ -27,9 +27,11 @@ export const useRealtimeStore = defineStore('realtime', () => {
   const isMonitoring = ref(false)
   // 按类型分组的数据
   const dataGroupMap = ref<DataGroupMap>({})
-  // dataGroupMap={
-  //  factory_devices:FactoryDevice[]}
-  
+
+  // 获取WebSocket URL并添加调试信息
+  const wsUrl = import.meta.env.VITE_WS_URL || 'ws://8.134.137.185:8080'
+  console.log('[Realtime Store] WebSocket URL:', wsUrl)
+  console.log('[Realtime Store] 环境变量:', import.meta.env)
 
   // WebSocket 相关状态
   const {
@@ -39,9 +41,9 @@ export const useRealtimeStore = defineStore('realtime', () => {
     connect,
     disconnect
   } = useWebSocket({
-    url: 'ws://localhost:8080',
-    maxRetries: 3,
-    retryDelay: 1000
+    url: wsUrl,
+    maxRetries: 5,
+    retryDelay: 2000
   })
 
   // 处理并分组数据
@@ -159,4 +161,8 @@ export const useRealtimeStore = defineStore('realtime', () => {
     getGroupData
   }
 })
+
+
+
+
 
