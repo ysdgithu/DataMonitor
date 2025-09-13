@@ -46,8 +46,14 @@ export const useRealtimeStore = defineStore('realtime', () => {
     retryDelay: 2000
   })
 
+  interface WebSocketMessage {
+    type: string;
+    data: any;
+    timestamp: number;
+  }
+
   // 处理并分组数据
-  function handleRealtimeMessage(message: { type: string; data: any; timestamp: number }) {
+  function handleRealtimeMessage(message: WebSocketMessage) {
     if (!isMonitoring.value) return
 
     const { type, data } = message;
