@@ -57,8 +57,8 @@ sudo ufw allow 80/tcp
 ## 💻 前端配置
 
 ### 已完成的配置更新
-- ✅ 生产环境: `wss://8.134.137.185` + `https://8.134.137.185/api`
-- ✅ 开发环境: `ws://8.134.137.185:8080` + `http://8.134.137.185:3002/api`
+- ✅ 生产环境: `wss://cloudgu.xyz` + `https://cloudgu.xyz/api`
+- ✅ 开发环境: `ws://cloudgu.xyz:8080` + `http://cloudgu.xyz:3002/api`
 - ✅ 自适应协议选择逻辑
 
 ### 重新构建和部署
@@ -80,25 +80,25 @@ git push origin main
 # 启动开发服务器
 yarn dev
 
-# 应该连接到: ws://8.134.137.185:8080
+# 应该连接到: ws://cloudgu.xyz:8080
 ```
 
 ### 2. 生产环境测试
 访问: https://data-monitor-t4je.vercel.app/
 
 检查浏览器控制台:
-- WebSocket连接应该显示: `wss://8.134.137.185`
+- WebSocket连接应该显示: `wss://cloudgu.xyz`
 - 没有协议错误
 - 连接状态为已连接
 
 ### 3. 连接验证命令
 ```bash
 # 测试HTTPS连接
-curl -I https://8.134.137.185/api
+curl -I https://cloudgu.xyz/api
 
 # 测试WSS连接 (使用wscat工具)
 npm install -g wscat
-wscat -c wss://8.134.137.185
+wscat -c wss://cloudgu.xyz
 ```
 
 ## 🐛 故障排除
@@ -117,7 +117,7 @@ sudo tail -f /var/log/nginx/error.log
 sudo tail -f /var/log/nginx/access.log
 
 # 检查SSL证书
-openssl s_client -connect 8.134.137.185:443 -servername 8.134.137.185
+openssl s_client -connect cloudgu.xyz:443 -servername cloudgu.xyz
 ```
 
 ## ✅ 成功标志

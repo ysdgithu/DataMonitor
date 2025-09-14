@@ -38,7 +38,7 @@ const serverOptions = {
 const server = https.createServer(serverOptions);
 
 // 创建WebSocket服务器，绑定到HTTPS服务器
-const wss = new WebSocket.Server({ 
+const wss = new WebSocket.Server({
     server,
     // 或者直接指定端口用于WSS
     // port: 8443
@@ -89,7 +89,7 @@ async function startServer() {
     const port = process.env.WSS_PORT || 8443;
     server.listen(port, () => {
         console.log(`WSS服务器运行在端口 ${port}`);
-        console.log(`WebSocket Secure URL: wss://8.134.137.185:${port}`);
+        console.log(`WebSocket Secure URL: wss://cloudgu.xyz:${port}`);
     });
 
     // 根据模式启动数据推送

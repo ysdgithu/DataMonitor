@@ -3,8 +3,8 @@
 ## 🎯 已完成的配置
 
 ### ✅ 前端配置
-- **开发环境**: `ws://8.134.137.185:8080` (HTTP/WS)
-- **生产环境**: `wss://8.134.137.185` (HTTPS/WSS)
+- **开发环境**: `ws://cloudgu.xyz:8080` (HTTP/WS)
+- **生产环境**: `wss://cloudgu.xyz` (HTTPS/WSS)
 - **自适应协议**: 根据页面协议自动选择WS/WSS
 - **构建成功**: 无TypeScript错误
 
@@ -68,9 +68,9 @@ git push origin main
 1. **访问** https://data-monitor-t4je.vercel.app/
 2. **浏览器控制台显示**:
    ```
-   [Realtime Store] WebSocket URL: wss://8.134.137.185
+   [Realtime Store] WebSocket URL: wss://cloudgu.xyz
    [Realtime Store] 当前页面协议: https:
-   [WebSocket] 尝试连接到: wss://8.134.137.185
+   [WebSocket] 尝试连接到: wss://cloudgu.xyz
    [WebSocket] 连接成功
    ```
 3. **实时数据正常显示**

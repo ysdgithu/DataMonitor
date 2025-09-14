@@ -18,7 +18,7 @@
   - HTTP → WS
 
 ### 2. 环境配置优化
-- **开发环境**: `ws://8.134.137.185:8080`
+- **开发环境**: `ws://cloudgu.xyz:8080`
 - **生产环境**: `wss://echo.websocket.org` (临时测试)
 
 ### 3. 增强错误处理
@@ -31,7 +31,7 @@
 ```nginx
 server {
     listen 443 ssl;
-    server_name 8.134.137.185;
+    server_name cloudgu.xyz;
     
     ssl_certificate /path/to/certificate.crt;
     ssl_certificate_key /path/to/private.key;
@@ -68,7 +68,7 @@ yarn build
 # 或使用Node.js HTTPS服务器
 
 # 更新生产环境配置
-VITE_WS_URL=wss://8.134.137.185:8443
+VITE_WS_URL=wss://cloudgu.xyz:8443
 ```
 
 ### 3. 验证连接

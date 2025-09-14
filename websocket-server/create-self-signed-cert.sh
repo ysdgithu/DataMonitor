@@ -11,7 +11,7 @@ sudo mkdir -p /etc/ssl/private
 sudo openssl genrsa -out /etc/ssl/private/nginx-selfsigned.key 2048
 
 # 生成证书
-sudo openssl req -new -x509 -key /etc/ssl/private/nginx-selfsigned.key -out /etc/ssl/certs/nginx-selfsigned.crt -days 365 -subj "/C=CN/ST=State/L=City/O=Organization/CN=8.134.137.185"
+sudo openssl req -new -x509 -key /etc/ssl/private/nginx-selfsigned.key -out /etc/ssl/certs/nginx-selfsigned.crt -days 365 -subj "/C=CN/ST=State/L=City/O=Organization/CN=cloudgu.xyz"
 
 # 设置权限
 sudo chmod 600 /etc/ssl/private/nginx-selfsigned.key
