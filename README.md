@@ -1,109 +1,102 @@
-# DataMonitor
+# DataMonitor - 实时数据监控平台
 
-DataMonitor 是一个基于 Vue 3 + Node.js 的实时数据监控平台，集成了 WebSocket 实时推送和数据库持久化存储功能。系统支持实时监控、历史数据分析、异常检测等功能，适合 IoT 场景下的数据监控和分析需求。
+<div align="center">
 
-## 快速开始
+**基于 Vue 3 + Node.js 的企业级实时数据监控解决方案**
 
-### 方式一：一键启动（推荐）
+[![Vue 3](https://img.shields.io/badge/Vue-3.5.13-4FC08D?style=flat-square&logo=vue.js)](https://vuejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-16+-339933?style=flat-square&logo=node.js)](https://nodejs.org/)
+[![WebSocket](https://img.shields.io/badge/WebSocket-Real--time-FF6B6B?style=flat-square)](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API)
 
-```bash
-# 克隆项目
-git clone <repository-url>
-cd DataMonitor
+**🌐 在线预览**: [https://data-monitor-psi.vercel.app/](https://data-monitor-psi.vercel.app/) *(需科学上网)*
 
-# 一键启动（自动安装依赖、初始化数据库、启动服务）
-./start.sh
+**☁️ 服务器**: 阿里云
 
-# 或者指定模式启动
-./start.sh normal    # 正常模式（100台设备）
-./start.sh high      # 高并发模式（50000台设备）
-./start.sh dev       # 仅启动前端开发服务器
-```
+## 目录
 
-### 方式二：手动启动
+- [项目概述](#项目概述)
+- [核心功能](#核心功能)
+- [技术栈](#技术栈)
+- [快速开始](#快速开始)
+- [项目结构](#项目结构)
+- [API接口](#api接口)
+- [部署说明](#部署说明)
 
-#### 1. 安装依赖
-```bash
-# 安装前端依赖
-npm install
+## 项目概述
 
-# 安装后端依赖
-cd websocket-server
-npm install
-cd ..
-```
+DataMonitor 是一个专为 IoT 和工业监控场景设计的实时数据监控平台。系统采用前后端分离架构，通过 WebSocket 实现毫秒级数据推送，结合 SQLite 数据库提供可靠的数据持久化存储。
 
-#### 2. 初始化数据库
-```bash
-cd websocket-server
-npm run init-db
-cd ..
-```
-
-#### 3. 启动后端服务
-```bash
-cd websocket-server
-npm start          # 正常模式
-# 或
-npm start high     # 高并发测试模式
-```
-
-#### 4. 启动前端服务
-```bash
-# 新开终端窗口
-npm run dev
-```
-## 项目结构
-
-```bash
-DataMonitor/
-├── src/                     # 前端源码
-│   ├── components/
-│   │   ├── charts/         # 图表组件
-│   │   ├── dashboard/      # 仪表板组件
-│   │   │   ├── DashboardMain.vue
-│   │   │   └── HistoryDataPanel.vue  # 历史数据查询面板
-│   │   └── layout/         # 布局组件
-│   ├── utils/
-│   │   ├── historyApi.ts   # 历史数据API封装
-│   │   └── useWebSocket.ts # WebSocket工具
-│   └── views/              # 页面组件
-├── websocket-server/        # 后端服务
-│   ├── src/
-│   │   ├── api/            # API服务器
-│   │   │   └── server.ts   # Express API服务
-│   │   ├── database/       # 数据库模块
-│   │   │   ├── init.ts     # 数据库初始化
-│   │   │   ├── connection.ts # 连接管理
-│   │   │   └── models.ts   # 数据模型
-│   │   ├── services/       # 业务服务
-│   │   │   ├── deviceSimulator.ts  # 设备模拟器
-│   │   │   └── dataProcessor.ts    # 数据处理器
-│   │   └── server.ts       # 主服务器
-│   ├── data/               # 数据库文件
-│   │   └── monitor.db      # SQLite数据库
-│   └── config.json         # 配置文件
-├── db/                     # 原有数据模拟（兼容保留）
-├── start.sh                # 一键启动脚本
-├── README_DATABASE_INTEGRATION.md  # 数据库集成文档
-└── TECHNICAL_DOCUMENTATION.md      # 技术实现文档
-```
+### 应用场景
+- 工业 IoT 监控、数据中心监控、智能制造、环境监测
 
 ## 技术栈
 
-### 前端
-- **框架**：Vue 3 + TypeScript + Vite
-- **UI组件**：Element Plus
-- **图表库**：ECharts
-- **状态管理**：Pinia
-- **HTTP客户端**：Axios
+**前端**: Vue 3 + TypeScript + Vite + Element Plus + ECharts + Pinia
 
-### 后端
-- **运行时**：Node.js 16+
-- **语言**：TypeScript
-- **WebSocket**：ws 库
-- **API服务器**：Express.js
-- **数据库**：SQLite（支持升级到 PostgreSQL）
+**后端**: Node.js + TypeScript + WebSocket + Express.js + SQLite
+
+## 功能说明
+
+实时监控：可以实时监控模拟工厂指标，设备位置，环境温度，通信量等指标，并通过可视化图表呈现
+
+历史记录：可以按时间查询每项历史记录
+
+异常报警：对于异常数据，会在可视化图表上标注
+
+## 快速开始
+
+### 环境要求
+- Node.js >= 16.0.0
+- npm >= 8.0.0
+
+### 一键启动
+```bash
+git clone <repository-url>
+cd DataMonitor
+./start.sh                # 正常模式（100台设备）
+./start.sh high           # 高并发模式（50000台设备）
+```
+
+### 手动启动
+```bash
+# 1. 安装依赖
+npm install
+cd websocket-server && npm install && cd ..
+
+# 2. 初始化数据库
+cd websocket-server && npm run init-db && cd ..
+
+# 3. 启动服务
+cd websocket-server && npm start &    # 后端服务
+npm run dev                           # 前端服务
+```
+
+### 访问地址
+- 前端界面: http://localhost:5173
+- API接口: http://localhost:3002/health
+## 项目结构
+
+```
+DataMonitor/
+├── src/                    # 前端源码
+│   ├── components/         # Vue组件
+│   ├── stores/            # Pinia状态管理
+│   ├── utils/             # 工具函数
+│   └── views/             # 页面组件
+├── websocket-server/       # 后端服务
+│   ├── src/
+│   │   ├── api/           # REST API
+│   │   ├── database/      # 数据库模块
+│   │   ├── services/      # 业务服务
+│   │   └── types/         # 类型定义
+│   └── config.json        # 配置文件
+└── start.sh               # 一键启动脚本
+```
+
+## 详细文档
+- **[前端文档](./src/README.md)** - Vue 3 前端项目详细说明
+- **[后端文档](./websocket-server/README.md)** - Node.js 后端服务详细说明
 
 ### 系统架构
 ```bash
@@ -126,114 +119,48 @@ DataMonitor/
                                      └──────────────────┘
 ```
 
-### 架构特点
-- **前后端分离**：独立开发和部署
-- **实时通信**：WebSocket 双向通信
-- **异步处理**：非阻塞数据库写入
-- **RESTful API**：标准化接口设计
-- **数据分离**：实时推送与历史存储解耦
 
 
-## 💡 使用指南
+## API接口
 
-### 实时监控
-系统启动后，前端会自动连接WebSocket服务器，实时显示：
-- 核心指标仪表板（CPU、内存、网络、在线率）
-- 实时温度变化图表
-- 设备地理分布地图
-- 设备状态统计
-
-### 历史数据查询
-1. 点击主界面的"历史数据查询"按钮
-2. 选择数据类型（核心指标、环境数据、设备状态、通信数据）
-3. 选择具体指标类型（如CPU、内存等）
-4. 选择时间范围（1小时到7天）
-5. 点击"查询"按钮查看历史趋势
-
-### API接口使用
+### 主要接口
 ```bash
-# 健康检查
-curl http://localhost:3002/health
-
-# 查询核心指标
-curl "http://localhost:3002/api/core-metrics?category=cpu&limit=10"
-
-# 查询环境数据
-curl "http://localhost:3002/api/environment?type=temperature&limit=10"
-
-# 获取数据概览
-curl http://localhost:3002/api/overview
+GET /health                           # 健康检查
+GET /api/core-metrics                 # 核心指标查询
+GET /api/environment                  # 环境数据查询
+GET /api/device-status               # 设备状态查询
+GET /api/overview                    # 数据概览
 ```
 
-## 数据格式说明
+### 查询参数
+- `category`: cpu|memory|network|online
+- `limit`: 返回记录数量
+- `startTime/endTime`: 时间范围
 
-数据模型定义文件：`/websocket-server/src/types/index.ts`
-### WebSocket 实时数据格式
-```json
-{
-  "type": "core_metrics",
-  "data": [
-    {
-      "deviceId": "000",
-      "timestamp": 1754381472279,
-      "category": "cpu",
-      "value": 81.96,
-      "dataStatus": "normal",
-      "location": {
-        "lat": 39.5,
-        "lng": 116.5,
-        "accuracy": 1
-      }
-    }
-  ],
-  "timestamp": 1754381472279
-}
+##  部署说明
+
+### 开发环境
+```bash
+git clone <repository-url>
+cd DataMonitor
+./start.sh
 ```
 
-### API 响应格式
-```json
-{
-  "success": true,
-  "data": [...],
-  "total": 100,
-  "params": {
-    "category": "cpu",
-    "limit": 10
-  }
-}
+### 生产环境
+```bash
+npm run build                    # 构建前端
+cd websocket-server && npm start # 启动后端
 ```
 
-## 配置说明
+### 阿里云部署
+- 前端: Vercel部署 ([预览地址](https://data-monitor-psi.vercel.app/))
+- 后端: 阿里云ECS服务器
 
-### 异常检测阈值
-可在 `websocket-server/config.json` 中修改：
-```json
-{
-  "dataProcessor": {
-    "thresholds": {
-      "cpu": { "warning": 90, "error": 95 },
-      "memory": { "warning": 90, "error": 95 },
-      "temperature": { "warning": 35, "error": 40 }
-    }
-  }
-}
-```
+---
 
-### 服务器端口配置
-```json
-{
-  "server": {
-    "websocket": { "port": 8080 },
-    "api": { "port": 3002 }
-  }
-}
-```
+<div align="center">
 
-## 📚 相关文档
+**⭐ 如果这个项目对您有帮助，请给我们一个Star！**
 
-- [数据库集成详细说明](README_DATABASE_INTEGRATION.md)
-- [技术实现文档](TECHNICAL_DOCUMENTATION.md)
-- [WebSocket服务器说明](websocket-server/README.md)
-- [原有数据模拟说明](db/Readme.md)
-
+**📚 详细文档**: [前端文档](./src/README.md) | [后端文档](./websocket-server/README.md)
 
