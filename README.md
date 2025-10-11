@@ -1,13 +1,12 @@
 # DataMonitor - 实时数据监控平台
 
-<div align="center">
 
-**基于 Vue 3 + Node.js 的企业级实时数据监控解决方案**
+**基于Vue 3 + Node.js的实时数据监控演示系统**
 
-[![Vue 3](https://img.shields.io/badge/Vue-3.5.13-4FC08D?style=flat-square&logo=vue.js)](https://vuejs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-16+-339933?style=flat-square&logo=node.js)](https://nodejs.org/)
-[![WebSocket](https://img.shields.io/badge/WebSocket-Real--time-FF6B6B?style=flat-square)](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API)
+## 业务场景
+- **痛点**：传统工厂靠人工巡检，故障发现延迟高达2-3小时
+- **解决方案**：本系统实现30秒内异常检测，预计降低设备停机时间40% （待验证）
+- **验证指标**：模拟100台设备并发，CPU使用率>90%时自动告警 （待验证）
 
 **🌐 在线预览**: [https://data-monitor-psi.vercel.app/](https://data-monitor-psi.vercel.app/) *(需科学上网)*
 
@@ -25,7 +24,7 @@
 
 ## 项目概述
 
-DataMonitor 是一个专为 IoT 和工业监控场景设计的实时数据监控平台。系统采用前后端分离架构，通过 WebSocket 实现毫秒级数据推送，结合 SQLite 数据库提供可靠的数据持久化存储。
+DataMonitor 是一个实时数据监控演示系统（以监控工厂常见指标数据为例）。系统采用前后端分离架构，通过 WebSocket 实现毫秒级数据推送，结合 SQLite 数据库提供可靠的数据持久化存储。
 
 ### 应用场景
 - 工业 IoT 监控、数据中心监控、智能制造、环境监测
@@ -50,29 +49,16 @@ DataMonitor 是一个专为 IoT 和工业监控场景设计的实时数据监控
 - Node.js >= 16.0.0
 - npm >= 8.0.0
 
-### 一键启动
+### 一键启动（本地）
+
 ```bash
 git clone <repository-url>
 cd DataMonitor
 ./start.sh                # 正常模式（100台设备）
-./start.sh high           # 高并发模式（50000台设备）
 ```
 
-### 手动启动
-```bash
-# 1. 安装依赖
-npm install
-cd websocket-server && npm install && cd ..
+### 访问地址（本地）
 
-# 2. 初始化数据库
-cd websocket-server && npm run init-db && cd ..
-
-# 3. 启动服务
-cd websocket-server && npm start &    # 后端服务
-npm run dev                           # 前端服务
-```
-
-### 访问地址
 - 前端界面: http://localhost:5173
 - API接口: http://localhost:3002/health
 ## 项目结构

@@ -4,22 +4,24 @@
 
 **基于 Node.js + TypeScript 的高性能实时数据服务**
 
-[![Node.js](https://img.shields.io/badge/Node.js-16+-339933?style=flat-square&logo=node.js)](https://nodejs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-4.0+-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![WebSocket](https://img.shields.io/badge/WebSocket-Real--time-FF6B6B?style=flat-square)](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API)
-[![Express](https://img.shields.io/badge/Express-4.18+-000000?style=flat-square&logo=express)](https://expressjs.com/)
-[![SQLite](https://img.shields.io/badge/SQLite-3.0+-003B57?style=flat-square&logo=sqlite)](https://www.sqlite.org/)
-
-[🏠 返回主项目](../README.md) | [🎨 前端文档](../src/README.md)
 
 ## 目录
 
-- [项目概述](#项目概述)
-- [技术栈](#技术栈)
-- [项目结构](#项目结构)
-- [核心模块](#核心模块)
-- [API接口](#api接口)
-- [开发指南](#开发指南)
+- [DataMonitor 后端服务](#datamonitor-后端服务)
+  - [目录](#目录)
+  - [项目概述](#项目概述)
+  - [技术栈](#技术栈)
+  - [项目结构](#项目结构)
+  - [核心模块](#核心模块)
+    - [主要模块](#主要模块)
+  - [API接口](#api接口)
+    - [主要接口](#主要接口)
+    - [查询参数](#查询参数)
+  - [开发指南](#开发指南)
+    - [环境准备](#环境准备)
+    - [启动服务](#启动服务)
+    - [调试技巧](#调试技巧)
+    - [部署](#部署)
 
 ## 项目概述
 
@@ -43,7 +45,15 @@ websocket-server/
 ├── config.json         # 配置文件
 └── package.json        # 依赖配置
 ```
-
+<!-- 修改的点：
+文档优化点：把核心东西整出来，部署详细一点
+技术优化点：
+-->
+<!-- 
+### 异常检测算法
+### 设备模拟算法 
+-->
+  
 ## 核心模块
 
 ### 主要模块
@@ -102,11 +112,9 @@ SELECT * FROM core_metrics LIMIT 10;
 curl http://localhost:3002/health
 ```
 
----
+### 部署
 
-<div align="center">
+平台：阿里云ecs云服务器
+使用pm2对后端进行自动化管理
+使用nginx进行后端保护，配置ssl
 
-[🏠 返回主项目](../README.md) | [🎨 前端文档](../src/README.md)
-
-
-```
