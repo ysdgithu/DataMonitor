@@ -38,7 +38,7 @@ export const useRealtimeStore = defineStore('realtime', () => {
 
     // 根据当前协议自动选择WebSocket协议
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const defaultUrl = `${protocol}//cloudgu.xyz:8080`
+    const defaultUrl = `${protocol} //cloudgu.xyz:8080`
 
     console.log('[Realtime Store] 自动选择协议:', protocol)
     return defaultUrl

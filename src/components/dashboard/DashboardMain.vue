@@ -107,7 +107,6 @@ const coreMetricStore = useCoreMetricStore()   // 核心指标
 const environmentDataStore = useEnvironmentDataStore()  //环境数据
 const telemetryData=useDeviceTelemetryDataStore()  //通信数据
 const timeRange = ref('1h')
-const fl = ref(false)
 const showHistoryPanel = ref(false)
 
 
@@ -134,11 +133,29 @@ const requestCountChartOptions = computed(() => createBarChart({
   maxPoints: 10  // 限制显示最新的20条数据
 }))
 
+// 设备类型分布历史数据
+// const deviceTypeDataChartOptions =computed(()=>{
+//    return createPieChart({
+//     series: 
+//   })
+// }
 
+//)
+// const historyQuery={
+  // deviceId =
+  // category?: string;
+  // dataType?: string;
+  // status?: string;
+  // startTime?: number;
+  // endTime?: number;
+  // limit?: number;
+  // offset?: number;
+// }
 // 注册地图+读取数据
 onMounted(() => {
   // 启动实时监控
   realtimeStore.setMonitoring(true)
+  //console.log(HistoryApi.getDeviceStatus)
 })
 
 const showHistory = ref(false)

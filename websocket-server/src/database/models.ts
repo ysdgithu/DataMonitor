@@ -9,22 +9,27 @@ import {
 } from '../types/index';
 
 // 扩展数据类型，添加数据库字段
+// 核心指标
 interface CoreMetricRecord extends CoreMetricData {
     dataStatus: 'normal' | 'warning' | 'error';
 }
 
+// 环境数据
 interface EnvironmentRecord extends EnvironmentData {
     dataStatus: 'normal' | 'warning' | 'error';
 }
 
+// 通信数据
 interface TelemetryRecord extends DeviceTelemetryData {
     dataStatus: 'normal' | 'warning' | 'error';
 }
 
+// 设备状态
 interface DeviceStatusRecord extends DeviceStatusData {
     dataStatus: 'normal' | 'warning' | 'error';
 }
 
+// 工厂设备
 interface FactoryDeviceRecord extends FactoryDevice {
     dataStatus: 'normal' | 'warning' | 'error';
 }

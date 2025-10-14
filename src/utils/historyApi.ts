@@ -1,7 +1,7 @@
 // 历史数据API接口
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL 
 
 // 查询参数接口
 export interface QueryParams {

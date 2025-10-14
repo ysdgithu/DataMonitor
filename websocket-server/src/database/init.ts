@@ -58,7 +58,7 @@ async function initDatabase() {
             )
         `);
 
-        // 3. 设备状态表
+        // 3. 设备表
         await dbRun(`
             CREATE TABLE IF NOT EXISTS device_status (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

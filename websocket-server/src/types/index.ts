@@ -43,7 +43,7 @@ export type DeviceStatusData = BaseDataPoint & {
   location: GeoPoint; // 设备地理位置
 };
 
-// 设备类型数据（非实时，websocket不推送）-整体设备id为003
+// 设备类型数据（非实时，websocket不推送）
 export type DeviceTypeData = {
   deviceCategory: string; // 设备类型（如传感器、网关等）
   count: number; // 该类型设备数量
