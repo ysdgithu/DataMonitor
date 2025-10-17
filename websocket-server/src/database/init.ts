@@ -25,95 +25,21 @@ async function initDatabase() {
     try {
         console.log('开始初始化数据库...');
 
-        // 1. 核心指标数据表
+        // 统一的设备数据表 - 支持所有数据类型
+        // data_type: 'core_metrics' | 'environment' | 'device_status' | 'telemetry' | 'factory_devices'
         await dbRun(`
-            CREATE TABLE IF NOT EXISTS core_metrics (
+            CREATE TABLE IF NOT EXISTS device_data (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 device_id VARCHAR(50) NOT NULL,
-                timestamp BIGINT NOT NULL,
-                category VARCHAR(20) NOT NULL,
-                value REAL NOT NULL,
-                data_status VARCHAR(10) DEFAULT 'normal',
-                latitude REAL,
-                longitude REAL,
-                accuracy INTEGER,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
-
-        // 2. 环境数据表
-        await dbRun(`
-            CREATE TABLE IF NOT EXISTS environment_data (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                device_id VARCHAR(50) NOT NULL,
-                timestamp BIGINT NOT NULL,
-                type VARCHAR(20) NOT NULL,
-                value REAL NOT NULL,
-                unit VARCHAR(10),
-                data_status VARCHAR(10) DEFAULT 'normal',
-                latitude REAL,
-                longitude REAL,
-                accuracy INTEGER,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
-
-        // 3. 设备表
-        await dbRun(`
-            CREATE TABLE IF NOT EXISTS device_status (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                device_id VARCHAR(50) NOT NULL,
-                timestamp BIGINT NOT NULL,
-                status VARCHAR(20) NOT NULL,
-                last_update BIGINT,
-                battery_level INTEGER,
-                data_status VARCHAR(10) DEFAULT 'normal',
-                latitude REAL,
-                longitude REAL,
-                accuracy INTEGER,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
-
-        // 4. 通信数据表
-        await dbRun(`
-            CREATE TABLE IF NOT EXISTS telemetry_data (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                device_id VARCHAR(50) NOT NULL,
-                timestamp BIGINT NOT NULL,
                 data_type VARCHAR(30) NOT NULL,
-                value REAL NOT NULL,
-                data_status VARCHAR(10) DEFAULT 'normal',
-                latitude REAL,
-                longitude REAL,
-                accuracy INTEGER,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
-
-        // 5. 工厂设备数据表
-        await dbRun(`
-            CREATE TABLE IF NOT EXISTS factory_devices (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                device_id VARCHAR(50) NOT NULL,
                 timestamp BIGINT NOT NULL,
-                name VARCHAR(100) NOT NULL,
-                type VARCHAR(50) NOT NULL,
-                x INTEGER NOT NULL,
-                y INTEGER NOT NULL,
-                status VARCHAR(20) NOT NULL,
-                zone VARCHAR(50) NOT NULL,
-                position VARCHAR(50) NOT NULL,
-                parameters TEXT,
                 data_status VARCHAR(10) DEFAULT 'normal',
-                latitude REAL,
-                longitude REAL,
-                accuracy INTEGER,
+                payload TEXT NOT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         `);
 
-        // 6. 数据统计表
+        // 数据统计表
         await dbRun(`
             CREATE TABLE IF NOT EXISTS data_statistics (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -133,20 +59,12 @@ async function initDatabase() {
 
         console.log('数据表创建完成，开始创建索引...');
 
-        // 创建索引
+        // 创建索引 - 优化查询性能
         const indexes = [
-            'CREATE INDEX IF NOT EXISTS idx_core_metrics_device_time ON core_metrics(device_id, timestamp)',
-            'CREATE INDEX IF NOT EXISTS idx_core_metrics_category_time ON core_metrics(category, timestamp)',
-            'CREATE INDEX IF NOT EXISTS idx_core_metrics_status ON core_metrics(data_status)',
-            'CREATE INDEX IF NOT EXISTS idx_environment_device_time ON environment_data(device_id, timestamp)',
-            'CREATE INDEX IF NOT EXISTS idx_environment_type_time ON environment_data(type, timestamp)',
-            'CREATE INDEX IF NOT EXISTS idx_device_status_device_time ON device_status(device_id, timestamp)',
-            'CREATE INDEX IF NOT EXISTS idx_device_status_status ON device_status(status)',
-            'CREATE INDEX IF NOT EXISTS idx_telemetry_device_time ON telemetry_data(device_id, timestamp)',
-            'CREATE INDEX IF NOT EXISTS idx_telemetry_type_time ON telemetry_data(data_type, timestamp)',
-            'CREATE INDEX IF NOT EXISTS idx_factory_device_time ON factory_devices(device_id, timestamp)',
-            'CREATE INDEX IF NOT EXISTS idx_factory_zone_time ON factory_devices(zone, timestamp)',
-            'CREATE INDEX IF NOT EXISTS idx_factory_status_time ON factory_devices(status, timestamp)',
+            'CREATE INDEX IF NOT EXISTS idx_device_data_device_type_time ON device_data(device_id, data_type, timestamp)',
+            'CREATE INDEX IF NOT EXISTS idx_device_data_type_time ON device_data(data_type, timestamp)',
+            'CREATE INDEX IF NOT EXISTS idx_device_data_status ON device_data(data_status)',
+            'CREATE INDEX IF NOT EXISTS idx_device_data_timestamp ON device_data(timestamp)',
             'CREATE INDEX IF NOT EXISTS idx_statistics_date_type ON data_statistics(date, data_type)'
         ];
 

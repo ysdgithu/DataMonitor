@@ -5,20 +5,32 @@ import {
     DeviceTelemetryData,
     DeviceStatusData,
     GeoPoint,
-    FactoryDevice
+    FactoryDevice,
+    DEVICE_TYPE_MAP
 } from '../types/index';
 import { DataProcessor } from './dataProcessor';
 // 该文件为设备模拟器，用于模拟生成数据
-// 包含正常数据、异常数据，模拟设备连接和断开连接（可手动控制），模拟高并发情况（5万条以上数据量）
+// 包含正常数据、异常数据，模拟设备连接和断开连接（可手动控制）
 // 设备连接断开接口：start，stop
-// 高并发接口：setHighConcurrency，disableHighConcurrency
 
 type DeviceDataType = CoreMetricData | EnvironmentData | DeviceTelemetryData | DeviceStatusData;
 
+// 设备类型名称到代号的映射
+const DEVICE_TYPE_NAME_TO_CODE: { [key: string]: number } = {
+    '数控机床': 0,
+    '装配线': 1,
+    '焊接机器人': 2,
+    '质检设备': 3,
+    '自动货架': 4,
+    '输送带': 5,
+    '环境监控': 6,
+    '服务器': 7,
+    '检测设备': 8,
+    '空压机': 9
+};
+
 export class DeviceSimulator {
     private running: boolean = false; // 是否正在生成数据
-    private highConcurrency: boolean = false; // 是否处于高并发模式
-    private deviceCount: number = 100; // 当前模拟设备数量
     private dataProcessor?: DataProcessor; // 数据处理器
     private coreMetricsIntervalId: NodeJS.Timeout | null = null; // 核心指标定时器
     private environmentIntervalId: NodeJS.Timeout | null = null; // 环境数据定时器
@@ -32,7 +44,6 @@ export class DeviceSimulator {
         telemetry?: DeviceTelemetryData;
         factoryDevices?: FactoryDevice[];
     } = {}; // 按类型存储最新数据
-    private readonly defaultDeviceCount: number = 100; // 默认设备数量
 
     // 设置数据处理器
     public setDataProcessor(dataProcessor: DataProcessor) {
@@ -114,44 +125,21 @@ export class DeviceSimulator {
 
 
 
-    // 生成工厂地图中的设备信息
+    // 生成工厂地图中的设备信息 - 固定10个设备实例
     private async generateFactoryDevices() {
-        // 定义设备类型数组
-        const deviceTypes = ['数控机床', '装配线', '焊接机器人', '质检设备', '自动货架', '输送带', '充电桩', '环境监控', 
-            '服务器', '网络设备', 'UPS', '检测设备', '分析设备', '空压机', '冷却设备', '电力设备', '处理设备'];
-        // 定义区域数组
-        const zones = ['production', 'storage', 'office', 'testing', 'maintenance'];
-        // 定义位置编码数组
-        const positions = [
-            '1区1排', '1区2排', '1区3排', '1区4排', '1区5排',
-            '2区1排', '2区2排', '2区3排', '2区4排', '2区5排',
-            '3区1排', '3区2排', '3区3排',
-            '4区1排', '4区2排', '4区3排',
-            '5区1排', '5区2排', '5区3排', '5区4排', '5区5排'
+        // 定义固定的10个设备配置（使用设备类型代号）
+        const fixedDevices = [
+            { deviceId: '1001', name: '数控机床-1', typeCode: 0, zone: 'production', x: 100, y: 100, position: '1区1排' },
+            { deviceId: '1002', name: '装配线-1', typeCode: 1, zone: 'production', x: 150, y: 120, position: '1区2排' },
+            { deviceId: '1003', name: '焊接机器人-1', typeCode: 2, zone: 'production', x: 200, y: 140, position: '1区3排' },
+            { deviceId: '1004', name: '质检设备-1', typeCode: 3, zone: 'production', x: 250, y: 160, position: '1区4排' },
+            { deviceId: '1005', name: '自动货架-1', typeCode: 4, zone: 'storage', x: 450, y: 100, position: '2区1排' },
+            { deviceId: '1006', name: '输送带-1', typeCode: 5, zone: 'storage', x: 500, y: 120, position: '2区2排' },
+            { deviceId: '1007', name: '环境监控-1', typeCode: 6, zone: 'office', x: 450, y: 300, position: '3区1排' },
+            { deviceId: '1008', name: '服务器-1', typeCode: 7, zone: 'office', x: 500, y: 320, position: '3区2排' },
+            { deviceId: '1009', name: '检测设备-1', typeCode: 8, zone: 'testing', x: 700, y: 300, position: '4区1排' },
+            { deviceId: '1010', name: '空压机-1', typeCode: 9, zone: 'maintenance', x: 150, y: 400, position: '5区1排' }
         ];
-        // 各区范围
-        const zoneRanges = {
-            production: {
-              x: { min: 70, max: 330 },
-              y: { min: 70, max: 230 }
-            },
-            storage: {
-              x: { min: 420, max: 730 },
-              y: { min: 70, max: 180 }
-            },
-            office: {
-              x: { min: 420, max: 580 },
-              y: { min: 270, max: 380 }
-            },
-            testing: {
-              x: { min: 670, max: 730 },
-              y: { min: 270, max: 380 }
-            },
-            maintenance: {
-              x: { min: 70, max: 330 },
-              y: { min: 320, max: 530 }
-            }
-        }
 
         const getRandomStatus = (): 'online' | 'offline' | 'warning' | 'error' => {
             const rand = Math.random();
@@ -161,32 +149,20 @@ export class DeviceSimulator {
             return 'online';
         };
 
-        // 生成10个设备的数据
+        // 生成10个固定设备的数据 - 每个设备是一个独立实例
         const timestamp = Date.now();
-        const devices: FactoryDevice[] = Array.from({ length: 10 }, (_, index) => {
-            const deviceNumber = (1001 + index).toString().padStart(4, '0');
-            // 先确定区域
-            const zone = zones[Math.floor(Math.random() * zones.length)];
-            // 根据区域生成对应范围内的x,y坐标
-            const range = zoneRanges[zone as keyof typeof zoneRanges];
-            const x = Math.floor(Math.random() * (range.x.max - range.x.min)) + range.x.min;
-            const y = Math.floor(Math.random() * (range.y.max - range.y.min)) + range.y.min;
-            
+        const devices: FactoryDevice[] = fixedDevices.map(config => {
             return {
-                deviceId: deviceNumber,
-                name: `设备${deviceNumber}`,
+                deviceId: config.deviceId,
+                name: config.name,
                 timestamp: timestamp,
-                type: deviceTypes[Math.floor(Math.random() * deviceTypes.length)],
-                x,
-                y,
+                typeCode: config.typeCode,
+                type: DEVICE_TYPE_MAP[config.typeCode as keyof typeof DEVICE_TYPE_MAP], // 添加类型名称用于兼容性
+                x: config.x,
+                y: config.y,
                 status: getRandomStatus(),
-                zone,
-                position: positions[Math.floor(Math.random() * positions.length)],
-                location: {
-                    lat: 39.5 + (Math.random() - 0.5) * 0.1, // 添加一些随机性
-                    lng: 116.5 + (Math.random() - 0.5) * 0.1,
-                    accuracy: 1
-                },
+                zone: config.zone,
+                position: config.position,
                 parameters: {
                     temperature: Math.round((20 + Math.random() * 40) * 10) / 10, // 20-60°C
                     pressure: Math.round((1 + Math.random() * 9) * 10) / 10, // 1-10 bar
@@ -195,11 +171,11 @@ export class DeviceSimulator {
                 }
             };
         });
-        
+
         // 更新最新数据
         this.latestData.factoryDevices = devices;
 
-        // 推送工厂设备数据
+        // 推送工厂设备数据 - 一次推送10个设备实例
         if (this.dataProcessor) {
             await this.dataProcessor.processAndPush([{
                 type: 'factory_devices',
@@ -210,12 +186,9 @@ export class DeviceSimulator {
 
 
     // 手动控制开关，启动数据生成
-    public start(deviceCount?: number, highConcurrency?: boolean) {
+    public start() {
         if (this.running) return;
         this.running = true;
-        if (deviceCount) this.deviceCount = deviceCount;
-        if (highConcurrency !== undefined) this.highConcurrency = highConcurrency;
-        if (this.highConcurrency) this.deviceCount = Math.max(this.deviceCount, 50000);
 
         // 核心指标 - 3秒更新一次
         this.coreMetricsIntervalId = setInterval(() => {
@@ -293,19 +266,4 @@ export class DeviceSimulator {
         return result;
     }
 
-
-
-    // 设置高并发模式（设备数量>=50000）
-    public setHighConcurrency(enabled: boolean) {
-        this.highConcurrency = enabled;
-        if (enabled) {
-            this.deviceCount = Math.max(this.deviceCount, 50000);
-        }
-    }
-
-    // 关闭高并发模式，恢复默认设备数量
-    public disableHighConcurrency() {
-        this.highConcurrency = false;
-        this.deviceCount = this.defaultDeviceCount;
-    }
 }

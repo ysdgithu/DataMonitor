@@ -2,98 +2,323 @@
 
 ## 数据表
 
-1. 核心指标数据表 (core_metrics)
+1. 设备数据总表 (device_data)
+设备数据的统一存储表，采用通用结构设计，通过 data_type 区分不同类型的数据，payload 字段使用 JSON 格式存储具体数据。
 
 ```sql
-CREATE TABLE IF NOT EXISTS core_metrics (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,    -- 自增主键
-                device_id VARCHAR(50) NOT NULL,          -- 设备唯一标识
-                timestamp BIGINT NOT NULL,               -- 数据采集时间戳
-                category VARCHAR(20) NOT NULL,           -- 指标类别：cpu/memory/network/online
-                value REAL NOT NULL,                     -- 指标数值
-                data_status VARCHAR(10) DEFAULT 'normal',-- 数据状态：normal/warning/error
-                latitude REAL,                           -- 设备纬度
-                longitude REAL,                          -- 设备经度
-                accuracy INTEGER,                        -- 定位精度（米）
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP  -- 记录创建时间
-            )
-```   
-2. 环境数据表 (environment_data)
-
-```sql
-CREATE TABLE IF NOT EXISTS environment_data (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,    -- 自增主键
-                device_id VARCHAR(50) NOT NULL,          -- 设备唯一标识
-                timestamp BIGINT NOT NULL,               -- 数据采集时间戳
-                type VARCHAR(20) NOT NULL,               -- 数据类型（如：temperature）
-                value REAL NOT NULL,                     -- 测量值
-                unit VARCHAR(10),                        -- 单位（如：°C）
-                data_status VARCHAR(10) DEFAULT 'normal',-- 数据状态：normal/warning/error
-                latitude REAL,                           -- 设备纬度
-                longitude REAL,                          -- 设备经度
-                accuracy INTEGER,                        -- 定位精度（米）
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP  -- 记录创建时间
-            )
-```   
-
-1. 通信数据表 (telemetry_data)
-用于记录设备的通信相关数据，如数据上传频率、通信质量等指标。
-
-```sql
-CREATE TABLE IF NOT EXISTS telemetry_data (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,    -- 自增主键
-                device_id VARCHAR(50) NOT NULL,          -- 设备唯一标识
-                timestamp BIGINT NOT NULL,               -- 数据采集时间戳
-                data_type VARCHAR(30) NOT NULL,          -- 数据类型（如：upload_frequency）
-                value REAL NOT NULL,                     -- 测量值
-                data_status VARCHAR(10) DEFAULT 'normal',-- 数据状态：normal/warning/error
-                latitude REAL,                           -- 设备纬度
-                longitude REAL,                          -- 设备经度
-                accuracy INTEGER,                        -- 定位精度（米）
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP  -- 记录创建时间
-            )
+CREATE TABLE IF NOT EXISTS device_data (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,    -- 自增主键
+    device_id VARCHAR(50) NOT NULL,          -- 设备唯一标识
+    data_type VARCHAR(30) NOT NULL,          -- 数据类型：标识发的啥数据
+    timestamp BIGINT NOT NULL,               -- 数据采集时间戳
+    data_status VARCHAR(10) DEFAULT 'normal',-- 数据状态：normal/warning/error
+    payload TEXT NOT NULL,                   -- JSON格式数据
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP  -- 记录创建时间
+)
 ```
-5. 工厂设备数据表 (factory_devices)
+`payload TEXT NOT NULL` ：
+不管是什么data_type，具体数据都打包成 JSON 字符串，存到payload里。表结构不用变，新增设备类型也不用改表。
+比如：
+温度传感器的数据，payload可以是：{"value": 25.6, "unit": "℃"}
+湿度传感器的数据，payload可以是：{"value": 60, "precision": "high"}
+智能门锁的数据，payload可以是：{"status": "open", "operator": "张三"}
+新增的光照传感器，payload直接存：{"intensity": 3000, "freq": "10s"}
 
-```sql
-CREATE TABLE IF NOT EXISTS factory_devices (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,    -- 自增主键
-                device_id VARCHAR(50) NOT NULL,          -- 设备唯一标识
-                timestamp BIGINT NOT NULL,               -- 数据更新时间戳
-                name VARCHAR(100) NOT NULL,              -- 设备名称（如：数控机床A1）
-                type VARCHAR(50) NOT NULL,               -- 设备类型（如：数控机床、机器人等）
-                x INTEGER NOT NULL,                      -- SVG坐标系X坐标
-                y INTEGER NOT NULL,                      -- SVG坐标系Y坐标
-                status VARCHAR(20) NOT NULL,             -- 设备状态：online/offline/warning/error
-                zone VARCHAR(50) NOT NULL,               -- 所属区域（如：production/storage等）
-                position VARCHAR(50) NOT NULL,           -- 位置编码（如：1区3排）
-                parameters TEXT,                         -- JSON格式的设备参数（温度、压力等）
-                data_status VARCHAR(10) DEFAULT 'normal',-- 数据状态标识
-                latitude REAL,                           -- 设备纬度
-                longitude REAL,                          -- 设备经度
-                accuracy INTEGER,                        -- 定位精度（米）
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP  -- 记录创建时间
-            )
-```
-6. 数据统计表 (data_statistics)
-用于存储各类数据的统计信息，支持按小时统计的数据分析和报表功能。
+2. 数据统计表 (data_statistics)
+用于存储各类数据的统计信息，支持按小时粒度的数据分析，便于生成报表和趋势分析。
 
 ```sql
 CREATE TABLE IF NOT EXISTS data_statistics (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,    -- 自增主键
-                date DATE NOT NULL,                      -- 统计日期
-                hour INTEGER NOT NULL,                   -- 统计小时（0-23）
-                data_type VARCHAR(20) NOT NULL,          -- 数据类型（对应各个数据表）
-                category VARCHAR(20),                    -- 数据类别（如core_metrics的cpu/memory等）
-                avg_value REAL,                          -- 平均值
-                max_value REAL,                          -- 最大值
-                min_value REAL,                          -- 最小值
-                count INTEGER,                           -- 数据点总数
-                error_count INTEGER,                     -- 错误数据点数量
-                warning_count INTEGER,                   -- 警告数据点数量
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP  -- 记录创建时间
-            )
+    id INTEGER PRIMARY KEY AUTOINCREMENT,    -- 自增主键
+    date DATE NOT NULL,                      -- 统计日期
+    hour INTEGER NOT NULL,                   -- 统计小时（0-23）
+    data_type VARCHAR(20) NOT NULL,          -- 数据类型，对应device_data的data_type
+    category VARCHAR(20),                    -- 数据类别，如core_metrics的cpu/memory等
+    avg_value REAL,                          -- 平均值
+    max_value REAL,                          -- 最大值
+    min_value REAL,                          -- 最小值
+    count INTEGER,                           -- 数据点总数
+    error_count INTEGER,                     -- 错误状态的数据点数量
+    warning_count INTEGER,                   -- 警告状态的数据点数量
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP  -- 记录创建时间
+)
 ```
+## 接口设计
+
+### GET /api/core-metrics - 获取核心指标数据
+#### 调用示例
+```bash
+# 获取最近1小时的CPU使用率数据
+# cpu传感器设备号：000
+curl "http://localhost:3002/api/core-metrics?category=cpu&start=$(date -v-1H +%s000)&end=$(date +%s000)&limit=5"
+```
+
+#### 请求参数
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| start | number | 否 | 开始时间戳 |
+| end | number | 否 | 结束时间戳 |
+| deviceId | string | 否 | 设备ID |
+| category | string | 否 | 指标类别(cpu/memory/network/online) |
+| limit | number | 否 | 返回数据条数，默认10 |
+
+#### 响应示例
+```json
+{
+  "success": true,
+  "data": [{
+    "id": 4420,                           // 数据库ID
+    "device_id": "000",                   // 设备ID
+    "data_type": "core_metrics",          // 数据类型
+    "timestamp": 1760670505537,           // 时间戳
+    "data_status": "normal",              // 数据状态
+    "payload": "...",                     // 原始JSON数据
+    "created_at": "2025-10-17 03:08:26",  // 创建时间
+    "deviceId": "000",                    // 设备ID（解析自payload）
+    "category": "online",                 // 指标类别
+    "value": 61.58,                       // 指标值
+    "dataStatus": "normal"                // 数据状态（解析自payload）
+  }],
+  "total": 1
+}
+```
+
+### GET /api/environment - 获取环境数据
+#### 调用示例
+```bash
+# 获取最近温度数据
+curl "http://localhost:3002/api/environment?type=temperature&limit=5"
+
+# 获取特定设备24小时内的环境数据
+curl "http://localhost:3002/api/environment?deviceId=2001&start=$(date -v-24H +%s000)&end=$(date +%s000)"
+```
+
+#### 请求参数
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| start | number | 否 | 开始时间戳 |
+| end | number | 否 | 结束时间戳 |
+| deviceId | string | 否 | 设备ID |
+| type | string | 否 | 环境数据类型(temperature等) |
+| limit | number | 否 | 返回数据条数，默认10 |
+
+#### 响应示例
+```json
+{
+  "success": true,
+  "data": [{
+    "id": 3908,
+    "device_id": "001",                  // 环境传感器设备号
+    "data_type": "environment",
+    "timestamp": 1760670378094,
+    "data_status": "normal",
+    "payload": "...",
+    "created_at": "2025-10-17 03:06:18",
+    "deviceId": "001",
+    "type": "temperature",
+    "value": 24.55,
+    "unit": "°C",
+    "dataStatus": "normal"
+  }],
+  "total": 1
+}
+```
+
+
+### GET /api/device-status - 获取设备类型统计
+
+#### 调用示例
+```bash
+# 获取所有设备状态统计
+
+curl "http://localhost:3002/api/device-status"
+# 获取数控机床（typeCode=0）
+curl "http://localhost:3002/api/device-status?deviceType=0"
+
+# 获取输送带（typeCode=5）
+curl "http://localhost:3002/api/device-status?deviceType=5"
+```
+#### 请求参数
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| deviceType | number | 否 | 设备类型 |
+
+|代号|类型|设备id|
+|----|----|----|
+0	 |数控机床	|1001
+1	 |装配线	|1002
+2	 |焊接机器人|	1003
+3	 |质检设备	|1004
+4	 |自动货架	|1005
+5	 |输送带	|1006
+6	 |环境监控	|1007
+7	 |服务器	|1008
+8	 |检测设备	|1009
+9	 |空压机	|1010
+
+#### 响应示例
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "deviceType": 0,
+      "count": 1,
+      "deviceIds": ["1001"]
+    },
+    {
+      "deviceType": 1,
+      "count": 1,
+      "deviceIds": ["1002"]
+    }
+  ]
+}
+```
+
+### GET /api/telemetry - 获取通信数据
+#### 调用示例
+```bash
+# 获取最近的通信数据
+curl "http://localhost:3002/api/telemetry?limit=5"
+
+# 获取特定设备的上传频率数据
+curl "http://localhost:3002/api/telemetry?deviceId=3001&dataType=upload_frequency"
+```
+
+#### 请求参数
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| start | number | 否 | 开始时间戳 |
+| end | number | 否 | 结束时间戳 |
+| deviceId | string | 否 | 设备ID |
+| dataType | string | 否 | 数据类型(upload_frequency等) |
+| limit | number | 否 | 返回数据条数，默认10 |
+
+#### 响应示例
+```json
+{
+  "success": true,
+  "data": [{
+    "id": 4167,
+    "device_id": "002",
+    "data_type": "telemetry",
+    "timestamp": 1760670438504,
+    "data_status": "warning",
+    "payload": "...",
+    "created_at": "2025-10-17 03:07:22",
+    "deviceId": "002",
+    "dataType": "upload_frequency",
+    "value": 86,
+    "dataStatus": "warning"
+  }],
+  "total": 1
+}
+```
+
+### GET /api/statistics/:dataType - 获取统计数据
+#### 调用示例
+```bash
+# 获取今天CPU使用率的统计数据
+curl "http://localhost:3002/api/statistics/core_metrics?date=$(date +%Y-%m-%d)&category=cpu"
+
+# 获取特定小时的环境数据统计
+curl "http://localhost:3002/api/statistics/environment?date=2025-10-16&hour=14"
+```
+
+#### 请求参数
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| dataType | string | 是 | 数据类型(core_metrics/environment/telemetry) |
+| date | string | 是 | 统计日期(YYYY-MM-DD) |
+| hour | number | 否 | 统计小时(0-23) |
+| category | string | 否 | 数据类别 |
+
+#### 响应示例
+```json
+{
+  "success": true,
+  "data": [{
+    "data_type": "core_metrics",
+    "category": "network",
+    "total_count": 135,
+    "avg_value": 95.36,
+    "max_value": 149.12,
+    "min_value": 50.91,
+    "error_count": 0,
+    "warning_count": 0,
+    "time_group": "2025-10-17 03:07:04"
+  }]
+}
+```
+### GET /api/overview - 获取数据概览
+#### 调用示例
+```bash
+# 获取小时级别概览
+curl "http://localhost:3002/api/overview?timeRange=hour"
+
+# 获取天级别概览
+curl "http://localhost:3002/api/overview?timeRange=day"
+```
+
+#### 请求参数
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| timeRange | string | 否 | 时间范围(hour/day/week/month) |
+
+#### 响应示例
+
+
+### GET /api/factory-devices - 工厂设备查询
+获取工厂内所有设备的实时状态信息。
+
+#### 请求参数
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| zone | string | 否 | 区域筛选(production/storage/office/testing/maintenance) |
+| type | string | 否 | 设备类型筛选 |
+| status | string | 否 | 状态筛选(online/offline/warning/error) |
+| limit | number | 否 | 返回数据条数，默认10 |
+| offset | number | 否 | 数据偏移量，用于分页 |
+
+#### 调用示例
+```bash
+curl http://localhost:3002/api/factory-devices?limit=10&zone=production&status=online
+```
+
+#### 响应示例
+```json
+{
+  "success": true,
+  "data": [{
+    "id": 4546,
+    "device_id": "1010",
+    "data_type": "factory_devices",
+    "timestamp": 1760670536461,
+    "data_status": "normal",
+    "payload": "...",
+    "created_at": "2025-10-17 03:08:56",
+    "deviceId": "1010",
+    "name": "空压机-1",
+    "type": "空压机",
+    "x": 150,
+    "y": 400,
+    "status": "online",
+    "zone": "maintenance",
+    "position": "5区1排",
+    "parameters": {
+      "temperature": 44.9,
+      "pressure": 6.9,
+      "vibration": 2,
+      "power": 59
+    },
+    "dataStatus": "normal"
+  }],
+  "total": 10
+}
+```
+
+## 实时服务
+
 ## 各种想法
 
 2025-10-14
@@ -109,3 +334,5 @@ CREATE TABLE IF NOT EXISTS data_statistics (
 数据展示流程（实时和非实时）为基础功能！
 进阶：报警闭环（需要实现设备报警-处理-恢复的全链路监控）
 感觉越做越复杂了，想逝了
+
+

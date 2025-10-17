@@ -4,9 +4,6 @@ import { DataProcessor } from './services/dataProcessor';
 import { initDatabase } from './database/init';
 import { startApiServer } from './api/server';
 
-// 获取启动模式参数
-const mode = process.argv[2] || 'normal';
-
 // 初始化数据库和服务
 async function initializeServices() {
     try {
@@ -42,39 +39,16 @@ wss.on('connection', (ws: WebSocket) => {
     });
 });
 
-// 定时推送数据
+// 定时推送数据 - 每8秒推送一次所有数据（包括10个工厂设备实例）
 function startNormalMode() {
-    deviceSimulator.start(100, false);
+    deviceSimulator.start();
+    console.log('启动正常模式：每8秒推送一次数据（包括10个工厂设备实例）');
     setInterval(async () => {
         const dataList = deviceSimulator.getLatestData();
-        await dataProcessor.processAndPush(dataList);
-    }, 8000);
-}
-
-function startHighConcurrencyMode() {
-    // 先推送正常数据10秒
-    deviceSimulator.start(100, false);
-    const normalInterval = setInterval(async () => {
-        const dataList = deviceSimulator.getLatestData();
-        await dataProcessor.processAndPush(dataList);
-    }, 8000);
-
-    setTimeout(() => {
-        clearInterval(normalInterval);
-        // 开启高并发模式，持续20秒
-        deviceSimulator.setHighConcurrency(true);
-        const highInterval = setInterval(async () => {
-            const dataList = deviceSimulator.getLatestData();
+        if (dataList.length > 0) {
             await dataProcessor.processAndPush(dataList);
-        }, 8000);
-
-        setTimeout(() => {
-            clearInterval(highInterval);
-            deviceSimulator.disableHighConcurrency();
-            console.log('高并发测试结束，恢复正常模式');
-            startNormalMode();
-        }, 20000);
-    }, 10000);
+        }
+    }, 8000);
 }
 
 // 主启动函数
@@ -88,14 +62,9 @@ async function main() {
         process.exit(1);
     }
 
-    // 启动对应模式
-    if (mode === 'high') {
-        startHighConcurrencyMode();
-        console.log('WebSocket server running in HIGH CONCURRENCY mode');
-    } else {
-        startNormalMode();
-        console.log('WebSocket server running in NORMAL mode');
-    }
+    // 启动正常模式
+    startNormalMode();
+    console.log('WebSocket server running in NORMAL mode');
 
     console.log('WebSocket server is running');
     console.log('API server is running');

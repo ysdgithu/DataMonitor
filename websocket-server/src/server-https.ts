@@ -6,9 +6,6 @@ import { DataProcessor } from './services/dataProcessor';
 import { initDatabase } from './database/init';
 import { startApiServer } from './api/server';
 
-// 获取启动模式参数
-const mode = process.argv[2] || 'normal';
-
 // 初始化数据库和服务
 async function initializeServices() {
     try {
@@ -62,19 +59,11 @@ wss.on('connection', (ws: WebSocket) => {
 
 // 定时推送数据
 function startNormalMode() {
-    deviceSimulator.start(100, false);
+    deviceSimulator.start();
     setInterval(async () => {
         const dataList = deviceSimulator.getLatestData();
         await dataProcessor.processAndPush(dataList);
-    }, 1000);
-}
-
-function startTestMode() {
-    deviceSimulator.start(100, true);
-    setInterval(async () => {
-        const dataList = deviceSimulator.getLatestData();
-        await dataProcessor.processAndPush(dataList);
-    }, 1000);
+    }, 8000);
 }
 
 // 启动服务
@@ -92,14 +81,9 @@ async function startServer() {
         console.log(`WebSocket Secure URL: wss://cloudgu.xyz:${port}`);
     });
 
-    // 根据模式启动数据推送
-    if (mode === 'test') {
-        console.log('启动测试模式...');
-        startTestMode();
-    } else {
-        console.log('启动正常模式...');
-        startNormalMode();
-    }
+    // 启动正常模式
+    console.log('启动正常模式...');
+    startNormalMode();
 }
 
 // 优雅关闭

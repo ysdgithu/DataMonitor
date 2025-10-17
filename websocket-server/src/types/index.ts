@@ -50,15 +50,35 @@ export type DeviceTypeData = {
   deviceList: string[]; // 该类型设备ID列表
 };
 
+// 设备类型编码映射
+export const DEVICE_TYPE_MAP = {
+  0: '数控机床',
+  1: '装配线',
+  2: '焊接机器人',
+  3: '质检设备',
+  4: '自动货架',
+  5: '输送带',
+  6: '环境监控',
+  7: '服务器',
+  8: '检测设备',
+  9: '空压机'
+} as const;
+
+export type DeviceTypeCode = keyof typeof DEVICE_TYPE_MAP;
+
 // 工厂地图中的设备信息
-export type FactoryDevice = BaseDataPoint & {
+export type FactoryDevice = {
+  deviceId: string         // 设备唯一ID
+  timestamp: number        // 数据采集时间，Unix时间戳(毫秒)
   name: string             // 设备名称，如"数控机床A1"
-  type: string             // 设备类型，如"数控机床"、"机器人"等
+  typeCode: number         // 设备类型代号（0-9），对应DEVICE_TYPE_MAP
+  type?: string            // 设备类型名称（可选，用于兼容性）
   x: number                // 设备在SVG坐标系中的横向位置
   y: number                // 设备在SVG坐标系中的纵向位置
   status: 'online' | 'offline' | 'warning' | 'error'  // 设备运行状态：在线、离线、警告、错误
   zone: string             // 设备所属区域的标识符，对应FactoryZone的id
   position: string         // 设备在工厂中的位置编码，如 "1区3排"
+  dataStatus?: 'normal' | 'warning' | 'error'; // 数据状态，由数据处理器赋值添加
   parameters?: {
     temperature?: number   // 设备温度，单位：摄氏度（°C）
     pressure?: number      // 压力值，单位：bar

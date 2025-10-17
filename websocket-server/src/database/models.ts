@@ -53,121 +53,53 @@ class DataModel {
         this.db = DatabaseConnection.getInstance();
     }
 
-    // 插入核心指标数据
-    async insertCoreMetrics(data: CoreMetricRecord[]): Promise<void> {
-        const columns = [
-            'device_id', 'timestamp', 'category', 'value', 'data_status',
-            'latitude', 'longitude', 'accuracy'
-        ];
-        
-        const rows = data.map(item => [
+    // 通用插入方法 - 将数据插入统一的device_data表
+    private async insertDeviceData(
+        dataType: string,
+        records: Array<{ deviceId: string; timestamp: number; dataStatus: string; location?: any; [key: string]: any }>
+    ): Promise<void> {
+        const columns = ['device_id', 'data_type', 'timestamp', 'data_status', 'payload'];
+
+        const rows = records.map(item => [
             item.deviceId,
+            dataType,
             item.timestamp,
-            item.category,
-            item.value,
             item.dataStatus,
-            item.location?.lat || null,
-            item.location?.lng || null,
-            item.location?.accuracy || null
+            JSON.stringify(item) // 将整个对象序列化为JSON
         ]);
 
-        await this.db.batchInsert('core_metrics', columns, rows);
+        await this.db.batchInsert('device_data', columns, rows);
+    }
+
+    // 插入核心指标数据
+    async insertCoreMetrics(data: CoreMetricRecord[]): Promise<void> {
+        await this.insertDeviceData('core_metrics', data);
     }
 
     // 插入环境数据
     async insertEnvironmentData(data: EnvironmentRecord): Promise<void> {
-        const sql = `
-            INSERT INTO environment_data 
-            (device_id, timestamp, type, value, unit, data_status, latitude, longitude, accuracy)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-        
-        await this.db.run(sql, [
-            data.deviceId,
-            data.timestamp,
-            data.type,
-            data.value,
-            data.unit,
-            data.dataStatus,
-            data.location?.lat || null,
-            data.location?.lng || null,
-            data.location?.accuracy || null
-        ]);
+        await this.insertDeviceData('environment', [data]);
     }
 
     // 插入设备状态数据
     async insertDeviceStatus(data: DeviceStatusRecord[]): Promise<void> {
-        const columns = [
-            'device_id', 'timestamp', 'status', 'last_update', 'battery_level',
-            'data_status', 'latitude', 'longitude', 'accuracy'
-        ];
-        
-        const rows = data.map(item => [
-            item.deviceId,
-            item.timestamp,
-            item.status,
-            item.lastUpdate,
-            item.batteryLevel,
-            item.dataStatus,
-            item.location?.lat || null,
-            item.location?.lng || null,
-            item.location?.accuracy || null
-        ]);
-
-        await this.db.batchInsert('device_status', columns, rows);
+        await this.insertDeviceData('device_status', data);
     }
 
     // 插入通信数据
     async insertTelemetryData(data: TelemetryRecord): Promise<void> {
-        const sql = `
-            INSERT INTO telemetry_data 
-            (device_id, timestamp, data_type, value, data_status, latitude, longitude, accuracy)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-        
-        await this.db.run(sql, [
-            data.deviceId,
-            data.timestamp,
-            data.dataType,
-            data.value,
-            data.dataStatus,
-            data.location?.lat || null,
-            data.location?.lng || null,
-            data.location?.accuracy || null
-        ]);
+        await this.insertDeviceData('telemetry', [data]);
     }
 
     // 插入工厂设备数据
     async insertFactoryDevices(data: FactoryDeviceRecord[]): Promise<void> {
-        const columns = [
-            'device_id', 'timestamp', 'name', 'type', 'x', 'y', 'status', 'zone', 'position',
-            'parameters', 'data_status', 'latitude', 'longitude', 'accuracy'
-        ];
-
-        const rows = data.map(item => [
-            item.deviceId,
-            item.timestamp,
-            item.name,
-            item.type,
-            item.x,
-            item.y,
-            item.status,
-            item.zone,
-            item.position,
-            JSON.stringify(item.parameters || {}),
-            item.dataStatus,
-            item.location?.lat || null,
-            item.location?.lng || null,
-            item.location?.accuracy || null
-        ]);
-
-        await this.db.batchInsert('factory_devices', columns, rows);
+        await this.insertDeviceData('factory_devices', data);
     }
 
     // 查询核心指标数据
     async queryCoreMetrics(params: QueryParams): Promise<any[]> {
-        let sql = 'SELECT * FROM core_metrics WHERE 1=1';
-        const sqlParams: any[] = [];
+        let sql = 'SELECT * FROM device_data WHERE data_type = ?';
+        const sqlParams: any[] = ['core_metrics'];
 
         if (params.deviceId) {
             sql += ' AND device_id = ?';
@@ -175,7 +107,7 @@ class DataModel {
         }
 
         if (params.category) {
-            sql += ' AND category = ?';
+            sql += ' AND json_extract(payload, "$.category") = ?';
             sqlParams.push(params.category);
         }
 
@@ -194,20 +126,21 @@ class DataModel {
         if (params.limit) {
             sql += ' LIMIT ?';
             sqlParams.push(params.limit);
-            
+
             if (params.offset) {
                 sql += ' OFFSET ?';
                 sqlParams.push(params.offset);
             }
         }
 
-        return await this.db.all(sql, sqlParams);
+        const rows = await this.db.all(sql, sqlParams);
+        return rows.map(row => this.parseDeviceData(row));
     }
 
     // 查询环境数据
     async queryEnvironmentData(params: QueryParams): Promise<any[]> {
-        let sql = 'SELECT * FROM environment_data WHERE 1=1';
-        const sqlParams: any[] = [];
+        let sql = 'SELECT * FROM device_data WHERE data_type = ?';
+        const sqlParams: any[] = ['environment'];
 
         if (params.deviceId) {
             sql += ' AND device_id = ?';
@@ -215,7 +148,7 @@ class DataModel {
         }
 
         if (params.dataType) {
-            sql += ' AND type = ?';
+            sql += ' AND json_extract(payload, "$.type") = ?';
             sqlParams.push(params.dataType);
         }
 
@@ -234,19 +167,50 @@ class DataModel {
         if (params.limit) {
             sql += ' LIMIT ?';
             sqlParams.push(params.limit);
-            
+
             if (params.offset) {
                 sql += ' OFFSET ?';
                 sqlParams.push(params.offset);
             }
         }
 
-        return await this.db.all(sql, sqlParams);
+        const rows = await this.db.all(sql, sqlParams);
+        return rows.map(row => this.parseDeviceData(row));
     }
 
-    // 查询设备状态数据
-    async queryDeviceStatus(params: QueryParams): Promise<any[]> {
-        let sql = 'SELECT * FROM device_status WHERE 1=1';
+    // 查询设备类型数据
+    async queryDeviceStatus(params: QueryParams): Promise<{ 
+        success: boolean; 
+        data: Array<{ 
+            deviceType: number; 
+            count: number; 
+            deviceIds: string[]; 
+        }> 
+    }> {
+        // 使用子查询获取每个设备最新的状态记录，并确保设备ID不重复
+        let sql = `
+            WITH ParsedDeviceStatus AS (
+                SELECT 
+                    device_id,
+                    json_extract(payload, '$.status') as status,
+                    json_extract(payload, '$.timestamp') as record_timestamp,
+                    timestamp as db_timestamp
+                FROM device_data d1
+                WHERE d1.data_type = 'device_status'
+                AND timestamp = (
+                    SELECT MAX(timestamp)
+                    FROM device_data d2
+                    WHERE d2.device_id = d1.device_id
+                    AND d2.data_type = 'device_status'
+                )
+            )
+            SELECT 
+                CAST(SUBSTR(device_id, -4) AS INTEGER) % 10 as deviceType,
+                COUNT(DISTINCT device_id) as count,
+                json_group_array(DISTINCT device_id) as deviceIds
+            FROM ParsedDeviceStatus
+            WHERE 1=1
+        `;
         const sqlParams: any[] = [];
 
         if (params.deviceId) {
@@ -255,7 +219,7 @@ class DataModel {
         }
 
         if (params.status) {
-            sql += ' AND status = ?';
+            sql += ' AND json_extract(payload, "$.status") = ?';
             sqlParams.push(params.status);
         }
 
@@ -269,25 +233,35 @@ class DataModel {
             sqlParams.push(params.endTime);
         }
 
-        sql += ' ORDER BY timestamp DESC';
+        sql += ' GROUP BY deviceType';
+        sql += ' ORDER BY deviceType ASC';
 
         if (params.limit) {
             sql += ' LIMIT ?';
             sqlParams.push(params.limit);
-            
+
             if (params.offset) {
                 sql += ' OFFSET ?';
                 sqlParams.push(params.offset);
             }
         }
 
-        return await this.db.all(sql, sqlParams);
+        const rows = await this.db.all(sql, sqlParams);
+        
+        return {
+            success: true,
+            data: rows.map(row => ({
+                deviceType: row.deviceType,
+                count: row.count,
+                deviceIds: row.deviceIds.split(',')
+            }))
+        };
     }
 
     // 查询通信数据
     async queryTelemetryData(params: QueryParams): Promise<any[]> {
-        let sql = 'SELECT * FROM telemetry_data WHERE 1=1';
-        const sqlParams: any[] = [];
+        let sql = 'SELECT * FROM device_data WHERE data_type = ?';
+        const sqlParams: any[] = ['telemetry'];
 
         if (params.deviceId) {
             sql += ' AND device_id = ?';
@@ -295,7 +269,7 @@ class DataModel {
         }
 
         if (params.dataType) {
-            sql += ' AND data_type = ?';
+            sql += ' AND json_extract(payload, "$.dataType") = ?';
             sqlParams.push(params.dataType);
         }
 
@@ -314,52 +288,44 @@ class DataModel {
         if (params.limit) {
             sql += ' LIMIT ?';
             sqlParams.push(params.limit);
-            
+
             if (params.offset) {
                 sql += ' OFFSET ?';
                 sqlParams.push(params.offset);
             }
         }
 
-        return await this.db.all(sql, sqlParams);
+        const rows = await this.db.all(sql, sqlParams);
+        return rows.map(row => this.parseDeviceData(row));
     }
 
     // 获取数据统计信息
     async getDataStatistics(dataType: string, hours: number = 24): Promise<any[]> {
         const sql = `
-            SELECT 
+            SELECT
                 data_type,
-                category,
+                json_extract(payload, '$.category') as category,
                 COUNT(*) as total_count,
-                AVG(value) as avg_value,
-                MAX(value) as max_value,
-                MIN(value) as min_value,
+                AVG(CAST(json_extract(payload, '$.value') AS REAL)) as avg_value,
+                MAX(CAST(json_extract(payload, '$.value') AS REAL)) as max_value,
+                MIN(CAST(json_extract(payload, '$.value') AS REAL)) as min_value,
                 SUM(CASE WHEN data_status = 'error' THEN 1 ELSE 0 END) as error_count,
                 SUM(CASE WHEN data_status = 'warning' THEN 1 ELSE 0 END) as warning_count,
                 datetime(timestamp/1000, 'unixepoch') as time_group
-            FROM (
-                SELECT 'core_metrics' as data_type, category, value, data_status, timestamp FROM core_metrics
-                WHERE timestamp >= ? 
-                UNION ALL
-                SELECT 'environment' as data_type, type as category, value, data_status, timestamp FROM environment_data
-                WHERE timestamp >= ?
-                UNION ALL
-                SELECT 'telemetry' as data_type, data_type as category, value, data_status, timestamp FROM telemetry_data
-                WHERE timestamp >= ?
-            ) combined
-            WHERE data_type = ?
-            GROUP BY data_type, category, datetime(timestamp/1000, 'unixepoch', 'start of hour')
+            FROM device_data
+            WHERE data_type = ? AND timestamp >= ?
+            GROUP BY data_type, json_extract(payload, '$.category'), datetime(timestamp/1000, 'unixepoch', 'start of hour')
             ORDER BY timestamp DESC
         `;
 
         const hoursAgo = Date.now() - (hours * 60 * 60 * 1000);
-        return await this.db.all(sql, [hoursAgo, hoursAgo, hoursAgo, dataType]);
+        return await this.db.all(sql, [dataType, hoursAgo]);
     }
 
     // 查询工厂设备数据
     async queryFactoryDevices(params: QueryParams): Promise<any[]> {
-        let sql = 'SELECT * FROM factory_devices WHERE 1=1';
-        const sqlParams: any[] = [];
+        let sql = 'SELECT * FROM device_data WHERE data_type = ?';
+        const sqlParams: any[] = ['factory_devices'];
 
         if (params.deviceId) {
             sql += ' AND device_id = ?';
@@ -367,7 +333,7 @@ class DataModel {
         }
 
         if (params.status) {
-            sql += ' AND status = ?';
+            sql += ' AND json_extract(payload, "$.status") = ?';
             sqlParams.push(params.status);
         }
 
@@ -393,7 +359,22 @@ class DataModel {
             }
         }
 
-        return await this.db.all(sql, sqlParams);
+        const rows = await this.db.all(sql, sqlParams);
+        return rows.map(row => this.parseDeviceData(row));
+    }
+
+    // 辅助方法：解析device_data行，返回原始数据格式
+    private parseDeviceData(row: any): any {
+        if (!row || !row.payload) return row;
+        try {
+            const payload = JSON.parse(row.payload);
+            return {
+                ...row,
+                ...payload
+            };
+        } catch (e) {
+            return row;
+        }
     }
 }
 
