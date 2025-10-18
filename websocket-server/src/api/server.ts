@@ -30,7 +30,18 @@ app.get('/api/core-metrics', async (req, res) => {
             offset: req.query.offset ? parseInt(req.query.offset as string) : 0
         };
 
-        const data = await dataModel.queryCoreMetrics(params);
+        const rawData = await dataModel.queryCoreMetrics(params);
+        // 解析payload字段中的JSON数据
+        const data = rawData.map(item => {
+            if (typeof item.payload === 'string') {
+                try {
+                    return JSON.parse(item.payload);
+                } catch (e) {
+                    return item;
+                }
+            }
+            return item;
+        });
         res.json({
             success: true,
             data,
@@ -59,7 +70,18 @@ app.get('/api/environment', async (req, res) => {
             offset: req.query.offset ? parseInt(req.query.offset as string) : 0
         };
 
-        const data = await dataModel.queryEnvironmentData(params);
+        const rawData = await dataModel.queryEnvironmentData(params);
+        // 解析payload字段中的JSON数据
+        const data = rawData.map(item => {
+            if (typeof item.payload === 'string') {
+                try {
+                    return JSON.parse(item.payload);
+                } catch (e) {
+                    return item;
+                }
+            }
+            return item;
+        });
         res.json({
             success: true,
             data,
@@ -167,7 +189,18 @@ app.get('/api/telemetry', async (req, res) => {
             offset: req.query.offset ? parseInt(req.query.offset as string) : 0
         };
 
-        const data = await dataModel.queryTelemetryData(params);
+        const rawData = await dataModel.queryTelemetryData(params);
+        // 解析payload字段中的JSON数据
+        const data = rawData.map(item => {
+            if (typeof item.payload === 'string') {
+                try {
+                    return JSON.parse(item.payload);
+                } catch (e) {
+                    return item;
+                }
+            }
+            return item;
+        });
         res.json({
             success: true,
             data,
@@ -219,7 +252,18 @@ app.get('/api/factory-devices', async (req, res) => {
             offset: req.query.offset ? parseInt(req.query.offset as string) : 0
         };
 
-        const data = await dataModel.queryFactoryDevices(params);
+        const rawData = await dataModel.queryFactoryDevices(params);
+        // 解析payload字段中的JSON数据
+        const data = rawData.map(item => {
+            if (typeof item.payload === 'string') {
+                try {
+                    return JSON.parse(item.payload);
+                } catch (e) {
+                    return item;
+                }
+            }
+            return item;
+        });
         res.json({
             success: true,
             data,

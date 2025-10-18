@@ -53,11 +53,6 @@ export class DeviceSimulator {
     // 生成核心指标数据
     private generateCoreMetrics() {
         const timestamp = Date.now();
-        const location: GeoPoint = {
-            lat: 39.5,
-            lng: 116.5,
-            accuracy: 1
-        };
 
         // 生成四个核心指标
         this.latestData.coreMetrics = [
@@ -66,28 +61,24 @@ export class DeviceSimulator {
                 timestamp,
                 category: 'cpu',
                 value: 30 + Math.random() * 70, // 30-70%
-                location
             },
             {
                 deviceId: "000",
                 timestamp,
                 category: 'memory',
                 value: 40 + Math.random() * 60, // 40-70%
-                location
             },
             {
                 deviceId: "000",
                 timestamp,
                 category: 'network',
                 value: 50 + Math.random() * 100, // 50-180
-                location
             },
             {
                 deviceId: "000",
                 timestamp,
                 category: 'online',
                 value: 60 + Math.random() * 40, // 60-100
-                location
             }
         ];
     }
@@ -99,12 +90,7 @@ export class DeviceSimulator {
             timestamp: Date.now(),
             type: 'temperature',
             value: 22 + Math.random() * 6, // 22-28°C
-            unit: '°C',
-            location: {
-                lat: 39.5,
-                lng: 116.5,
-                accuracy: 1
-            }
+            unit: '°C'
         };
     }
 
@@ -115,11 +101,6 @@ export class DeviceSimulator {
             timestamp: Date.now(),
             dataType: 'upload_frequency',
             value: 60 + Math.floor(Math.random() * 40), // 60-100
-            location: {
-                lat: 39.5,
-                lng: 116.5,
-                accuracy: 1
-            }
         };
     }
 
@@ -246,7 +227,7 @@ export class DeviceSimulator {
     // 获取最新数据
     public getLatestData(): { type: string; data: any }[] {
         const result = [];
-        
+
         if (this.latestData.coreMetrics) {
             result.push({ type: 'core_metrics', data: this.latestData.coreMetrics });
         }

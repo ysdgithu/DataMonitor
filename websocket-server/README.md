@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS data_statistics (
 ```bash
 # 获取最近1小时的CPU使用率数据
 # cpu传感器设备号：000
-curl "http://localhost:3002/api/core-metrics?category=cpu&start=$(date -v-1H +%s000)&end=$(date +%s000)&limit=5"
+curl "http://localhost:3002/api/core-metrics?category&start&end&limit=5"
 ```
 
 #### 请求参数
@@ -67,17 +67,11 @@ curl "http://localhost:3002/api/core-metrics?category=cpu&start=$(date -v-1H +%s
 {
   "success": true,
   "data": [{
-    "id": 4420,                           // 数据库ID
-    "device_id": "000",                   // 设备ID
-    "data_type": "core_metrics",          // 数据类型
-    "timestamp": 1760670505537,           // 时间戳
-    "data_status": "normal",              // 数据状态
-    "payload": "...",                     // 原始JSON数据
-    "created_at": "2025-10-17 03:08:26",  // 创建时间
-    "deviceId": "000",                    // 设备ID（解析自payload）
-    "category": "online",                 // 指标类别
-    "value": 61.58,                       // 指标值
-    "dataStatus": "normal"                // 数据状态（解析自payload）
+    "deviceId": "000",
+    "timestamp": 1760792891698,
+    "category": "online",
+    "value": 82.46987950196485,
+    "dataStatus": "normal"
   }],
   "total": 1
 }
@@ -105,22 +99,55 @@ curl "http://localhost:3002/api/environment?deviceId=2001&start=$(date -v-24H +%
 #### 响应示例
 ```json
 {
-  "success": true,
-  "data": [{
-    "id": 3908,
-    "device_id": "001",                  // 环境传感器设备号
-    "data_type": "environment",
-    "timestamp": 1760670378094,
-    "data_status": "normal",
-    "payload": "...",
-    "created_at": "2025-10-17 03:06:18",
-    "deviceId": "001",
-    "type": "temperature",
-    "value": 24.55,
-    "unit": "°C",
-    "dataStatus": "normal"
-  }],
-  "total": 1
+    "success": true,
+    "data": [
+        {
+            "deviceId": "001",
+            "timestamp": 1760792821936,
+            "type": "temperature",
+            "value": 25.220121381652532,
+            "unit": "°C",
+            "dataStatus": "normal"
+        },
+        {
+            "deviceId": "001",
+            "timestamp": 1760792813905,
+            "type": "temperature",
+            "value": 24.797518693687664,
+            "unit": "°C",
+            "dataStatus": "normal"
+        },
+        {
+            "deviceId": "001",
+            "timestamp": 1760792805840,
+            "type": "temperature",
+            "value": 24.228559265319486,
+            "unit": "°C",
+            "dataStatus": "normal"
+        },
+        {
+            "deviceId": "001",
+            "timestamp": 1760792797761,
+            "type": "temperature",
+            "value": 23.56001933862574,
+            "unit": "°C",
+            "dataStatus": "normal"
+        },
+        {
+            "deviceId": "001",
+            "timestamp": 1760792789704,
+            "type": "temperature",
+            "value": 26.596649867977504,
+            "unit": "°C",
+            "dataStatus": "normal"
+        }
+    ],
+    "total": 5,
+    "params": {
+        "dataType": "temperature",
+        "limit": 5,
+        "offset": 0
+    }
 }
 ```
 
@@ -197,21 +224,28 @@ curl "http://localhost:3002/api/telemetry?deviceId=3001&dataType=upload_frequenc
 #### 响应示例
 ```json
 {
-  "success": true,
-  "data": [{
-    "id": 4167,
-    "device_id": "002",
-    "data_type": "telemetry",
-    "timestamp": 1760670438504,
-    "data_status": "warning",
-    "payload": "...",
-    "created_at": "2025-10-17 03:07:22",
-    "deviceId": "002",
-    "dataType": "upload_frequency",
-    "value": 86,
-    "dataStatus": "warning"
-  }],
-  "total": 1
+    "success": true,
+    "data": [
+        {
+            "deviceId": "002",
+            "timestamp": 1760793194998,
+            "dataType": "upload_frequency",
+            "value": 70,
+            "dataStatus": "normal"
+        },
+        {
+            "deviceId": "002",
+            "timestamp": 1760793186969,
+            "dataType": "upload_frequency",
+            "value": 72,
+            "dataStatus": "normal"
+        }
+    ],
+    "total": 2,
+    "params": {
+        "limit": 2,
+        "offset": 0
+    }
 }
 ```
 
@@ -219,7 +253,7 @@ curl "http://localhost:3002/api/telemetry?deviceId=3001&dataType=upload_frequenc
 #### 调用示例
 ```bash
 # 获取今天CPU使用率的统计数据
-curl "http://localhost:3002/api/statistics/core_metrics?date=$(date +%Y-%m-%d)&category=cpu"
+curl "http://localhost:3002/api/statistics/core_metrics?date&category=cpu"
 
 # 获取特定小时的环境数据统计
 curl "http://localhost:3002/api/statistics/environment?date=2025-10-16&hour=14"
@@ -236,18 +270,55 @@ curl "http://localhost:3002/api/statistics/environment?date=2025-10-16&hour=14"
 #### 响应示例
 ```json
 {
-  "success": true,
-  "data": [{
-    "data_type": "core_metrics",
-    "category": "network",
-    "total_count": 135,
-    "avg_value": 95.36,
-    "max_value": 149.12,
-    "min_value": 50.91,
-    "error_count": 0,
-    "warning_count": 0,
-    "time_group": "2025-10-17 03:07:04"
-  }]
+    "success": true,
+    "data": [
+        {
+            "data_type": "core_metrics",
+            "category": "cpu",
+            "total_count": 286,
+            "avg_value": 66.4604662559724,
+            "max_value": 99.92177730685204,
+            "min_value": 30.134591124754333,
+            "error_count": 24,
+            "warning_count": 24,
+            "time_group": "2025-10-18 13:01:48"
+        },
+        {
+            "data_type": "core_metrics",
+            "category": "network",
+            "total_count": 286,
+            "avg_value": 98.6761921073107,
+            "max_value": 149.91882991805846,
+            "min_value": 51.07191606061501,
+            "error_count": 0,
+            "warning_count": 0,
+            "time_group": "2025-10-18 12:43:50"
+        },
+        {
+            "data_type": "core_metrics",
+            "category": "memory",
+            "total_count": 286,
+            "avg_value": 71.65590975243643,
+            "max_value": 99.85599947308398,
+            "min_value": 40.13891369654224,
+            "error_count": 36,
+            "warning_count": 20,
+            "time_group": "2025-10-18 12:43:26"
+        },
+        {
+            "data_type": "core_metrics",
+            "category": "online",
+            "total_count": 286,
+            "avg_value": 79.52713299064253,
+            "max_value": 99.33892653305689,
+            "min_value": 60.02656599701012,
+            "error_count": 0,
+            "warning_count": 0,
+            "time_group": "2025-10-18 12:37:34"
+        }
+    ],
+    "dataType": "core_metrics",
+    "hours": 24
 }
 ```
 ### GET /api/overview - 获取数据概览
@@ -282,44 +353,69 @@ curl "http://localhost:3002/api/overview?timeRange=day"
 
 #### 调用示例
 ```bash
-curl http://localhost:3002/api/factory-devices?limit=10&zone=production&status=online
+curl http://localhost:3002/api/factory-devices?limit=2&zone&status
 ```
 
 #### 响应示例
 ```json
 {
-  "success": true,
-  "data": [{
-    "id": 4546,
-    "device_id": "1010",
-    "data_type": "factory_devices",
-    "timestamp": 1760670536461,
-    "data_status": "normal",
-    "payload": "...",
-    "created_at": "2025-10-17 03:08:56",
-    "deviceId": "1010",
-    "name": "空压机-1",
-    "type": "空压机",
-    "x": 150,
-    "y": 400,
-    "status": "online",
-    "zone": "maintenance",
-    "position": "5区1排",
-    "parameters": {
-      "temperature": 44.9,
-      "pressure": 6.9,
-      "vibration": 2,
-      "power": 59
-    },
-    "dataStatus": "normal"
-  }],
-  "total": 10
+    "success": true,
+    "data": [
+        {
+            "deviceId": "1010",
+            "name": "空压机-1",
+            "timestamp": 1760793319182,
+            "typeCode": 9,
+            "type": "空压机",
+            "x": 150,
+            "y": 400,
+            "status": "online",
+            "zone": "maintenance",
+            "position": "5区1排",
+            "parameters": {
+                "temperature": 52.4,
+                "pressure": 4.5,
+                "vibration": 2.3,
+                "power": 58
+            },
+            "dataStatus": "normal"
+        },
+        {
+            "deviceId": "1009",
+            "name": "检测设备-1",
+            "timestamp": 1760793319182,
+            "typeCode": 8,
+            "type": "检测设备",
+            "x": 700,
+            "y": 300,
+            "status": "online",
+            "zone": "testing",
+            "position": "4区1排",
+            "parameters": {
+                "temperature": 30.9,
+                "pressure": 4.2,
+                "vibration": 0.9,
+                "power": 59
+            },
+            "dataStatus": "normal"
+        }
+    ],
+    "total": 2,
+    "params": {
+        "status": "",
+        "limit": 2,
+        "offset": 0
+    }
 }
 ```
 
-## 实时服务
+## websocket
 
-## 各种想法
+### 数据模拟器
+
+
+
+#### 各种想法
 
 2025-10-14
 死ai我真无语了，应该就建一张工厂设备总表就行了，剩下的都能从这查然后统计，还能展示性能
@@ -334,5 +430,4 @@ curl http://localhost:3002/api/factory-devices?limit=10&zone=production&status=o
 数据展示流程（实时和非实时）为基础功能！
 进阶：报警闭环（需要实现设备报警-处理-恢复的全链路监控）
 感觉越做越复杂了，想逝了
-
 

@@ -32,7 +32,7 @@ class DatabaseConnection {
         }
 
         return new Promise((resolve, reject) => {
-            this.db = new Database(DB_PATH, (err) => {
+            this.db = new Database(DB_PATH, (err: Error | null) => {
                 if (err) {
                     console.error('数据库连接失败:', err);
                     reject(err);
@@ -47,7 +47,7 @@ class DatabaseConnection {
     public async run(sql: string, params: any[] = []): Promise<void> {
         const db = await this.connect();
         return new Promise((resolve, reject) => {
-            db.run(sql, params, function(err) {
+            db.run(sql, params, function(err: Error | null) {
                 if (err) {
                     reject(err);
                 } else {
@@ -60,7 +60,7 @@ class DatabaseConnection {
     public async get(sql: string, params: any[] = []): Promise<any> {
         const db = await this.connect();
         return new Promise((resolve, reject) => {
-            db.get(sql, params, (err, row) => {
+            db.get(sql, params, (err: Error | null, row: any) => {
                 if (err) {
                     reject(err);
                 } else {
@@ -73,7 +73,7 @@ class DatabaseConnection {
     public async all(sql: string, params: any[] = []): Promise<any[]> {
         const db = await this.connect();
         return new Promise((resolve, reject) => {
-            db.all(sql, params, (err, rows) => {
+            db.all(sql, params, (err: Error | null, rows: any[]) => {
                 if (err) {
                     reject(err);
                 } else {
@@ -86,7 +86,7 @@ class DatabaseConnection {
     public async close(): Promise<void> {
         if (this.db) {
             return new Promise((resolve, reject) => {
-                this.db!.close((err) => {
+                this.db!.close((err: Error | null) => {
                     if (err) {
                         reject(err);
                     } else {
@@ -112,7 +112,7 @@ class DatabaseConnection {
             let hasError = false;
 
             for (const row of data) {
-                stmt.run(row, (err) => {
+                stmt.run(row, (err: Error | null) => {
                     if (err && !hasError) {
                         hasError = true;
                         stmt.finalize();

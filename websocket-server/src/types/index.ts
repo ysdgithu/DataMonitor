@@ -5,7 +5,6 @@
 export interface BaseDataPoint {
   deviceId: string; // 设备唯一ID
   timestamp: number; // 数据采集时间，Unix时间戳(秒)
-  location?: GeoPoint; // 设备地理位置
   dataStatus?: 'normal' | 'warning' | 'error'; // 数据状态，由数据处理器赋值添加
 }
 
@@ -40,7 +39,6 @@ export type DeviceStatusData = BaseDataPoint & {
   status: 'online' | 'offline' | 'warning' | 'error'; // 设备状态
   lastUpdate: number; // 最后一次数据更新时间戳
   batteryLevel?: number; // 电池电量（百分比）
-  location: GeoPoint; // 设备地理位置
 };
 
 // 设备类型数据（非实时，websocket不推送）
