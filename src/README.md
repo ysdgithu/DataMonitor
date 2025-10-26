@@ -1,55 +1,177 @@
 # DataMonitor 前端项目
 
-<div align="center">
-
-**基于 Vue 3 + TypeScript 的现代化数据监控前端**
-
-## 项目概述
-
-DataMonitor 前端是基于 Vue 3 生态系统构建的现代化单页应用，专为实时数据监控和可视化设计。
-
-## 技术栈
-
-**核心**: Vue 3 + TypeScript + Vite + Element Plus + ECharts + Pinia + Vue Router + Axios
-
-## 项目结构
-
-```
-src/
-├── components/          # Vue组件
-│   ├── charts/         # 图表组件
-│   ├── dashboard/      # 仪表板组件
-│   └── layout/         # 布局组件
-├── stores/             # Pinia状态管理
-├── utils/              # 工具函数
-├── views/              # 页面组件
-├── router/             # 路由配置
-├── App.vue             # 根组件
-└── main.ts             # 应用入口
-```
-建议修改点：
-<!-- ## 核心技术亮点
-### WebSocket优化
-- 心跳机制：每30秒保活，断线自动重连
-- 数据压缩：gzip压缩节省60%带宽
-- 消息队列：积压消息分批发送，避免网络阻塞
-
-### 异常检测算法  
-```typescript
-// 具体代码示例，不要光说概念
-export function detectAnomaly(values: number[]): boolean {
-  const mean = values.reduce((a, b) => a + b) / values.length;
-  const std = Math.sqrt(values.reduce((sq, n) => sq + Math.pow(n - mean, 2), 0) / values.length);
-  return Math.abs(values[values.length - 1] - mean) > 3 * std;
-} -->
-### WebSocket优化
-
-## 开发指南
-
 ### 构建部署
 ```bash
 npm run build    # 生产构建
 npm run preview  # 预览构建结果
 ```
+### websocket
+#### 自动重连机制（指数退避策略）
 
----
+```js
+const handleReconnect = () => {
+    if (retryCount.value >= maxRetries) {
+      console.log('[WebSocket] 达到最大重连次数，停止重连')
+      return
+    }
+
+    retryCount.value++
+    const delay = retryDelay * Math.pow(2, retryCount.value - 1)
+
+    console.log(`[WebSocket] ${delay}ms后进行第${retryCount.value}次重连...`)
+
+    if (retryTimeout) {
+      clearTimeout(retryTimeout)
+    }
+
+    retryTimeout = setTimeout(() => {
+      connect()
+    }, delay)
+  }
+```
+
+1. **延迟计算**：`const delay = retryDelay * Math.pow(2, retryCount.value - 1)`
+   - 第 1 次重连：delay = retryDelay * 1
+   - 第 2 次重连：delay = retryDelay * 2
+   - 第 3 次重连：delay = retryDelay * 4
+   - 第 4 次重连：delay = retryDelay * 8
+   - 以此类推...
+2. **触发时机**：
+   - 在`onclose`事件中调用`handleReconnect()`
+   - 在连接创建失败的`catch`块中调用`handleReconnect()`
+3. **重连限制**：
+   - 当`retryCount`达到`maxRetries`时停止重连
+   - 默认`maxRetries`为 3 次
+
+#### **心跳机制**
+
+定期（比如每30秒）向服务器发送一个ping消息，服务器返回pong。如果一段时间没收到pong，就主动断开并触发重连。
+
+```js
+// 启动心跳机制
+  const startHeartbeat = () => {
+    console.log('[WebSocket] 启动心跳机制')
+
+    // 清除可能存在的旧定时器
+    stopHeartbeat()
+
+    // 设置心跳定时器
+    heartbeatTimer = setInterval(() => {
+      sendHeartbeat()
+    }, heartbeatInterval)
+  }
+
+  // 停止心跳机制
+  const stopHeartbeat = () => {
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer)
+      heartbeatTimer = null
+    }
+
+    if (heartbeatTimeoutTimer) {
+      clearTimeout(heartbeatTimeoutTimer)
+      heartbeatTimeoutTimer = null
+    }
+
+    isWaitingForPong.value = false
+  }
+
+  // 发送心跳消息
+  const sendHeartbeat = () => {
+    if (!isConnected.value) return
+
+    // 如果正在等待pong响应，说明上一次心跳没有得到回应
+    if (isWaitingForPong.value) {
+      console.warn('[WebSocket] 心跳超时，主动断开连接')
+      // 主动断开连接，触发重连
+      if (ws.value) {
+        ws.value.close(4001, 'Heartbeat timeout')
+      }
+      return
+    }
+
+    console.log('[WebSocket] 发送心跳 ping')
+    try {
+      // 发送ping消息
+      sendMessage({ type: 'ping', timestamp: Date.now() })
+
+      // 设置等待pong状态
+      isWaitingForPong.value = true
+
+      // 设置超时定时器
+      heartbeatTimeoutTimer = setTimeout(() => {
+        if (isWaitingForPong.value) {
+          console.warn('[WebSocket] 心跳超时，主动断开连接')
+          if (ws.value) {
+            ws.value.close(4001, 'Heartbeat timeout')
+          }
+        }
+      }, heartbeatTimeout)
+
+    } catch (error) {
+      console.error('[WebSocket] 发送心跳失败:', error)
+    }
+  }
+
+  // 处理pong响应
+  const handlePongResponse = () => {
+    console.log('[WebSocket] 收到心跳 pong 响应')
+    isWaitingForPong.value = false
+
+    // 清除超时定时器
+    if (heartbeatTimeoutTimer) {
+      clearTimeout(heartbeatTimeoutTimer)
+      heartbeatTimeoutTimer = null
+    }
+  }
+
+```
+
+#### 消息队列
+
+在重连期间，将需要发送的消息缓存到一个数组中，等连接恢复后重新发送。
+
+```js
+// 发送消息
+  const sendMessage = (message: string | object) => {
+    if (!ws.value || ws.value.readyState !== WebSocket.OPEN) {
+      console.warn('WebSocket is not connected, adding message to queue')
+      // 将消息加入队列
+      messageQueue.value.push(message)
+      return
+    }
+
+    try {
+      const data = typeof message === 'string' ? message : JSON.stringify(message)
+      // 发送至服务器
+      ws.value.send(data)
+    } catch (error) {
+      console.error('Error sending message:', error)
+    }
+  }
+
+  // 发送队列中的消息
+  const sendQueuedMessages = () => {
+    if (messageQueue.value.length === 0) return
+
+    console.log(`[WebSocket] 发送队列中的 ${messageQueue.value.length} 条消息`)
+
+    // 复制队列并清空，避免发送过程中新增的消息被重复处理
+    const messagesToSend = [...messageQueue.value]
+    messageQueue.value = []
+
+    messagesToSend.forEach(message => {
+      sendMessage(message)
+    })
+  }
+```
+
+### 制造一个“性能优化”的亮点
+
+**现状：** ECharts图表随数据刷新，可能卡顿。
+**目标：** 展示你有性能意识。
+
+**具体操作：**
+
+1. **防抖/节流**：在历史数据查询的时间筛选器上，加上防抖（例如用户停止输入500ms后再请求）。
+2. **虚拟滚动**：如果你的历史数据列表很长，可以口嗨一句“对于大数据量的列表，我调研了虚拟滚动的方案来优化渲染性能”。（如果没时间，可以不实现，但要知道原理）。

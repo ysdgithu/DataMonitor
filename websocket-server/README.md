@@ -409,9 +409,19 @@ curl http://localhost:3002/api/factory-devices?limit=2&zone&status
 }
 ```
 
-## websocket
+## api鉴权处理
 
-### 数据模拟器
+1. **实现JWT登录**：增加一个`/api/login`接口，验证用户名密码后返回一个JWT token。
+2. **保护接口**：在所有需要认证的API前面，加一个中间件，校验请求头中的`Authorization`里的JWT是否有效。
+3. **前端存储Token**：登录后把token存到`localStorage`或`Pinia`里，后续每个请求都在header里带上。
+
+## SQLite换成MySQL
+
+在阿里云ECS上装个MySQL，或者用云数据库（RDS）。
+
+把你Node.js项目里连接数据库的配置从SQLite改成MySQL。
+
+表结构基本不用变，直接导入过去就行。
 
 
 
