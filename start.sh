@@ -72,17 +72,27 @@ check_dependencies() {
 
 # 初始化数据库
 init_database() {
-    print_message "初始化数据库..."
+    print_message "初始化 MySQL 数据库..."
     cd websocket-server
-    
-    if [ ! -f "data/monitor.db" ]; then
-        npm run init-db
-        print_message "数据库初始化完成"
+
+    # MySQL 版本：每次都运行初始化脚本，因为 MySQL 数据库是远程的
+    # 脚本会检查表是否存在，如果存在则跳过创建
+    npm run init-db
+    if [ $? -eq 0 ]; then
+        print_message "MySQL 数据库初始化完成"
     else
-        print_message "数据库已存在，跳过初始化"
+        print_warning "MySQL 数据库初始化失败，请检查 MySQL 连接配置"
     fi
-    
+
     cd ..
+
+    # SQLite 版本已注释
+    # if [ ! -f "data/monitor.db" ]; then
+    #     npm run init-db
+    #     print_message "数据库初始化完成"
+    # else
+    #     print_message "数据库已存在，跳过初始化"
+    # fi
 }
 
 # 启动后端服务

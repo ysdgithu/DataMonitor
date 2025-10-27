@@ -1,4 +1,132 @@
 // 数据库连接管理
+import mysql from 'mysql2/promise';
+import { Pool, PoolConnection } from 'mysql2/promise';
+import path from 'path';
+import fs from 'fs';
+
+// MySQL 连接池配置
+let pool: Pool | null = null;
+
+// 获取数据库配置
+function getDbConfig() {
+    const configPath = path.join(__dirname, '../../config.json');
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    return config.database;
+}
+
+class DatabaseConnection {
+    private static instance: DatabaseConnection;
+    private pool: Pool | null = null;
+
+    private constructor() {}
+
+    public static getInstance(): DatabaseConnection {
+        if (!DatabaseConnection.instance) {
+            DatabaseConnection.instance = new DatabaseConnection();
+        }
+        return DatabaseConnection.instance;
+    }
+
+    public async connect(): Promise<Pool> {
+        if (this.pool) {
+            return this.pool;
+        }
+
+        try {
+            const dbConfig = getDbConfig();
+
+            this.pool = mysql.createPool({
+                host: dbConfig.host,
+                port: dbConfig.port,
+                user: dbConfig.user,
+                password: dbConfig.password,
+                database: dbConfig.database,
+                waitForConnections: dbConfig.options?.waitForConnections ?? true,
+                connectionLimit: dbConfig.options?.connectionLimit ?? 10,
+                queueLimit: dbConfig.options?.queueLimit ?? 0,
+                enableKeepAlive: true,
+                keepAliveInitialDelayMs: 0
+            });
+
+            console.log(`MySQL 数据库连接成功: ${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`);
+            return this.pool;
+        } catch (error) {
+            console.error('MySQL 数据库连接失败:', error);
+            throw error;
+        }
+    }
+
+    public async run(sql: string, params: any[] = []): Promise<void> {
+        const pool = await this.connect();
+        const connection = await pool.getConnection();
+        try {
+            await connection.execute(sql, params);
+        } finally {
+            connection.release();
+        }
+    }
+
+    public async get(sql: string, params: any[] = []): Promise<any> {
+        const pool = await this.connect();
+        const connection = await pool.getConnection();
+        try {
+            const [rows] = await connection.execute(sql, params);
+            return (rows as any[])[0] || null;
+        } finally {
+            connection.release();
+        }
+    }
+
+    public async all(sql: string, params: any[] = []): Promise<any[]> {
+        const pool = await this.connect();
+        const connection = await pool.getConnection();
+        try {
+            const [rows] = await connection.execute(sql, params);
+            return rows as any[];
+        } finally {
+            connection.release();
+        }
+    }
+
+    public async close(): Promise<void> {
+        if (this.pool) {
+            await this.pool.end();
+            this.pool = null;
+        }
+    }
+
+    // 批量插入优化
+    public async batchInsert(tableName: string, columns: string[], data: any[][]): Promise<void> {
+        if (data.length === 0) return;
+
+        const pool = await this.connect();
+        const connection = await pool.getConnection();
+
+        try {
+            const placeholders = columns.map(() => '?').join(', ');
+            const sql = `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${placeholders})`;
+
+            // 使用事务处理批量插入
+            await connection.beginTransaction();
+
+            try {
+                for (const row of data) {
+                    await connection.execute(sql, row);
+                }
+
+                await connection.commit();
+            } catch (error) {
+                await connection.rollback();
+                throw error;
+            }
+        } finally {
+            connection.release();
+        }
+    }
+}
+
+/* SQLite 连接代码已注释，迁移到 MySQL
+// 数据库连接管理 (SQLite 版本)
 import { Database } from 'sqlite3';
 import { promisify } from 'util';
 import path from 'path';
@@ -13,17 +141,17 @@ if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-class DatabaseConnection {
-    private static instance: DatabaseConnection;
+class DatabaseConnectionSQLite {
+    private static instance: DatabaseConnectionSQLite;
     private db: Database | null = null;
 
     private constructor() {}
 
-    public static getInstance(): DatabaseConnection {
-        if (!DatabaseConnection.instance) {
-            DatabaseConnection.instance = new DatabaseConnection();
+    public static getInstance(): DatabaseConnectionSQLite {
+        if (!DatabaseConnectionSQLite.instance) {
+            DatabaseConnectionSQLite.instance = new DatabaseConnectionSQLite();
         }
-        return DatabaseConnection.instance;
+        return DatabaseConnectionSQLite.instance;
     }
 
     public async connect(): Promise<Database> {
@@ -98,7 +226,6 @@ class DatabaseConnection {
         }
     }
 
-    // 批量插入优化
     public async batchInsert(tableName: string, columns: string[], data: any[][]): Promise<void> {
         if (data.length === 0) return;
 
@@ -130,5 +257,6 @@ class DatabaseConnection {
         });
     }
 }
+*/
 
 export default DatabaseConnection;

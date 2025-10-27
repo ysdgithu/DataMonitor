@@ -9,10 +9,7 @@
       "host": "localhost",
       "cors": {
         "enabled": true,
-        "origins": [
-          "http://localhost:5173",
-          "http://localhost:3000"
-        ]
+        "origins": ["http://localhost:5173", "http://localhost:3000"]
       }
     }
   },
@@ -21,7 +18,7 @@
     "host": "localhost",
     "port": 3306,
     "user": "root",
-    "password": "",
+    "password": "your_password_here",
     "database": "monitor_db",
     "options": {
       "autoInit": true,
@@ -29,19 +26,7 @@
       "waitForConnections": true,
       "queueLimit": 0
     },
-    "_comment_sqlite": "SQLite 配置已注释，迁移到 MySQL",
-    "_sqlite_config": {
-      "type": "sqlite",
-      "path": "./data/monitor.db",
-      "options": {
-        "autoInit": true,
-        "backup": {
-          "enabled": false,
-          "interval": "24h",
-          "keepDays": 7
-        }
-      }
-    }
+    "_comment": "MySQL 配置示例。请根据实际情况修改 host、port、user、password 和 database。"
   },
   "simulator": {
     "normal": {
@@ -110,3 +95,4 @@
     }
   }
 }
+

@@ -107,7 +107,7 @@ class DataModel {
         }
 
         if (params.category) {
-            sql += ' AND json_extract(payload, "$.category") = ?';
+            sql += ' AND JSON_EXTRACT(payload, "$.category") = ?';
             sqlParams.push(params.category);
         }
 
@@ -148,7 +148,7 @@ class DataModel {
         }
 
         if (params.dataType) {
-            sql += ' AND json_extract(payload, "$.type") = ?';
+            sql += ' AND JSON_EXTRACT(payload, "$.type") = ?';
             sqlParams.push(params.dataType);
         }
 
@@ -179,21 +179,22 @@ class DataModel {
     }
 
     // 查询设备类型数据
-    async queryDeviceStatus(params: QueryParams): Promise<{ 
-        success: boolean; 
-        data: Array<{ 
-            deviceType: number; 
-            count: number; 
-            deviceIds: string[]; 
-        }> 
+    async queryDeviceStatus(params: QueryParams): Promise<{
+        success: boolean;
+        data: Array<{
+            deviceType: number;
+            count: number;
+            deviceIds: string[];
+        }>
     }> {
         // 使用子查询获取每个设备最新的状态记录，并确保设备ID不重复
+        // MySQL 版本：使用 JSON_EXTRACT 和 GROUP_CONCAT 替代 SQLite 的 json_group_array
         let sql = `
             WITH ParsedDeviceStatus AS (
-                SELECT 
+                SELECT
                     device_id,
-                    json_extract(payload, '$.status') as status,
-                    json_extract(payload, '$.timestamp') as record_timestamp,
+                    JSON_EXTRACT(payload, '$.status') as status,
+                    JSON_EXTRACT(payload, '$.timestamp') as record_timestamp,
                     timestamp as db_timestamp
                 FROM device_data d1
                 WHERE d1.data_type = 'device_status'
@@ -204,10 +205,10 @@ class DataModel {
                     AND d2.data_type = 'device_status'
                 )
             )
-            SELECT 
-                CAST(SUBSTR(device_id, -4) AS INTEGER) % 10 as deviceType,
+            SELECT
+                CAST(SUBSTR(device_id, -4) AS UNSIGNED) % 10 as deviceType,
                 COUNT(DISTINCT device_id) as count,
-                json_group_array(DISTINCT device_id) as deviceIds
+                GROUP_CONCAT(DISTINCT device_id) as deviceIds
             FROM ParsedDeviceStatus
             WHERE 1=1
         `;
@@ -219,7 +220,7 @@ class DataModel {
         }
 
         if (params.status) {
-            sql += ' AND json_extract(payload, "$.status") = ?';
+            sql += ' AND JSON_EXTRACT(payload, "$.status") = ?';
             sqlParams.push(params.status);
         }
 
@@ -247,13 +248,13 @@ class DataModel {
         }
 
         const rows = await this.db.all(sql, sqlParams);
-        
+
         return {
             success: true,
             data: rows.map(row => ({
                 deviceType: row.deviceType,
                 count: row.count,
-                deviceIds: row.deviceIds.split(',')
+                deviceIds: row.deviceIds ? row.deviceIds.split(',') : []
             }))
         };
     }
@@ -269,7 +270,7 @@ class DataModel {
         }
 
         if (params.dataType) {
-            sql += ' AND json_extract(payload, "$.dataType") = ?';
+            sql += ' AND JSON_EXTRACT(payload, "$.dataType") = ?';
             sqlParams.push(params.dataType);
         }
 
@@ -301,20 +302,21 @@ class DataModel {
 
     // 获取数据统计信息
     async getDataStatistics(dataType: string, hours: number = 24): Promise<any[]> {
+        // MySQL 版本：使用 JSON_EXTRACT 和 DATE_FORMAT 替代 SQLite 的 datetime 函数
         const sql = `
             SELECT
                 data_type,
-                json_extract(payload, '$.category') as category,
+                JSON_EXTRACT(payload, '$.category') as category,
                 COUNT(*) as total_count,
-                AVG(CAST(json_extract(payload, '$.value') AS REAL)) as avg_value,
-                MAX(CAST(json_extract(payload, '$.value') AS REAL)) as max_value,
-                MIN(CAST(json_extract(payload, '$.value') AS REAL)) as min_value,
+                AVG(CAST(JSON_EXTRACT(payload, '$.value') AS DECIMAL(10,2))) as avg_value,
+                MAX(CAST(JSON_EXTRACT(payload, '$.value') AS DECIMAL(10,2))) as max_value,
+                MIN(CAST(JSON_EXTRACT(payload, '$.value') AS DECIMAL(10,2))) as min_value,
                 SUM(CASE WHEN data_status = 'error' THEN 1 ELSE 0 END) as error_count,
                 SUM(CASE WHEN data_status = 'warning' THEN 1 ELSE 0 END) as warning_count,
-                datetime(timestamp/1000, 'unixepoch') as time_group
+                DATE_FORMAT(FROM_UNIXTIME(timestamp/1000), '%Y-%m-%d %H:00:00') as time_group
             FROM device_data
             WHERE data_type = ? AND timestamp >= ?
-            GROUP BY data_type, json_extract(payload, '$.category'), datetime(timestamp/1000, 'unixepoch', 'start of hour')
+            GROUP BY data_type, JSON_EXTRACT(payload, '$.category'), DATE_FORMAT(FROM_UNIXTIME(timestamp/1000), '%Y-%m-%d %H:00:00')
             ORDER BY timestamp DESC
         `;
 
@@ -333,7 +335,7 @@ class DataModel {
         }
 
         if (params.status) {
-            sql += ' AND json_extract(payload, "$.status") = ?';
+            sql += ' AND JSON_EXTRACT(payload, "$.status") = ?';
             sqlParams.push(params.status);
         }
 
@@ -367,7 +369,7 @@ class DataModel {
     private parseDeviceData(row: any): any {
         if (!row || !row.payload) return row;
         try {
-            const payload = JSON.parse(row.payload);
+            const payload = typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload;
             return {
                 ...row,
                 ...payload
