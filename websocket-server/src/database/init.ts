@@ -28,10 +28,10 @@ async function initDatabase() {
 
         // 创建数据库（如果不存在）
         console.log(`创建数据库: ${dbConfig.database}`);
-        await connection.execute(`CREATE DATABASE IF NOT EXISTS ${dbConfig.database}`);
+        await connection.query(`CREATE DATABASE IF NOT EXISTS ${dbConfig.database}`);
 
         // 切换到目标数据库
-        await connection.execute(`USE ${dbConfig.database}`);
+        await connection.query(`USE ${dbConfig.database}`);
 
         // 统一的设备数据表 - 支持所有数据类型
         // data_type: 'core_metrics' | 'environment' | 'device_status' | 'telemetry' | 'factory_devices'
@@ -75,10 +75,10 @@ async function initDatabase() {
 
         // 创建复合索引 - 优化查询性能
         const indexes = [
-            'CREATE INDEX IF NOT EXISTS idx_device_data_device_type_time ON device_data(device_id, data_type, timestamp)',
-            'CREATE INDEX IF NOT EXISTS idx_device_data_type_time ON device_data(data_type, timestamp)',
-            'CREATE INDEX IF NOT EXISTS idx_device_data_status ON device_data(data_status)',
-            'CREATE INDEX IF NOT EXISTS idx_statistics_date_type ON data_statistics(date, data_type)'
+            'CREATE INDEX idx_device_data_device_type_time ON device_data(device_id, data_type, timestamp)',
+            'CREATE INDEX idx_device_data_type_time ON device_data(data_type, timestamp)',
+            'CREATE INDEX idx_device_data_status ON device_data(data_status)',
+            'CREATE INDEX idx_statistics_date_type ON data_statistics(date, data_type)'
         ];
 
         for (const indexSql of indexes) {
