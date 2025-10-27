@@ -45,7 +45,7 @@ class DatabaseConnection {
                 connectionLimit: dbConfig.options?.connectionLimit ?? 10,
                 queueLimit: dbConfig.options?.queueLimit ?? 0,
                 enableKeepAlive: true,
-                keepAliveInitialDelayMs: 0
+                keepAliveInitialDelay: 0
             });
 
             console.log(`MySQL 数据库连接成功: ${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`);
