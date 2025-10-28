@@ -8,7 +8,8 @@
     "build": "tsc",
     "test": "echo \"No tests specified\" && exit 0",
     "init-db": "ts-node src/database/init.ts",
-    "init-admin": "ts-node src/scripts/initAdmin.ts"
+    "create-admin": "ts-node scripts/create-admin-user.ts",
+    "dev": "ts-node src/server.ts"
   },
   "dependencies": {
     "@types/bcrypt": "^6.0.0",
