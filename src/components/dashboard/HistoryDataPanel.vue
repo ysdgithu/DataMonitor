@@ -22,7 +22,7 @@
             <el-select v-model="queryParams.dataType" placeholder="选择数据类型" @change="queryData()">
               <el-option label="核心指标" value="coreMetrics" />
               <el-option label="环境数据" value="environment" />
-              <el-option label="设备状态" value="deviceStatus" />
+              <el-option label="设备类型" value="deviceType" />
               <el-option label="通信数据" value="telemetry" />
             </el-select>
           </el-col>
@@ -39,7 +39,7 @@
           </el-col>
 
           <el-col :span="6">
-            <el-select v-model="queryParams.timeRange" placeholder="选择时间范围" @change="onTimeRangeChange">
+            <el-select v-model="timeRange" placeholder="选择时间范围" @change="onTimeRangeChange">
               <el-option 
                 v-for="option in timeRangeOptions" 
                 :key="option.value"
@@ -109,7 +109,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, nextTick } from 'vue';
 import { ElMessage } from 'element-plus';
-import { historyApi, TIME_RANGE_OPTIONS, DATA_TYPE_OPTIONS, type QueryParams } from '@/utils/historyApi';
+import { historyApi, TIME_RANGE_OPTIONS, DATA_TYPE_OPTIONS, type QueryParams,DEVICE_TYPE_NAMES } from '@/utils/historyApi';
 // 后期考虑写个防抖处理
 
 // 响应式数据
@@ -117,13 +117,14 @@ const loading = ref(false);
 const initializing = ref(true); // 添加初始化状态
 const connectionStatus = ref(false);
 const lastUpdateTime = ref('');
+const timeRange=ref(24);
 const tableData = ref<any[]>([]);
+
 
 // 查询参数
 const queryParams = reactive({
   dataType: 'coreMetrics',
   category: 'cpu',
-  timeRange: 24,
   startTime: 0,
   endTime: 0
 });
@@ -162,7 +163,7 @@ const getStatusText = (status: string) => {
 const onTimeRangeChange = async () => {
   const now = Date.now();
   queryParams.endTime = now;
-  queryParams.startTime = now - (queryParams.timeRange * 60 * 60 * 1000);
+  queryParams.startTime = now - (timeRange.value * 60 * 60 * 1000);
   // 时间范围变化时自动查询
   if (queryParams.dataType && queryParams.category) {
     queryData();
@@ -171,25 +172,42 @@ const onTimeRangeChange = async () => {
 
 // 查询数据
 const queryData = async () => {
+   // 确保必需的参数存在
+  if (!queryParams.dataType || !queryParams.category) {
+    ElMessage.warning('请选择数据类型和具体类型');
+    return;
+  }
   loading.value = true;
   try {
     // 更新时间范围，但不触发自动查询
     const now = Date.now();
     queryParams.endTime = now;
-    queryParams.startTime = now - (queryParams.timeRange * 60 * 60 * 1000);
+    queryParams.startTime = now - (timeRange.value * 60 * 60 * 1000);
     
     let data: any[] = [];
     
     switch (queryParams.dataType) {
       case 'coreMetrics':
-        data = await historyApi.getCoreMetricsTrend(queryParams.category, queryParams.timeRange);
+        data = await historyApi.getCoreMetricsTrend(queryParams.category, timeRange.value);
         break;
       case 'environment':
-        data = await historyApi.getEnvironmentTrend(queryParams.category, queryParams.timeRange);
+        data = await historyApi.getEnvironmentTrend(queryParams.category, timeRange.value);
         break;
       case 'telemetry':
-        data = await historyApi.getTelemetryTrend(queryParams.category, queryParams.timeRange);
+        data = await historyApi.getTelemetryTrend(queryParams.category, timeRange.value);
         break;
+      case 'deviceType': {
+        // 创建一个符合 QueryParams 类型的参数对象
+        const params: QueryParams = {
+          dataType: queryParams.dataType,
+          category: queryParams.category,
+          startTime: queryParams.startTime,
+          endTime: queryParams.endTime
+        };
+        const response = await historyApi.getDeviceStatus(params);
+        data = response.data;
+        break;
+      }
       default:
         ElMessage.warning('暂不支持该数据类型的历史查询');
         return;

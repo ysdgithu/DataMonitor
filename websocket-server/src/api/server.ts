@@ -2,6 +2,9 @@
 import express from 'express';
 import cors from 'cors';
 import { DataModel, QueryParams } from '../database/models';
+import UserModel from '../database/userModel';
+import { authMiddleware, requestLogMiddleware, errorHandler } from './middleware';
+import { generateToken, validateUsername, validatePasswordStrength } from '../utils/auth';
 
 const app = express();
 const PORT = process.env.API_PORT || 3002;
@@ -9,17 +12,169 @@ const PORT = process.env.API_PORT || 3002;
 // 中间件
 app.use(cors());
 app.use(express.json());
+app.use(requestLogMiddleware);
 
 // 数据模型实例
 const dataModel = new DataModel();
+const userModel = new UserModel();
 
 // 健康检查接口
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: Date.now() });
 });
 
-// 查询核心指标数据
-app.get('/api/core-metrics', async (req, res) => {
+// 用户登录接口
+app.post('/api/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+
+        // 验证输入
+        if (!username || !password) {
+            res.status(400).json({
+                success: false,
+                error: '参数错误',
+                message: '用户名和密码不能为空'
+            });
+            return;
+        }
+
+        // 验证用户名格式
+        if (!validateUsername(username)) {
+            res.status(400).json({
+                success: false,
+                error: '参数错误',
+                message: '用户名格式不正确'
+            });
+            return;
+        }
+
+        // 验证用户
+        const user = await userModel.login({ username, password });
+
+        if (!user) {
+            res.status(401).json({
+                success: false,
+                error: '认证失败',
+                message: '用户名或密码错误'
+            });
+            return;
+        }
+
+        // 生成 JWT token
+        const token = generateToken({
+            id: user.id,
+            username: user.username,
+            role: user.role
+        });
+
+        res.json({
+            success: true,
+            data: {
+                token,
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    role: user.role
+                }
+            },
+            message: '登录成功'
+        });
+    } catch (error) {
+        console.error('登录失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '服务器内部错误',
+            message: error instanceof Error ? error.message : '未知错误'
+        });
+    }
+});
+
+// 用户注册接口（可选）
+app.post('/api/register', async (req, res) => {
+    try {
+        const { username, password, email } = req.body;
+
+        // 验证输入
+        if (!username || !password) {
+            res.status(400).json({
+                success: false,
+                error: '参数错误',
+                message: '用户名和密码不能为空'
+            });
+            return;
+        }
+
+        // 验证用户名格式
+        if (!validateUsername(username)) {
+            res.status(400).json({
+                success: false,
+                error: '参数错误',
+                message: '用户名必须是 3-50 个字符，只包含字母、数字、下划线'
+            });
+            return;
+        }
+
+        // 验证密码强度
+        if (!validatePasswordStrength(password)) {
+            res.status(400).json({
+                success: false,
+                error: '参数错误',
+                message: '密码必须至少 8 个字符，包含大小写字母和数字'
+            });
+            return;
+        }
+
+        // 创建用户
+        const user = await userModel.createUser({
+            username,
+            password,
+            email,
+            role: 'user'
+        });
+
+        // 生成 JWT token
+        const token = generateToken({
+            id: user.id,
+            username: user.username,
+            role: user.role
+        });
+
+        res.status(201).json({
+            success: true,
+            data: {
+                token,
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    role: user.role
+                }
+            },
+            message: '注册成功'
+        });
+    } catch (error) {
+        console.error('注册失败:', error);
+        const errorMessage = error instanceof Error ? error.message : '未知错误';
+
+        if (errorMessage.includes('已存在')) {
+            res.status(409).json({
+                success: false,
+                error: '冲突',
+                message: errorMessage
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: '服务器内部错误',
+                message: errorMessage
+            });
+        }
+    }
+});
+
+// 查询核心指标数据 - 需要认证
+app.get('/api/core-metrics', authMiddleware, async (req, res) => {
     try {
         const params: QueryParams = {
             deviceId: req.query.deviceId as string,
@@ -58,8 +213,8 @@ app.get('/api/core-metrics', async (req, res) => {
     }
 });
 
-// 查询环境数据
-app.get('/api/environment', async (req, res) => {
+// 查询环境数据 - 需要认证
+app.get('/api/environment', authMiddleware, async (req, res) => {
     try {
         const params: QueryParams = {
             deviceId: req.query.deviceId as string,
@@ -98,8 +253,8 @@ app.get('/api/environment', async (req, res) => {
     }
 });
 
-// 查询设备状态数据 - 按设备类型统计
-app.get('/api/device-status', async (req, res) => {
+// 查询设备状态数据 - 按设备类型统计 - 需要认证
+app.get('/api/device-status', authMiddleware, async (req, res) => {
     try {
         const deviceTypeFilter = req.query.deviceType ? parseInt(req.query.deviceType as string) : undefined;
 
@@ -177,8 +332,8 @@ app.get('/api/device-status', async (req, res) => {
     }
 });
 
-// 查询通信数据
-app.get('/api/telemetry', async (req, res) => {
+// 查询通信数据 - 需要认证
+app.get('/api/telemetry', authMiddleware, async (req, res) => {
     try {
         const params: QueryParams = {
             deviceId: req.query.deviceId as string,
@@ -217,8 +372,8 @@ app.get('/api/telemetry', async (req, res) => {
     }
 });
 
-// 获取数据统计信息
-app.get('/api/statistics/:dataType', async (req, res) => {
+// 获取数据统计信息 - 需要认证
+app.get('/api/statistics/:dataType', authMiddleware, async (req, res) => {
     try {
         const { dataType } = req.params;
         const hours = req.query.hours ? parseInt(req.query.hours as string) : 24;
@@ -240,8 +395,8 @@ app.get('/api/statistics/:dataType', async (req, res) => {
     }
 });
 
-// 查询工厂设备数据
-app.get('/api/factory-devices', async (req, res) => {
+// 查询工厂设备数据 - 需要认证
+app.get('/api/factory-devices', authMiddleware, async (req, res) => {
     try {
         const params: QueryParams = {
             deviceId: req.query.deviceId as string,
@@ -280,8 +435,8 @@ app.get('/api/factory-devices', async (req, res) => {
     }
 });
 
-// 获取最近数据概览
-app.get('/api/overview', async (req, res) => {
+// 获取最近数据概览 - 需要认证
+app.get('/api/overview', authMiddleware, async (req, res) => {
     try {
         const now = Date.now();
         const oneHourAgo = now - (60 * 60 * 1000);
@@ -317,14 +472,7 @@ app.get('/api/overview', async (req, res) => {
 });
 
 // 错误处理中间件
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    console.error('API错误:', err);
-    res.status(500).json({
-        success: false,
-        error: '服务器内部错误',
-        message: err.message
-    });
-});
+app.use(errorHandler);
 
 // 404处理
 app.use('*', (req, res) => {
@@ -341,13 +489,15 @@ function startApiServer() {
         console.log(`API服务器运行在 http://localhost:${PORT}`);
         console.log('可用接口:');
         console.log('  GET /health - 健康检查');
-        console.log('  GET /api/core-metrics - 核心指标数据');
-        console.log('  GET /api/environment - 环境数据');
-        console.log('  GET /api/device-status - 设备状态数据');
-        console.log('  GET /api/telemetry - 通信数据');
-        console.log('  GET /api/factory-devices - 工厂设备数据');
-        console.log('  GET /api/statistics/:dataType - 统计数据');
-        console.log('  GET /api/overview - 数据概览');
+        console.log('  POST /api/login - 用户登录 (获取 JWT token)');
+        console.log('  POST /api/register - 用户注册');
+        console.log('  GET /api/core-metrics - 核心指标数据 (需要认证)');
+        console.log('  GET /api/environment - 环境数据 (需要认证)');
+        console.log('  GET /api/device-status - 设备状态数据 (需要认证)');
+        console.log('  GET /api/telemetry - 通信数据 (需要认证)');
+        console.log('  GET /api/factory-devices - 工厂设备数据 (需要认证)');
+        console.log('  GET /api/statistics/:dataType - 统计数据 (需要认证)');
+        console.log('  GET /api/overview - 数据概览 (需要认证)');
     });
 }
 

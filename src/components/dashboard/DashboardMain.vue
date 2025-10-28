@@ -36,10 +36,10 @@
           <template #header>
             <div class="panel-header">设备类型分布</div>
           </template>
-          <!-- <BaseChart
-            :options=" "
+          <BaseChart
+            :options="deviceTypeDataChartOptions"
             style="height: 220px;"
-          /> -->
+          />
         </el-card>
       </el-col>
 
@@ -100,6 +100,7 @@ import { createLineChart, createBarChart, createPieChart, createMapChart } from 
 import { useCoreMetricStore } from '../../stores/CoreMetricData'
 import { useEnvironmentDataStore } from '../../stores/EnvironmentData'
 import { useDeviceTelemetryDataStore } from '../../stores/DeviceTelemetryData'
+import { historyApi, DEVICE_TYPE_NAMES, type DeviceTypeData } from '../../utils/historyApi'
 import { useRealtimeStore } from '../../stores/realtime'
 import FactoryMap from '../FactoryMap.vue'
 const realtimeStore = useRealtimeStore()  // 实时监控
@@ -133,29 +134,33 @@ const requestCountChartOptions = computed(() => createBarChart({
   maxPoints: 10  // 限制显示最新的20条数据
 }))
 
-// 设备类型分布历史数据
-// const deviceTypeDataChartOptions =computed(()=>{
-//    return createPieChart({
-//     series: 
-//   })
-// }
 
-//)
-// const historyQuery={
-  // deviceId =
-  // category?: string;
-  // dataType?: string;
-  // status?: string;
-  // startTime?: number;
-  // endTime?: number;
-  // limit?: number;
-  // offset?: number;
-// }
-// 注册地图+读取数据
+// 存储设备类型数据
+const deviceTypeData = ref<DeviceTypeData[]>([])
+
+// 获取设备类型数据
+const fetchDeviceTypeData = async () => {
+  const response = await historyApi.getDeviceStatus()
+  deviceTypeData.value = response.data
+}
+
+// 设备类型分布图表配置
+const deviceTypeDataChartOptions = computed(() => {
+  const pieData = deviceTypeData.value.map(item => ({
+    name: DEVICE_TYPE_NAMES[item.deviceType],
+    value: item.count
+  }))
+  
+  return createPieChart({
+    series: pieData
+  })
+})
+
+
 onMounted(() => {
   // 启动实时监控
   realtimeStore.setMonitoring(true)
-  //console.log(HistoryApi.getDeviceStatus)
+  fetchDeviceTypeData()
 })
 
 const showHistory = ref(false)

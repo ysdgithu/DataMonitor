@@ -1,7 +1,7 @@
 // 历史数据API接口
-import axios from 'axios';
+import request from './request'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL 
+const API_BASE_URL = import.meta.env.VITE_API_URL
 
 // 查询参数接口
 export interface QueryParams {
@@ -28,26 +28,8 @@ export interface ApiResponse<T> {
 // 历史数据API类
 export class HistoryApi {
     private static instance: HistoryApi;
-    private axiosInstance;
 
-    private constructor() {
-        this.axiosInstance = axios.create({
-            baseURL: API_BASE_URL,
-            timeout: 10000,
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-
-        // 响应拦截器
-        this.axiosInstance.interceptors.response.use(
-            response => response,
-            error => {
-                console.error('API请求失败:', error);
-                return Promise.reject(error);
-            }
-        );
-    }
+    private constructor() {}
 
     public static getInstance(): HistoryApi {
         if (!HistoryApi.instance) {
@@ -58,46 +40,46 @@ export class HistoryApi {
 
     // 健康检查
     async healthCheck(): Promise<{ status: string; timestamp: number }> {
-        const response = await this.axiosInstance.get('/health');
+        const response = await request.get('/health');
         return response.data;
     }
 
     // 查询核心指标数据
     async getCoreMetrics(params: QueryParams = {}): Promise<ApiResponse<any[]>> {
-        const response = await this.axiosInstance.get('/core-metrics', { params });
-        return response.data;
+        const response = await request.get('/core-metrics', { params });
+        return response;
     }
 
     // 查询环境数据
     async getEnvironmentData(params: QueryParams = {}): Promise<ApiResponse<any[]>> {
-        const response = await this.axiosInstance.get('/environment', { params });
-        return response.data;
+        const response = await request.get('/environment', { params });
+        return response;
     }
 
-    // 查询设备状态数据
-    async getDeviceStatus(params: QueryParams = {}): Promise<ApiResponse<any[]>> {
-        const response = await this.axiosInstance.get('/device-status', { params });
-        return response.data;
+    // 查询设备类型数据
+    async getDeviceStatus(params: QueryParams = {}): Promise<ApiResponse<DeviceTypeData[]>> {
+        const response = await request.get('/device-status', { params });
+        return response;
     }
 
     // 查询通信数据
     async getTelemetryData(params: QueryParams = {}): Promise<ApiResponse<any[]>> {
-        const response = await this.axiosInstance.get('/telemetry', { params });
-        return response.data;
+        const response = await request.get('/telemetry', { params });
+        return response;
     }
 
     // 获取统计数据
     async getStatistics(dataType: string, hours: number = 24): Promise<ApiResponse<any[]>> {
-        const response = await this.axiosInstance.get(`/statistics/${dataType}`, {
+        const response = await request.get(`/statistics/${dataType}`, {
             params: { hours }
         });
-        return response.data;
+        return response;
     }
 
     // 获取数据概览
     async getOverview(): Promise<ApiResponse<any>> {
-        const response = await this.axiosInstance.get('/overview');
-        return response.data;
+        const response = await request.get('/overview');
+        return response;
     }
 
     // 获取指定时间范围的核心指标趋势
@@ -236,11 +218,38 @@ export const DATA_TYPE_OPTIONS = {
     telemetry: [
         { label: '上传频率', value: 'upload_frequency' }
     ],
-    deviceStatus: [
-        { label: '在线', value: 'online' },
-        { label: '离线', value: 'offline' },
-        { label: '警告', value: 'warning' },
-        { label: '错误', value: 'error' }
+    deviceType  : [
+        { label: '数控机床', value: '0' },
+        { label: '装配线', value: '1' },
+        { label: '焊接机器人', value: '2' },
+        { label: '质检设备', value: '3' },
+        { label: '自动货架', value: '4' },
+        { label: '输送带', value: '5' },
+        { label: '环境监控', value: '6' },
+        { label: '服务器', value: '7' },
+        { label: '检测设备', value: '8' },
+        { label: '空压机', value: '9' }
     ]
 };
+
+// 设备类型映射
+export const DEVICE_TYPE_NAMES = {
+  0: '数控机床',
+  1: '装配线',
+  2: '焊接机器人',
+  3: '质检设备',
+  4: '自动货架',
+  5: '输送带',
+  6: '环境监控',
+  7: '服务器',
+  8: '检测设备',
+  9: '空压机'
+} as const
+
+// 设备类型接口
+export interface DeviceTypeData {
+  deviceType: keyof typeof DEVICE_TYPE_NAMES
+  count: number
+  deviceIds: string[]
+}
 

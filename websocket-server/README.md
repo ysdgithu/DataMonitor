@@ -1,5 +1,24 @@
 # DataMonitor 后端服务
 
+## 环境配置
+
+### JWT 密钥配置
+
+在生产环境中，应该通过环境变量设置 JWT 密钥：
+
+```bash
+export JWT_SECRET="your-secure-secret-key"
+export JWT_EXPIRY="24h"
+```
+
+**文件**: `websocket-server/src/utils/auth.ts`
+
+```typescript
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_EXPIRY = '24h';
+```
+
+---
 ## 数据表
 
 1. 设备数据总表 (device_data)
@@ -43,14 +62,112 @@ CREATE TABLE IF NOT EXISTS data_statistics (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP  -- 记录创建时间
 )
 ```
+3. 用户表 (users)
+```sql
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    email VARCHAR(100),
+    role VARCHAR(20) DEFAULT 'user',
+    is_active INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)
+```
+密码使用 bcrypt 加密存储
 ## 接口设计
+
+**JWT token 保护接口**
+GET /api/core-metrics
+GET /api/environment
+GET /api/device-status
+GET /api/telemetry
+GET /api/factory-devices
+GET /api/statistics/:dataType
+GET /api/overview
+
+**错误码**
+| 错误码 | 说明 |
+|--------|------|
+| 200 | 成功响应 |
+| 401 | 无权限（token失效，密码错误等） |
+
+token签名使用 HS256 算法，过期时间 24 小时
+
+**默认账号密码**
+|用户名|密码|角色|
+|----|----|----|
+|admin	|Admin@123456	|admin
+|testuser|	Test@123456	|user
+
+### POST /api/login 用户登录 
+**请求示例**:
+```bash
+curl -X POST http://localhost:3002/api/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "admin",
+    "password": "Admin@123456"
+  }'
+```
+
+**成功响应** (200):
+```json
+{
+  "success": true,
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "id": 1,
+      "username": "admin",
+      "email": "admin@datamonitor.local",
+      "role": "admin"
+    }
+  },
+  "message": "登录成功"
+}
+```
+
+**失败响应** (401):
+```json
+{
+  "success": false,
+  "error": "认证失败",
+  "message": "用户名或密码错误"
+}
+```
+
+### POST /api/register 用户注册
+
+**请求示例**:
+```bash
+curl -X POST http://localhost:3002/api/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "newuser",
+    "password": "NewUser@123456",
+    "email": "newuser@example.com"
+  }'
+```
+
+**密码要求**:
+- 至少 8 个字符
+- 包含大小写字母
+- 包含数字
+
+**用户名要求**:
+- 3-50 个字符
+- 只包含字母、数字、下划线
 
 ### GET /api/core-metrics - 获取核心指标数据
 #### 调用示例
 ```bash
 # 获取最近1小时的CPU使用率数据
 # cpu传感器设备号：000
-curl "http://localhost:3002/api/core-metrics?category&start&end&limit=5"
+curl -X GET http://localhost:3002/api/core-metrics \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -H "Content-Type: application/json"
 ```
 
 #### 请求参数
@@ -409,13 +526,17 @@ curl http://localhost:3002/api/factory-devices?limit=2&zone&status
 }
 ```
 
+
 ## api鉴权处理
 
 1. **实现JWT登录**：增加一个`/api/login`接口，验证用户名密码后返回一个JWT token。
 2. **保护接口**：在所有需要认证的API前面，加一个中间件，校验请求头中的`Authorization`里的JWT是否有效。
 3. **前端存储Token**：登录后把token存到`localStorage`或`Pinia`里，后续每个请求都在header里带上。
 
-## SQLite换成MySQL
+## 密码存储：bcrypt
+BCrpyt也是输入的字符串+盐，但是与MD5+盐的主要区别是：每次加的盐不同，导致每次生成的结果也不相同。
+
+## SQLite换成MySQL <a id="sqlite换成mysql" />
 
 在阿里云ECS上装个MySQL，或者用云数据库（RDS）。
 
@@ -423,21 +544,26 @@ curl http://localhost:3002/api/factory-devices?limit=2&zone&status
 
 表结构基本不用变，直接导入过去就行。
 
+## 智能异常诊断与根因分析
+是什么： 在你的监控平台上，当某个设备指标（如CPU使用率）出现异常峰值时，不仅标注出来，还能点击后让AI分析“为什么”。
 
+如何快速实现：
+在后端，当检测到异常数据点时，收集前后一段时间内该设备的所有指标数据（如内存、网络、温度等）。
+将这些数据、时间戳和指标名称作为上下文，拼接成一个Prompt，调用 OpenAI GPT-4o API 或 DeepSeek免费API。
+Prompt示例：“我监控的服务器设备 [设备ID] 在 [时间点] 的 [指标名] 出现了异常峰值 [异常值]。以下是该设备在异常时间点前后5分钟的所有相关指标数据：[数据表格]。请以运维专家的口吻，分析导致此异常最可能的原因，并按可能性降序列出。”
 
-#### 各种想法
+前端产出：
+- 温度某时指标添加异常标注
+- 点击/光标经过弹窗askai
+- 弹窗显示ai分析结果
+  
+后端产出：
+- 在识别到异常数据时（数据处理器），收集前后5min所有传感器指标数据
+- 拼接提示词
+- 调用大模型
+- api返回前端
 
-2025-10-14
-死ai我真无语了，应该就建一张工厂设备总表就行了，剩下的都能从这查然后统计，还能展示性能
+其他产出：
+- 开通合适的llm接入api
 
-模拟器推单个设备数据（一个实例代表一个设备）->异常检测->统计->展示
-同时开10个实例然后服务器定时推送10个示例的数据（模拟整个工厂设备的数据上报）
-可能存在的问题：
-1. 10台太少了真实情况可能有一大堆
-2. 推送频率问题，不一定所有设备都是1秒推送，有的可能10秒一次
-服务器单次推送数据库写入一次，设备模拟和数据库在同一服务器中 
-前端服务器到底跟谁长连接？前端负责把连接数据统计加工并展示 
-数据展示流程（实时和非实时）为基础功能！
-进阶：报警闭环（需要实现设备报警-处理-恢复的全链路监控）
-感觉越做越复杂了，想逝了
 

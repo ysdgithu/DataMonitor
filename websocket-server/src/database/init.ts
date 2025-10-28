@@ -172,6 +172,20 @@ async function initDatabaseSQLite() {
             )
         `);
 
+        // 用户表 - 用于 API 鉴权
+        await dbRun(`
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username VARCHAR(50) NOT NULL UNIQUE,
+                password VARCHAR(255) NOT NULL,
+                email VARCHAR(100),
+                role VARCHAR(20) DEFAULT 'user',
+                is_active INTEGER DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
         console.log('数据表创建完成，开始创建索引...');
 
         // 创建索引 - 优化查询性能
@@ -180,7 +194,8 @@ async function initDatabaseSQLite() {
             'CREATE INDEX IF NOT EXISTS idx_device_data_type_time ON device_data(data_type, timestamp)',
             'CREATE INDEX IF NOT EXISTS idx_device_data_status ON device_data(data_status)',
             'CREATE INDEX IF NOT EXISTS idx_device_data_timestamp ON device_data(timestamp)',
-            'CREATE INDEX IF NOT EXISTS idx_statistics_date_type ON data_statistics(date, data_type)'
+            'CREATE INDEX IF NOT EXISTS idx_statistics_date_type ON data_statistics(date, data_type)',
+            'CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)'
         ];
 
         for (const indexSql of indexes) {
