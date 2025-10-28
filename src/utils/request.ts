@@ -1,7 +1,7 @@
 /**
  * Axios 请求配置
  * 文件位置: src/utils/request.ts
- * 
+ *
  * 功能：
  * - 创建 Axios 实例
  * - 配置请求拦截器（自动添加 Authorization 头）
@@ -9,7 +9,8 @@
  * - 实现双 token 机制（access token + refresh token）
  */
 
-import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios'
+import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
+import type { InternalAxiosRequestConfig, AxiosError } from 'axios'
 import { TokenManager } from './tokenManager'
 import type { ApiResponse, RefreshTokenResponse } from './auth.types'
 
