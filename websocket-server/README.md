@@ -1,6 +1,6 @@
 # DataMonitor 后端服务
 
-## 环境配置
+## 配置及说明
 
 ### JWT 密钥配置
 
@@ -16,8 +16,20 @@ export JWT_EXPIRY="24h"
 ```typescript
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRY = '24h';
-```
 
+### 异常判定机制
+
+```js
+// 分级异常判定阈值
+const THRESHOLDS = {
+    cpu: { warning: 90, error: 95 },
+    memory: { warning: 90, error: 95 },
+    network: { warning: 150, error: 180 },
+    online: { warning: 60, error: 30 }, // 修正属性名
+    temperature: { warning: 35, error: 40 },
+    upload_frequency: { warning: 80, error: 100 }
+};
+```
 ---
 ## 数据表
 
@@ -198,8 +210,9 @@ curl -X GET http://localhost:3002/api/core-metrics \
 #### 调用示例
 ```bash
 # 获取最近温度数据
-curl "http://localhost:3002/api/environment?type=temperature&limit=5"
-
+curl -X GET http://localhost:3002/api/environment?type=temperature&limit=5 \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc2MTcyMTg3NiwiZXhwIjoxNzYxODA4Mjc2fQ.pNa4rNkePNwpG9OJIfw5dO7osKJApiYeMAPT4W5-vIE" \
+  -H "Content-Type: application/json"
 # 获取特定设备24小时内的环境数据
 curl "http://localhost:3002/api/environment?deviceId=2001&start=$(date -v-24H +%s000)&end=$(date +%s000)"
 ```
@@ -274,14 +287,16 @@ curl "http://localhost:3002/api/environment?deviceId=2001&start=$(date -v-24H +%
 #### 调用示例
 ```bash
 # 获取所有设备状态统计
-
-curl "http://localhost:3002/api/device-status"
+curl -X GET http://localhost:3002/api/device-status \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc2MTcyMTg3NiwiZXhwIjoxNzYxODA4Mjc2fQ.pNa4rNkePNwpG9OJIfw5dO7osKJApiYeMAPT4W5-vIE" \
+  -H "Content-Type: application/json"
 # 获取数控机床（typeCode=0）
 curl "http://localhost:3002/api/device-status?deviceType=0"
 
 # 获取输送带（typeCode=5）
 curl "http://localhost:3002/api/device-status?deviceType=5"
 ```
+
 #### 请求参数
 | 参数名 | 类型 | 必填 | 说明 |
 |--------|------|------|------|

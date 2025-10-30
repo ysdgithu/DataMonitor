@@ -1,27 +1,40 @@
-import type { EChartsOption } from 'echarts'
 // chartOptions 工具函数负责:
 // 提供各类图表的配置模板
 // 数据格式转换
+import { init, use ,type EChartsCoreOption} from 'echarts/core'
+import { LineChart, BarChart, PieChart, MapChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent, VisualMapComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
 
-interface LineChartConfig {
-  smooth?: boolean
-  lineColor?: string
-  areaColor?: string
-  maxPoints?: number // 添加最大显示点数配置
+// 仅注册项目中使用的图表和组件
+use([
+  LineChart, BarChart, PieChart, MapChart,
+  GridComponent, TooltipComponent, VisualMapComponent,
+  CanvasRenderer
+])
+
+export const createChartInstance = (dom: HTMLElement) => {
+  return init(dom)
 }
 
 interface LineChartData {
   xAxis: string[]
   series: number[]
-  config?: LineChartConfig
+  status: string[];
 }
+const statusColorMap = {
+  normal: '#00B42A', // 绿色：正常
+  warning: '#FF7D00', // 黄色：警告
+  error: '#F53F3F'   // 红色：异常
+};
 
-export const createLineChart = (data: LineChartData): EChartsOption => {
+export const createLineChart = (data: LineChartData): EChartsCoreOption => {
   // 获取最新的N条数据
-  const maxPoints = data.config?.maxPoints || 20
+  const maxPoints = 20
   const startIndex = Math.max(0, data.xAxis.length - maxPoints)
   const displayXAxis = data.xAxis.slice(startIndex)
   const displaySeries = data.series.slice(startIndex)
+  const displayStatus = data.status.slice(startIndex); // 截取对应状态
 
   return {
     xAxis: {
@@ -53,34 +66,29 @@ export const createLineChart = (data: LineChartData): EChartsOption => {
       trigger: 'axis',
       formatter: (params: any) => {
         const param = params[0]
-        return `时间：${param.axisValue}<br/>温度：${param.value}°C`
+        return `时间：${param.axisValue}<br/>温度：${param.value.toFixed(2)}°C`
       }
     },
     series: [{
       type: 'line',
       data: displaySeries,
-      smooth: data.config?.smooth ?? false,
-      showSymbol: false,
+      smooth: false,
+      showSymbol: true,
+      symbolSize: 8,
+      itemStyle: {
+        color: (params: any) => {
+          // 根据索引获取对应的数据点状态
+          const pointStatus = displayStatus[params.dataIndex];
+          // 返回对应颜色（默认正常色）
+          return statusColorMap[pointStatus as keyof typeof statusColorMap] || '#DC143C';
+        },
+        //borderWidth: 0,
+        // borderColor: '#fff' // 白色边框增强辨识度
+      },
       lineStyle: {
         width: 2,
-        color: data.config?.lineColor
+        // color: data.config?.lineColor
       },
-      areaStyle: data.config?.areaColor ? {
-        color: {
-          type: 'linear',
-          x: 0,
-          y: 0,
-          x2: 0,
-          y2: 1,
-          colorStops: [{
-            offset: 0,
-            color: data.config.areaColor
-          }, {
-            offset: 1,
-            color: 'rgba(255, 255, 255, 0)'
-          }]
-        }
-      } : undefined
     }]
   }
 }
@@ -93,7 +101,7 @@ export const createBarChart = (config: {
     axisLabel?: any
   }
   maxPoints?: number
-}): EChartsOption => {
+}): EChartsCoreOption => {
   const maxPoints = config.maxPoints || 20
   const data = Array.isArray(config.series) ? config.series : []
   const startIndex = Math.max(0, data.length - maxPoints)
@@ -166,6 +174,20 @@ export const createBarChart = (config: {
         itemStyle: {
           color: '#2563EB' // 高亮颜色
         }
+      },
+      markLine:{
+        symbol: ['none', 'none'], // 隐藏线两端的箭头
+        lineStyle: {
+          color: '#FF7D00', // 阈值线颜色（默认红色）
+          width: 2,
+          type: 'dashed' // 虚线样式，更易区分
+        },
+        data: [
+          {
+            yAxis: 80, // 阈值线对应Y轴的数值
+            name: '阈值线'
+          }
+        ]
       }
     }],
     backgroundColor: 'transparent'
@@ -174,7 +196,7 @@ export const createBarChart = (config: {
 
 export const createPieChart = (config: {
   series: Array<{ name: string; value: number }>
-}): EChartsOption => ({
+}): EChartsCoreOption => ({
   tooltip: {
     trigger: 'item'
   },
@@ -196,7 +218,7 @@ export const createPieChart = (config: {
   backgroundColor: 'transparent'
 })
 
-export const createMapChart = (data: any): EChartsOption => {
+export const createMapChart = (data: any): EChartsCoreOption => {
   return {
     tooltip: {
       trigger: 'item',
@@ -212,11 +234,6 @@ export const createMapChart = (data: any): EChartsOption => {
         color: ['#D5E8FC', '#3B82F6']
       }
     },
-    // grid: {
-    //   top: '5%',
-    //   bottom: '5%',  // 减小底部边距
-    //   containLabel: true
-    // },
     series: [
       {
         name: '设备分布',

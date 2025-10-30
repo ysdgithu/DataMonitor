@@ -8,30 +8,48 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch, onUnmounted } from 'vue'
-import * as echarts from 'echarts'
 import type { EChartsOption } from 'echarts'
 import { Loading } from '@element-plus/icons-vue'
+import { debounce } from 'lodash-es'
+// 导入按需引入的图表创建函数（根据你的chartOptions.ts路径调整）
+import { createChartInstance } from '../../utils/chartOptions'
+import { type EChartsType } from 'echarts/core'
+
 
 const props = defineProps<{
   options: EChartsOption
   loading?: boolean
 }>()
 
-const chartRef = ref<HTMLElement>()
-let chart: echarts.ECharts | null = null
+const chartRef = ref<HTMLElement | null>(null)
+let chart: EChartsType | null = null
 
 // 初始化图表
 const initChart = () => {
-  if (chartRef.value) {
-    chart = echarts.init(chartRef.value)
+  if (chartRef.value && !chart) {
+    chart = createChartInstance(chartRef.value)
     chart.setOption(props.options)
   }
 }
 
-// 监听配置变化
-watch(() => props.options, (newVal) => {
-  chart?.setOption(newVal, true) // true 表示不合并配置
-}, { deep: true })
+// 防抖处理图表更新，100ms内多次更新只执行一次
+const updateChart = debounce((newOptions: EChartsOption) => {
+  if (chart) {
+    // 正确的延迟更新写法（第三个参数为boolean）
+    chart.setOption(newOptions, false, true)
+  }
+}, 100)
+
+// 只保留一个watch监听
+watch(
+  () => props.options,
+  (newVal) => {
+    if (newVal) {
+      updateChart(newVal)
+    }
+  },
+  { deep: false } // 关闭深度监听优化性能
+)
 
 // 监听容器大小变化
 const handleResize = () => {
@@ -46,8 +64,10 @@ onMounted(() => {
 onUnmounted(() => {
   chart?.dispose()
   window.removeEventListener('resize', handleResize)
+  chart = null
 })
 </script>
+
 
 <style scoped>
 .chart-loading {

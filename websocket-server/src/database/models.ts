@@ -107,7 +107,7 @@ class DataModel {
         }
 
         if (params.category) {
-            sql += ' AND JSON_EXTRACT(payload, "$.category") = ?';
+            sql += ' AND JSON_EXTRACT(payload, \'$.category\') = ?';
             sqlParams.push(params.category);
         }
 
@@ -123,13 +123,11 @@ class DataModel {
 
         sql += ' ORDER BY timestamp DESC';
 
-        if (params.limit) {
-            sql += ' LIMIT ?';
-            sqlParams.push(params.limit);
+        if (params.limit !== undefined) {
+            sql += ` LIMIT ${parseInt(params.limit.toString())}`;
 
-            if (params.offset) {
-                sql += ' OFFSET ?';
-                sqlParams.push(params.offset);
+            if (params.offset !== undefined) {
+                sql += ` OFFSET ${parseInt(params.offset.toString())}`;
             }
         }
 
@@ -148,7 +146,7 @@ class DataModel {
         }
 
         if (params.dataType) {
-            sql += ' AND JSON_EXTRACT(payload, "$.type") = ?';
+            sql += ' AND JSON_EXTRACT(payload, \'$.type\') = ?';
             sqlParams.push(params.dataType);
         }
 
@@ -164,13 +162,11 @@ class DataModel {
 
         sql += ' ORDER BY timestamp DESC';
 
-        if (params.limit) {
-            sql += ' LIMIT ?';
-            sqlParams.push(params.limit);
+        if (params.limit !== undefined) {
+            sql += ` LIMIT ${parseInt(params.limit.toString())}`;
 
-            if (params.offset) {
-                sql += ' OFFSET ?';
-                sqlParams.push(params.offset);
+            if (params.offset !== undefined) {
+                sql += ` OFFSET ${parseInt(params.offset.toString())}`;
             }
         }
 
@@ -187,30 +183,21 @@ class DataModel {
             deviceIds: string[];
         }>
     }> {
-        // 使用子查询获取每个设备最新的状态记录，并确保设备ID不重复
-        // MySQL 版本：使用 JSON_EXTRACT 和 GROUP_CONCAT 替代 SQLite 的 json_group_array
+        // 简化版本：直接查询最新的设备状态记录
+        // 使用子查询获取每个设备的最新记录
         let sql = `
-            WITH ParsedDeviceStatus AS (
-                SELECT
-                    device_id,
-                    JSON_EXTRACT(payload, '$.status') as status,
-                    JSON_EXTRACT(payload, '$.timestamp') as record_timestamp,
-                    timestamp as db_timestamp
-                FROM device_data d1
-                WHERE d1.data_type = 'device_status'
-                AND timestamp = (
-                    SELECT MAX(timestamp)
-                    FROM device_data d2
-                    WHERE d2.device_id = d1.device_id
-                    AND d2.data_type = 'device_status'
-                )
-            )
             SELECT
-                CAST(SUBSTR(device_id, -4) AS UNSIGNED) % 10 as deviceType,
-                COUNT(DISTINCT device_id) as count,
-                GROUP_CONCAT(DISTINCT device_id) as deviceIds
-            FROM ParsedDeviceStatus
-            WHERE 1=1
+                device_id,
+                JSON_EXTRACT(payload, '$.status') as status,
+                timestamp
+            FROM device_data d1
+            WHERE d1.data_type = 'device_status'
+            AND timestamp = (
+                SELECT MAX(timestamp)
+                FROM device_data d2
+                WHERE d2.device_id = d1.device_id
+                AND d2.data_type = 'device_status'
+            )
         `;
         const sqlParams: any[] = [];
 
@@ -220,7 +207,7 @@ class DataModel {
         }
 
         if (params.status) {
-            sql += ' AND JSON_EXTRACT(payload, "$.status") = ?';
+            sql += ' AND JSON_EXTRACT(payload, \'$.status\') = ?';
             sqlParams.push(params.status);
         }
 
@@ -234,18 +221,7 @@ class DataModel {
             sqlParams.push(params.endTime);
         }
 
-        sql += ' GROUP BY deviceType';
-        sql += ' ORDER BY deviceType ASC';
-
-        if (params.limit) {
-            sql += ' LIMIT ?';
-            sqlParams.push(params.limit);
-
-            if (params.offset) {
-                sql += ' OFFSET ?';
-                sqlParams.push(params.offset);
-            }
-        }
+        sql += ' ORDER BY device_id ASC';
 
         const rows = await this.db.all(sql, sqlParams);
 
@@ -270,7 +246,7 @@ class DataModel {
         }
 
         if (params.dataType) {
-            sql += ' AND JSON_EXTRACT(payload, "$.dataType") = ?';
+            sql += ' AND JSON_EXTRACT(payload, \'$.dataType\') = ?';
             sqlParams.push(params.dataType);
         }
 
@@ -286,13 +262,11 @@ class DataModel {
 
         sql += ' ORDER BY timestamp DESC';
 
-        if (params.limit) {
-            sql += ' LIMIT ?';
-            sqlParams.push(params.limit);
+        if (params.limit !== undefined) {
+            sql += ` LIMIT ${parseInt(params.limit.toString())}`;
 
-            if (params.offset) {
-                sql += ' OFFSET ?';
-                sqlParams.push(params.offset);
+            if (params.offset !== undefined) {
+                sql += ` OFFSET ${parseInt(params.offset.toString())}`;
             }
         }
 
@@ -316,8 +290,8 @@ class DataModel {
                 DATE_FORMAT(FROM_UNIXTIME(timestamp/1000), '%Y-%m-%d %H:00:00') as time_group
             FROM device_data
             WHERE data_type = ? AND timestamp >= ?
-            GROUP BY data_type, JSON_EXTRACT(payload, '$.category'), DATE_FORMAT(FROM_UNIXTIME(timestamp/1000), '%Y-%m-%d %H:00:00')
-            ORDER BY timestamp DESC
+            GROUP BY data_type, category, time_group
+            ORDER BY time_group DESC
         `;
 
         const hoursAgo = Date.now() - (hours * 60 * 60 * 1000);
@@ -335,7 +309,7 @@ class DataModel {
         }
 
         if (params.status) {
-            sql += ' AND JSON_EXTRACT(payload, "$.status") = ?';
+            sql += ' AND JSON_EXTRACT(payload, \'$.status\') = ?';
             sqlParams.push(params.status);
         }
 
@@ -351,13 +325,11 @@ class DataModel {
 
         sql += ' ORDER BY timestamp DESC';
 
-        if (params.limit) {
-            sql += ' LIMIT ?';
-            sqlParams.push(params.limit);
+        if (params.limit !== undefined) {
+            sql += ` LIMIT ${parseInt(params.limit.toString())}`;
 
-            if (params.offset) {
-                sql += ' OFFSET ?';
-                sqlParams.push(params.offset);
+            if (params.offset !== undefined) {
+                sql += ` OFFSET ${parseInt(params.offset.toString())}`;
             }
         }
 

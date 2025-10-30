@@ -118,10 +118,10 @@ const environmentDataChartOptions = computed(() => {
   const sortedData = [...boardList].sort((a, b) => a.timestamp - b.timestamp);
   // 只取最新的10条数据
   const recentData = sortedData.slice(-10);
-
   return createLineChart({
     series: recentData.map(item => item.value),
-    xAxis: recentData.map(item => new Date(item.timestamp).toLocaleTimeString())
+    xAxis: recentData.map(item => new Date(item.timestamp).toLocaleTimeString()),
+    status: recentData.map(item => item.status)
   });
 })
 

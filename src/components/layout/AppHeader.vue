@@ -9,15 +9,10 @@
         mode="horizontal"
         :default-active="activeIndex"
         class="header-menu"
-        @select="handleSelect"
       >
         <el-menu-item index="/">
           <el-icon><Monitor /></el-icon>
           <span>监控中心</span>
-        </el-menu-item>
-        <el-menu-item index="/factory-map">
-          <el-icon><Location /></el-icon>
-          <span>工厂地图</span>
         </el-menu-item>
       </el-menu>
     </div>
@@ -40,8 +35,7 @@
         </span>
         <template #dropdown>
           <el-dropdown-menu>
-            <el-dropdown-item>个人设置</el-dropdown-item>
-            <el-dropdown-item>退出登录</el-dropdown-item>
+            <el-dropdown-item @click="logout">退出登录</el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>
@@ -53,22 +47,20 @@
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Moon, Sunny, Bell, Monitor, Location } from '@element-plus/icons-vue'
+import { useAuthStore } from '@/stores/auth'
 
-const router = useRouter()
+const authStore = useAuthStore()
+
 const route = useRoute()
-
-const isDark = ref(false)
-
+const router = useRouter()
 // 当前激活的菜单项
 const activeIndex = computed(() => route.path)
 
-const toggleTheme = (val: boolean) => {
-  // 实现主题切换逻辑
+const logout =()=>{
+  router.push('/login')
+  authStore.logout()
 }
 
-const handleSelect = (key: string) => {
-  router.push(key)
-}
 </script>
 
 

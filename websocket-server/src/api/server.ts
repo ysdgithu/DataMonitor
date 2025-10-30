@@ -260,8 +260,7 @@ app.get('/api/device-status', authMiddleware, async (req, res) => {
 
         // 查询工厂设备数据 - 获取每个设备的最新记录
         const params: QueryParams = {
-            limit: 10000,  // 获取足够多的记录以覆盖所有设备
-            offset: 0
+            limit: 10000  // 获取足够多的记录以覆盖所有设备
         };
 
         const factoryDevices = await dataModel.queryFactoryDevices(params);
@@ -404,7 +403,7 @@ app.get('/api/factory-devices', authMiddleware, async (req, res) => {
             startTime: req.query.startTime ? parseInt(req.query.startTime as string) : undefined,
             endTime: req.query.endTime ? parseInt(req.query.endTime as string) : undefined,
             limit: req.query.limit ? parseInt(req.query.limit as string) : 100,
-            offset: req.query.offset ? parseInt(req.query.offset as string) : 0
+            offset: req.query.offset ? parseInt(req.query.offset as string) : undefined
         };
 
         const rawData = await dataModel.queryFactoryDevices(params);
