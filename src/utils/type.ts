@@ -76,8 +76,8 @@ export interface FactoryZone {
 
 export interface WebSocketMessage {
   type: string;
-  data: any;
-  timestamp: number;
+  data?: any;
+  timestamp?: number;
 }
 
 export interface MetricData {

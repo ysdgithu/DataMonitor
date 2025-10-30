@@ -1,5 +1,6 @@
 // 历史数据API接口
 import request from './request'
+import type { DeviceStatusData } from './type'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL
 
@@ -47,25 +48,25 @@ export class HistoryApi {
     // 查询核心指标数据
     async getCoreMetrics(params: QueryParams = {}): Promise<ApiResponse<any[]>> {
         const response = await request.get('/core-metrics', { params });
-        return response;
+        return response.data;
     }
 
     // 查询环境数据
     async getEnvironmentData(params: QueryParams = {}): Promise<ApiResponse<any[]>> {
         const response = await request.get('/environment', { params });
-        return response;
+        return response.data;
     }
 
     // 查询设备类型数据
-    async getDeviceStatus(params: QueryParams = {}): Promise<ApiResponse<DeviceTypeData[]>> {
+    async getDeviceStatus(params: QueryParams = {}): Promise<ApiResponse<DeviceStatusData[]>> {
         const response = await request.get('/device-status', { params });
-        return response;
+        return response.data;
     }
 
     // 查询通信数据
     async getTelemetryData(params: QueryParams = {}): Promise<ApiResponse<any[]>> {
         const response = await request.get('/telemetry', { params });
-        return response;
+        return response.data;
     }
 
     // 获取统计数据
@@ -73,13 +74,13 @@ export class HistoryApi {
         const response = await request.get(`/statistics/${dataType}`, {
             params: { hours }
         });
-        return response;
+        return response.data;
     }
 
     // 获取数据概览
     async getOverview(): Promise<ApiResponse<any>> {
         const response = await request.get('/overview');
-        return response;
+        return response.data;
     }
 
     // 获取指定时间范围的核心指标趋势
@@ -141,7 +142,7 @@ export class HistoryApi {
         });
 
         if (response.success) {
-            const statusCount = response.data.reduce((acc, item) => {
+            const statusCount = response.data.reduce((acc: Record<string, number>, item) => {
                 acc[item.status] = (acc[item.status] || 0) + 1;
                 return acc;
             }, {});

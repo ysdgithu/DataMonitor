@@ -1,7 +1,7 @@
 /**
  * 认证 Pinia Store
  * 文件位置: src/stores/auth.ts
- * 
+ *
  * 功能：
  * - 管理认证状态（是否登录、用户信息、token）
  * - 提供登录、注册、登出等操作
@@ -83,7 +83,7 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     try {
-      const response = await request.post<ApiResponse<LoginResponse['data']>>(
+      const response = await request.post<ApiResponse<{ token: string; user: User }>>(
         '/login',
         {
           username: credentials.username,
@@ -91,8 +91,8 @@ export const useAuthStore = defineStore('auth', () => {
         }
       )
 
-      if (response.success && response.data) {
-        const { token, user: userData } = response.data
+      if (response.data.success && response.data.data) {
+        const { token, user: userData } = response.data.data
 
         // 保存 token 和用户信息
         TokenManager.setTokens(token, undefined, credentials.rememberMe)
@@ -100,7 +100,7 @@ export const useAuthStore = defineStore('auth', () => {
         user.value = userData
         isAuthenticated.value = true
       } else {
-        throw new Error(response.message || '登录失败')
+        throw new Error(response.data.message || '登录失败')
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : '登录失败，请检查用户名和密码'
@@ -119,7 +119,7 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     try {
-      const response = await request.post<ApiResponse<RegisterResponse['data']>>(
+      const response = await request.post<ApiResponse<{ token: string; user: User }>>(
         '/register',
         {
           username: data.username,
@@ -128,8 +128,8 @@ export const useAuthStore = defineStore('auth', () => {
         }
       )
 
-      if (response.success && response.data) {
-        const { token, user: userData } = response.data
+      if (response.data.success && response.data.data) {
+        const { token, user: userData } = response.data.data
 
         // 保存 token 和用户信息
         TokenManager.setTokens(token, undefined, false)
@@ -137,7 +137,7 @@ export const useAuthStore = defineStore('auth', () => {
         user.value = userData
         isAuthenticated.value = true
       } else {
-        throw new Error(response.message || '注册失败')
+        throw new Error(response.data.message || '注册失败')
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : '注册失败'

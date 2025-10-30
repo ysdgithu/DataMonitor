@@ -133,7 +133,7 @@ export const useRealtimeStore = defineStore('realtime', () => {
         break;
     }
 
-    console.log(`[realtime] 处理${type}数据 时间:`, new Date(message.timestamp).toLocaleTimeString());
+    console.log(`[realtime] 处理${type}数据 时间:`, message.timestamp ? new Date(message.timestamp).toLocaleTimeString() : 'unknown');
   }
 
   // 监听 WebSocket 消息

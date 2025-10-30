@@ -108,9 +108,11 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, FormInstance } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import type { FormInstance } from 'element-plus'
 import { useAuthStore } from '../stores/auth'
-import type { RegisterRequest, PasswordStrength } from '../utils/auth.types'
+import type { RegisterRequest } from '../utils/auth.types'
+import { PasswordStrength } from '../utils/auth.types'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -125,16 +127,16 @@ const form = reactive<RegisterRequest & { confirmPassword: string }>({
 })
 
 // 密码强度
-const passwordStrength = ref<PasswordStrength>('weak')
+const passwordStrength = ref<PasswordStrength>(PasswordStrength.WEAK)
 
 // 密码强度计算
 const strengthPercentage = computed(() => {
-  const strengthMap = { weak: 33, medium: 66, strong: 100 }
+  const strengthMap = { [PasswordStrength.WEAK]: 33, [PasswordStrength.MEDIUM]: 66, [PasswordStrength.STRONG]: 100 }
   return strengthMap[passwordStrength.value]
 })
 
 const strengthText = computed(() => {
-  const textMap = { weak: '弱', medium: '中', strong: '强' }
+  const textMap = { [PasswordStrength.WEAK]: '弱', [PasswordStrength.MEDIUM]: '中', [PasswordStrength.STRONG]: '强' }
   return `密码强度: ${textMap[passwordStrength.value]}`
 })
 
@@ -143,7 +145,7 @@ const strengthText = computed(() => {
  */
 function validatePasswordStrength() {
   const password = form.password
-  let strength: PasswordStrength = 'weak'
+  let strength: PasswordStrength = PasswordStrength.WEAK
 
   if (password.length >= 8) {
     const hasUpperCase = /[A-Z]/.test(password)
@@ -151,9 +153,9 @@ function validatePasswordStrength() {
     const hasNumber = /[0-9]/.test(password)
 
     if (hasUpperCase && hasLowerCase && hasNumber) {
-      strength = 'strong'
+      strength = PasswordStrength.STRONG
     } else if ((hasUpperCase || hasLowerCase) && hasNumber) {
-      strength = 'medium'
+      strength = PasswordStrength.MEDIUM
     }
   }
 

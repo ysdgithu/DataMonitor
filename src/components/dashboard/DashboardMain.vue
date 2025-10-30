@@ -96,12 +96,13 @@
 import { ref, onMounted, computed } from 'vue'
 import BaseChart from '../charts/BaseChart.vue'
 import HistoryDataPanel from './HistoryDataPanel.vue'
-import { createLineChart, createBarChart, createPieChart, createMapChart } from '../../utils/chartOptions'
+import { createLineChart, createBarChart, createPieChart} from '../../utils/chartOptions'
 import { useCoreMetricStore } from '../../stores/CoreMetricData'
 import { useEnvironmentDataStore } from '../../stores/EnvironmentData'
 import { useDeviceTelemetryDataStore } from '../../stores/DeviceTelemetryData'
 import { historyApi, DEVICE_TYPE_NAMES, type DeviceTypeData } from '../../utils/historyApi'
 import { useRealtimeStore } from '../../stores/realtime'
+import type { EChartsOption } from 'echarts'
 import FactoryMap from '../FactoryMap.vue'
 const realtimeStore = useRealtimeStore()  // 实时监控
 const coreMetricStore = useCoreMetricStore()   // 核心指标
@@ -122,7 +123,7 @@ const environmentDataChartOptions = computed(() => {
     series: recentData.map(item => item.value),
     xAxis: recentData.map(item => new Date(item.timestamp).toLocaleTimeString()),
     status: recentData.map(item => item.status)
-  });
+  }) as EChartsOption;
 })
 
 // 请求量统计图表配置
@@ -132,7 +133,7 @@ const requestCountChartOptions = computed(() => createBarChart({
     type:'category',
     data: telemetryData.boardData.map(item => new Date(item.timestamp).toLocaleTimeString())},
   maxPoints: 10  // 限制显示最新的20条数据
-}))
+}) as EChartsOption)
 
 
 // 存储设备类型数据
@@ -141,7 +142,7 @@ const deviceTypeData = ref<DeviceTypeData[]>([])
 // 获取设备类型数据
 const fetchDeviceTypeData = async () => {
   const response = await historyApi.getDeviceStatus()
-  deviceTypeData.value = response.data
+  deviceTypeData.value = response.data as unknown as DeviceTypeData[]
 }
 
 // 设备类型分布图表配置
@@ -150,10 +151,10 @@ const deviceTypeDataChartOptions = computed(() => {
     name: DEVICE_TYPE_NAMES[item.deviceType],
     value: item.count
   }))
-  
+
   return createPieChart({
     series: pieData
-  })
+  }) as EChartsOption;
 })
 
 

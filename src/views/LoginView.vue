@@ -78,7 +78,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, FormInstance } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import type { FormInstance } from 'element-plus'
 import { useAuthStore } from '../stores/auth'
 import type { LoginRequest } from '../utils/auth.types'
 
