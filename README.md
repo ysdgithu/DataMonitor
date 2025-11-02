@@ -3,7 +3,7 @@
 
 **基于Vue 3 + Node.js的实时数据监控演示系统**
 
-🌐 **在线预览**: [https://data-monitor-psi.vercel.app/](https://data-monitor-psi.vercel.app/) | ☁️ **后端**: 阿里云 ECS
+🌐 **在线预览**: [https://data-monitor-psi.vercel.app](https://data-monitor-psi.vercel.app | ☁️ **后端**: 阿里云 ECS
 
 ## 快速开始
 
