@@ -85,3 +85,28 @@ export type FactoryDevice = {
     [key: string]: any     // 其他可能的参数，支持动态扩展
   }
 }
+
+// 定义通用规则基础类型
+interface BaseRule {
+  id: string; // 规则唯一标识
+  metric: string; // 监控的指标（如温度、内存）
+}
+
+// 持续超限规则（对应 SustainedExceedDetector）
+export interface SustainedExceedRule extends BaseRule {
+  condition: string; // 如 ">30"、"<20"
+  duration:number;
+  window_size: number; // 时间窗口（秒）
+  min_breaches: number; // 最小超限次数
+  severity:string
+}
+
+// 突变检测规则（对应 SuddenChangeDetector）
+export interface SuddenChangeRule extends BaseRule {
+  type: 'sudden_change';
+  condition: string; // 如 ">20"
+  baseline_period: number; // 基线周期（秒）
+  time_range: number; // 检测时间范围（秒）
+}
+
+
