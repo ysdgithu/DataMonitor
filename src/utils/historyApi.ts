@@ -1,6 +1,5 @@
 // 历史数据API接口
 import request from './request'
-import type { DeviceStatusData } from './type'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL
 
@@ -41,46 +40,49 @@ export class HistoryApi {
 
     // 健康检查
     async healthCheck(): Promise<{ status: string; timestamp: number }> {
-        const response = await request.get('/health');
-        return response.data;
+        // request 拦截器已经返回了 response.data
+        return await request.get('/health') as any;
     }
 
     // 查询核心指标数据
     async getCoreMetrics(params: QueryParams = {}): Promise<ApiResponse<any[]>> {
-        const response = await request.get('/core-metrics', { params });
-        return response.data;
+        // request 拦截器已经返回了 response.data
+        return await request.get('/core-metrics', { params }) as any;
     }
 
     // 查询环境数据
     async getEnvironmentData(params: QueryParams = {}): Promise<ApiResponse<any[]>> {
-        const response = await request.get('/environment', { params });
-        return response.data;
+        // request 拦截器已经返回了 response.data
+        return await request.get('/environment', { params }) as any;
     }
 
     // 查询设备类型数据
-    async getDeviceStatus(params: QueryParams = {}): Promise<ApiResponse<DeviceStatusData[]>> {
-        const response = await request.get('/device-status', { params });
-        return response.data;
+    async getDeviceStatus(params: QueryParams = {}): Promise<ApiResponse<DeviceTypeData[]>> {
+        console.log('[getDeviceStatus] 请求参数:', params);
+        // request 拦截器已经返回了 response.data，所以这里直接得到后端的响应体
+        const response = await request.get('/device-status', { params }) as any;
+        console.log('[getDeviceStatus] 响应:', response);
+        return response;
     }
 
     // 查询通信数据
     async getTelemetryData(params: QueryParams = {}): Promise<ApiResponse<any[]>> {
-        const response = await request.get('/telemetry', { params });
-        return response.data;
+        // request 拦截器已经返回了 response.data
+        return await request.get('/telemetry', { params }) as any;
     }
 
     // 获取统计数据
     async getStatistics(dataType: string, hours: number = 24): Promise<ApiResponse<any[]>> {
-        const response = await request.get(`/statistics/${dataType}`, {
+        // request 拦截器已经返回了 response.data
+        return await request.get(`/statistics/${dataType}`, {
             params: { hours }
-        });
-        return response.data;
+        }) as any;
     }
 
     // 获取数据概览
     async getOverview(): Promise<ApiResponse<any>> {
-        const response = await request.get('/overview');
-        return response.data;
+        // request 拦截器已经返回了 response.data
+        return await request.get('/overview') as any;
     }
 
     // 获取指定时间范围的核心指标趋势
@@ -130,30 +132,15 @@ export class HistoryApi {
         return [];
     }
 
-    // 获取设备状态统计
-    async getDeviceStatusStats(hours: number = 24): Promise<any> {
-        const endTime = Date.now();
-        const startTime = endTime - (hours * 60 * 60 * 1000);
-
-        const response = await this.getDeviceStatus({
-            startTime,
-            endTime,
-            limit: 1000
-        });
-
+    // 获取设备类型统计（设备类型分布）
+    // 注意：getDeviceStatus 返回的是设备类型统计数据，不是设备状态数据
+    // 如果需要获取设备状态统计，应该使用 getFactoryDevices 接口
+    async getDeviceTypeStats(): Promise<DeviceTypeData[]> {
+        const response = await this.getDeviceStatus();
         if (response.success) {
-            const statusCount = response.data.reduce((acc: Record<string, number>, item) => {
-                acc[item.status] = (acc[item.status] || 0) + 1;
-                return acc;
-            }, {});
-
-            return {
-                total: response.data.length,
-                statusCount,
-                latest: response.data.slice(0, 10)
-            };
+            return response.data;
         }
-        return { total: 0, statusCount: {}, latest: [] };
+        return [];
     }
 
     // 获取通信数据趋势

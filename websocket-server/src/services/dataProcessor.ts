@@ -10,10 +10,12 @@ import {
     FactoryDevice,
 } from '../types/index';
 import { DataModel, CoreMetricRecord, EnvironmentRecord, TelemetryRecord, DeviceStatusRecord, FactoryDeviceRecord } from '../database/models';
+import { SustainedExceedDetector } from './sustainedExceedDetector';
+import { SuddenChangeDetector } from './suddenChangeDetector';
+import type { DataPoint } from '../types/index';
 
 // 添加类型定义
 type DeviceDataType = CoreMetricData | EnvironmentData | DeviceTelemetryData | DeviceStatusData | FactoryDevice;
-
 // 分级异常判定阈值
 const THRESHOLDS = {
     cpu: { warning: 90, error: 95 },
@@ -71,9 +73,15 @@ function getDataStatus(data: DeviceDataType): 'normal' | 'warning' | 'error' {
 export class DataProcessor {
     private wsClients: Set<WebSocket> = new Set();
     private dataModel: DataModel;
+    private cpuDetector: SustainedExceedDetector;
+    private tempDetector: SuddenChangeDetector;
 
     constructor() {
         this.dataModel = new DataModel();
+        // 初始化CPU持续超限检测器
+        this.cpuDetector = new SustainedExceedDetector();
+        // 初始化温度突变检测器
+        this.tempDetector = new SuddenChangeDetector();
     }
 
     // 注册客户端
@@ -102,6 +110,9 @@ export class DataProcessor {
                 };
             }
 
+            // 异常检测
+            this.detectAnomalies(message);
+
             // 推送至所有客户端
             for (const ws of this.wsClients) {
                 if (ws.readyState === WebSocket.OPEN) {
@@ -117,6 +128,63 @@ export class DataProcessor {
             this.saveToDatabase(message.type, message.data).catch(error => {
                 console.error(`数据库写入失败 [${message.type}]:`, error);
             });
+        }
+    }
+
+    // 异常检测方法
+    private detectAnomalies(message: { type: string; data: any }) {
+        // CPU持续超限检测
+        if (message.type === 'core_metrics' && Array.isArray(message.data)) {
+            const cpuData = message.data.find(item => item.category === 'cpu');
+            if (cpuData) {
+                const dataPoint: DataPoint = {
+                    deviceId: cpuData.deviceId,
+                    metric: 'cpu',
+                    value: cpuData.value,
+                    timestamp: cpuData.timestamp
+                };
+                const cpuAnomaly = this.cpuDetector.check(dataPoint);
+                if (cpuAnomaly) {
+                    console.log('检测到CPU持续超限异常:', cpuAnomaly);
+                    // 发送异常消息给前端
+                    this.sendAnomalyAlert('cpu_sustained_exceed', cpuAnomaly);
+                }
+            }
+        }
+
+        // 温度突变检测
+        if (message.type === 'environment' && !Array.isArray(message.data)) {
+            const tempData = message.data;
+            if (tempData.type === 'temperature') {
+                const dataPoint: DataPoint = {
+                    deviceId: tempData.deviceId,
+                    metric: 'temperature',
+                    value: tempData.value,
+                    timestamp: tempData.timestamp
+                };
+                const tempAnomaly = this.tempDetector.check(dataPoint);
+                if (tempAnomaly) {
+                    console.log('检测到温度突变异常:', tempAnomaly);
+                    // 发送异常消息给前端
+                    this.sendAnomalyAlert('temperature_sudden_change', tempAnomaly);
+                }
+            }
+        }
+    }
+
+    // 发送异常告警消息给前端
+    private sendAnomalyAlert(alertType: string, anomalyData: any) {
+        const alertMessage = {
+            type: 'anomaly_alert',
+            alertType: alertType,
+            data: anomalyData,
+            timestamp: Date.now()
+        };
+
+        for (const ws of this.wsClients) {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(alertMessage));
+            }
         }
     }
 

@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import LoginView from '../views/LoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
+import DiagnosisView from '../views/DiagnosisView.vue'
 import { useAuthStore } from '../stores/auth'
 
 const routes: RouteRecordRaw[] = [
@@ -30,6 +31,15 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: true,
       title: 'DataMonitor - 实时数据监控平台'
+    }
+  },
+  {
+    path: '/diagnosis',
+    name: 'diagnosis',
+    component: DiagnosisView,
+    meta: {
+      requiresAuth: true,
+      title: '诊断任务管理 - DataMonitor'
     }
   },
   {

@@ -312,9 +312,7 @@ function goToLogin() {
   margin-bottom: 20px;
 }
 
-.register-form :deep(.el-input__wrapper) {
-  background-color: #f5f7fa;
-}
+/* 全局已使用浅色主题，无需额外覆盖 */
 
 .password-strength {
   margin-top: 8px;

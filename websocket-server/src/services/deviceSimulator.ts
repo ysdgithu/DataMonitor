@@ -45,14 +45,36 @@ export class DeviceSimulator {
         factoryDevices?: FactoryDevice[];
     } = {}; // 按类型存储最新数据
 
+    // 测试模式标志
+    private testMode: 'normal' | 'cpu_exceed' | 'temp_sudden' = 'normal';
+    private testCounter: number = 0;
+
     // 设置数据处理器
     public setDataProcessor(dataProcessor: DataProcessor) {
         this.dataProcessor = dataProcessor;
     }
 
+    // 设置测试模式
+    public setTestMode(mode: 'normal' | 'cpu_exceed' | 'temp_sudden') {
+        this.testMode = mode;
+        this.testCounter = 0;
+        console.log(`数据模拟器切换到测试模式: ${mode}`);
+    }
+
     // 生成核心指标数据
     private generateCoreMetrics() {
         const timestamp = Date.now();
+        let cpuValue: number;
+
+        // 根据测试模式生成不同的CPU数据
+        if (this.testMode === 'cpu_exceed') {
+            // CPU持续超限测试模式：生成持续>90%的数据
+            cpuValue = 91 + Math.random() * 5; // 91-96%
+            console.log(`[测试模式-CPU超限] 生成CPU数据: ${cpuValue.toFixed(2)}%`);
+        } else {
+            // 正常模式
+            cpuValue = 30 + Math.random() * 50; // 30-80%
+        }
 
         // 生成四个核心指标
         this.latestData.coreMetrics = [
@@ -60,36 +82,56 @@ export class DeviceSimulator {
                 deviceId: "000",
                 timestamp,
                 category: 'cpu',
-                value: 30 + Math.random() * 70, // 30-70%
+                value: cpuValue,
             },
             {
                 deviceId: "000",
                 timestamp,
                 category: 'memory',
-                value: 40 + Math.random() * 60, // 40-70%
+                value: 40 + Math.random() * 40, // 40-80%
             },
             {
                 deviceId: "000",
                 timestamp,
                 category: 'network',
-                value: 50 + Math.random() * 100, // 50-180
+                value: 50 + Math.random() * 80, // 50-130
             },
             {
                 deviceId: "000",
                 timestamp,
                 category: 'online',
-                value: 60 + Math.random() * 40, // 60-100
+                value: 70 + Math.random() * 30, // 70-100
             }
         ];
     }
 
     // 生成环境数据（高频单设备）
     private generateEnvironmentData() {
+        let tempValue: number;
+
+        // 根据测试模式生成不同的温度数据
+        if (this.testMode === 'temp_sudden') {
+            this.testCounter++;
+            if (this.testCounter <= 30) {
+                // 前30个数据点：基线温度（25°C左右）
+                tempValue = 25 + Math.random() * 2;
+            } else {
+                // 后续数据点：突变温度（38°C左右，突变>10°C）
+                tempValue = 38 + Math.random() * 2;
+                if (this.testCounter === 31) {
+                    console.log(`[测试模式-温度突变] 温度从基线25°C突变到${tempValue.toFixed(2)}°C`);
+                }
+            }
+        } else {
+            // 正常模式
+            tempValue = 22 + Math.random() * 6; // 22-28°C
+        }
+
         this.latestData.environment = {
             deviceId: "001",
             timestamp: Date.now(),
             type: 'temperature',
-            value: 22 + Math.random() * 6, // 22-28°C
+            value: tempValue,
             unit: '°C'
         };
     }

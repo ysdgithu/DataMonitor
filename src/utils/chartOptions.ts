@@ -135,7 +135,7 @@ export const createBarChart = (config: {
       type: 'category',
       data: displayXAxis,
       axisLabel: {
-        color: '#E5E7EB',
+        color: '#47484aff',
         interval: 0,
         rotate: 45,
         ...config.xAxis?.axisLabel
@@ -147,7 +147,7 @@ export const createBarChart = (config: {
       max: Math.ceil(max + range * 0.1),
       splitNumber: 5, // 控制分割段数
       axisLabel: {
-        color: '#E5E7EB'
+        color: '#47484aff'
       }
     },
     series: [{
@@ -212,7 +212,7 @@ export const createPieChart = (config: {
       }
     },
     label: {
-      color: '#E5E7EB'
+      color: '#313234ff'
     }
   }],
   backgroundColor: 'transparent'

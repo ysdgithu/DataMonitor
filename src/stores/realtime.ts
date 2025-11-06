@@ -67,7 +67,13 @@ export const useRealtimeStore = defineStore('realtime', () => {
     if (!isMonitoring.value) return
 
     const { type, data } = message;
-    console.log('收到WebSocket消息:', type, data);  // 添加调试日志
+    // console.log('收到WebSocket消息:', type, data);  // 添加调试日志
+
+    // 处理异常告警消息
+    if (type === 'anomaly_alert') {
+      handleAnomalyAlert(message);
+      return;
+    }
 
     // 根据消息类型处理数据
     switch (type) {
@@ -129,11 +135,36 @@ export const useRealtimeStore = defineStore('realtime', () => {
         }
         const deviceStatusStore = useDeviceTelemetryDataStore();
         deviceStatusStore.pushDeviceTelemetryData(data);
-        console.log('1111'+JSON.stringify(data));
         break;
     }
 
     console.log(`[realtime] 处理${type}数据 时间:`, message.timestamp ? new Date(message.timestamp).toLocaleTimeString() : 'unknown');
+  }
+
+  // 处理异常告警消息
+  function handleAnomalyAlert(message: any) {
+    console.log('收到异常告警:', message);
+
+    const { alertType, data, timestamp } = message;
+
+    // 根据告警类型显示不同的提示
+    if (alertType === 'cpu_sustained_exceed') {
+      console.warn(`CPU持续超限告警 - 设备${data.deviceId}的CPU使用率持续超过90%`);
+      console.warn('超限记录:', data.breaches);
+
+      // 可以在这里触发UI通知
+      // 例如：ElMessage.error({ message: 'CPU持续超限告警', duration: 5000 })
+
+    } else if (alertType === 'temperature_sudden_change') {
+      console.warn(`温度突变告警 - 设备${data.deviceId}的温度突然升高${data.change.toFixed(1)}°C`);
+      console.warn(`当前温度: ${data.current_value.toFixed(1)}°C, 基线温度: ${data.baseline.toFixed(1)}°C`);
+
+      // 可以在这里触发UI通知
+      // 例如：ElMessage.warning({ message: '温度异常告警', duration: 5000 })
+    }
+
+    // 可以将告警数据存储到store中，供UI显示
+    // 例如：anomalyAlerts.value.push({ alertType, data, timestamp })
   }
 
   // 监听 WebSocket 消息

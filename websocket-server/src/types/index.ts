@@ -103,10 +103,18 @@ export interface SustainedExceedRule extends BaseRule {
 
 // 突变检测规则（对应 SuddenChangeDetector）
 export interface SuddenChangeRule extends BaseRule {
-  type: 'sudden_change';
   condition: string; // 如 ">20"
   baseline_period: number; // 基线周期（秒）
   time_range: number; // 检测时间范围（秒）
+  severity:string;
+}
+
+// 定义数据点的类型接口
+export interface DataPoint {
+  deviceId: string;
+  metric: string;
+  value: number; // 指标值（如CPU使用率）
+  timestamp: number; // 时间戳（毫秒）
 }
 
 

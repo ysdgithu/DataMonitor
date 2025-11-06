@@ -186,15 +186,22 @@ const queryData = async () => {
     
     let data: any[] = [];
     
+    console.log('查询参数:', queryParams);
+    console.log('数据类型:', queryParams.dataType);
+    console.log('分类:', queryParams.category);
+
     switch (queryParams.dataType) {
       case 'coreMetrics':
         data = await historyApi.getCoreMetricsTrend(queryParams.category, timeRange.value);
+        console.log('核心指标数据:', data);
         break;
       case 'environment':
         data = await historyApi.getEnvironmentTrend(queryParams.category, timeRange.value);
+        console.log('环境数据:', data);
         break;
       case 'telemetry':
         data = await historyApi.getTelemetryTrend(queryParams.category, timeRange.value);
+        console.log('通信数据:', data);
         break;
       case 'deviceType': {
         // 创建一个符合 QueryParams 类型的参数对象
@@ -204,8 +211,11 @@ const queryData = async () => {
           startTime: queryParams.startTime,
           endTime: queryParams.endTime
         };
+        console.log('设备类型查询参数:', params);
         const response = await historyApi.getDeviceStatus(params);
+        console.log('设备类型响应:', response);
         data = response.data;
+        console.log('设备类型数据:', data);
         break;
       }
       default:
@@ -215,8 +225,10 @@ const queryData = async () => {
 
     // 如果能获取到数据，说明API是正常的
     connectionStatus.value = true;
-    
-    console.log(data[0])
+
+    console.log('最终数据数组:', data);
+    console.log('数据长度:', data.length);
+    console.log('第一条数据:', data[0])
     // 获取当前类型的显示标签
     const currentCategory = categoryOptions.value.find(
       option => option.value === queryParams.category
@@ -242,6 +254,8 @@ const queryData = async () => {
       category: currentCategory?.label || queryParams.category,
       unit: item.unit || getDefaultUnit() // 如果后端没有提供单位，使用默认单位
     }));
+
+    console.log('111'+data)
 
     await nextTick();
     

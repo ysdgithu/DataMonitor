@@ -142,7 +142,9 @@ const deviceTypeData = ref<DeviceTypeData[]>([])
 // 获取设备类型数据
 const fetchDeviceTypeData = async () => {
   const response = await historyApi.getDeviceStatus()
-  deviceTypeData.value = response.data as unknown as DeviceTypeData[]
+  console.log('设备类型数据响应:', response)
+  console.log('设备类型数据:', response.data)
+  deviceTypeData.value = response.data
 }
 
 // 设备类型分布图表配置
@@ -180,18 +182,17 @@ const handleCloseHistoryPanel = () => {
 <style scoped>
 .dashboard-main {
   padding: 20px;
-  background-color: #1A2333;
+  background-color: #F5F7FA;
   min-height: 100vh;
-  color: #E5E7EB;
+  color: #303133;
 }
 
 /* 控制栏样式 */
 .control-bar {
-  background-color: #243142;
-  border: none;
-  box-shadow: 0 0 15px rgba(74, 144, 226, 0.2);
+  background-color: #FFFFFF;
+  border: 1px solid rgba(74, 144, 226, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   border-radius: 8px;
-  backdrop-filter: blur(5px);
 }
 
 .control-bar :deep(.el-button--primary) {
@@ -237,17 +238,14 @@ const handleCloseHistoryPanel = () => {
 
 /* 卡片通用样式 */
 :deep(.el-card) {
-  background-color: #243142;
-  border: none;
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
+  background-color: #FFFFFF;
   border: 1px solid rgba(74, 144, 226, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
 }
 
 :deep(.el-card__header) {
-  border-bottom: 1px solid #334155;
+  border-bottom: 1px solid rgba(74, 144, 226, 0.15);
   padding: 12px 20px;
 }
 
@@ -258,12 +256,12 @@ const handleCloseHistoryPanel = () => {
 }
 
 .metric-header {
-  color: #94A3B8;
+  color: #909399;
   font-size: 13px;
 }
 
 .metric-value {
-  color: #E5E7EB;
+  color: #303133;
   font-size: 22px;
   font-weight: 600;
 }
@@ -284,12 +282,12 @@ const handleCloseHistoryPanel = () => {
 
 /* 加载状态样式 */
 .loading-placeholder {
-  color: #94A3B8;
+  color: #909399;
 }
 
 /* 图表容器样式 */
 .chart-card {
-  background-color: #243142;
+  background-color: #FFFFFF;
 }
 
 .chart-card :deep(.el-card__body) {
@@ -298,8 +296,8 @@ const handleCloseHistoryPanel = () => {
 
 /* 地图卡片特殊样式 */
 .map-card {
-  background: radial-gradient(circle at 50% 0%, #243142 0%, #1A2333 100%);
-  border: 1px solid rgba(74, 144, 226, 0.2);
+  background: #FFFFFF;
+  border: 1px solid rgba(74, 144, 226, 0.15);
 }
 
 /* 滚动条美化 */
@@ -309,12 +307,16 @@ const handleCloseHistoryPanel = () => {
 }
 
 ::-webkit-scrollbar-track {
-  background: #1A2333;
+  background: #F0F2F5;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #4A90E2;
+  background: #C0C4CC;
   border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #909399;
 }
 
 
@@ -393,9 +395,9 @@ const handleCloseHistoryPanel = () => {
 }
 
 .metric-item {
-  background-color: #1A2333;
+  background-color: #FFFFFF;
   color: #606266;
-  border: 1px solid rgba(74, 144, 226, 0.3);
+  border: 1px solid rgba(74, 144, 226, 0.15);
   border-radius: 4px;
   padding: 6px;  /* 减小内边距 */
   margin-bottom: 12px;  /* 减小底部间距 */
@@ -403,9 +405,10 @@ const handleCloseHistoryPanel = () => {
   height: 95px;  /* 限制每个卡片的高度 */
   position: relative;
   overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 }
 
-.metric-item::after {
+/* .metric-item::after {
   content: '';
   position: absolute;
   top: -50%;
@@ -422,7 +425,7 @@ const handleCloseHistoryPanel = () => {
 }
 @keyframes shine {
   100% { transform: translate(50%, 50%); }
-}
+} */
 
 .metric-header {
   display: flex;
@@ -455,7 +458,7 @@ const handleCloseHistoryPanel = () => {
 .panel-header {
   font-size: 16px;
   font-weight: bold;
-  color: #E5E7EB;
+  color: #303133;
   letter-spacing: 1px;
   text-transform: uppercase;
   opacity: 0.9;
@@ -465,12 +468,12 @@ const handleCloseHistoryPanel = () => {
   height: 610px;
 }
 
-.loading-placeholder {
+/* .loading-placeholder {
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
   color: #909399;
-}
+} */
 </style>

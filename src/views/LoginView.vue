@@ -203,9 +203,7 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.login-form :deep(.el-input__wrapper) {
-  background-color: #f5f7fa;
-}
+/* 全局已使用浅色主题，无需额外覆盖 */
 
 .login-options {
   display: flex;

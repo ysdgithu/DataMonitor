@@ -1,11 +1,11 @@
 <template>
-  <el-header class="app-header" style=" color: #E5E7EB">
+  <el-header class="app-header" style="color: #303133;">
     <div class="header-left" >
       <!-- <img src="@/assets/logo.png" alt="Logo" class="logo" /> -->
       <h1 class="title" >IoT设备监控中心</h1>
 
       <!-- 导航菜单 -->
-      <el-menu
+      <!-- <el-menu
         mode="horizontal"
         :default-active="activeIndex"
         class="header-menu"
@@ -14,7 +14,7 @@
           <el-icon><Monitor /></el-icon>
           <span>监控中心</span>
         </el-menu-item>
-      </el-menu>
+      </el-menu> -->
     </div>
     <div class="header-right">
       <!-- <el-switch
@@ -71,7 +71,6 @@ const logout =()=>{
   align-items: center;
   padding: 0 20px;
   height: 60px;
-  border-bottom: 1px solid #a4a3a3;
 }
 
 .header-left {
@@ -86,7 +85,7 @@ const logout =()=>{
 }
 
 .header-menu :deep(.el-menu-item) {
-  color: #E5E7EB;
+  color: #606266;
   border-bottom: 2px solid transparent;
   height: 60px;
   line-height: 60px;
@@ -94,7 +93,7 @@ const logout =()=>{
 }
 
 .header-menu :deep(.el-menu-item:hover) {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(74, 144, 226, 0.05);
   color: #4A90E2;
 }
 
@@ -124,7 +123,7 @@ const logout =()=>{
 
 .user-info {
   display: flex;
-  color: #E5E7EB;
+  color: #606266;
   align-items: center;
   gap: 8px;
   cursor: pointer;

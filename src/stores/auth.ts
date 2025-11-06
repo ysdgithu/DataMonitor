@@ -91,8 +91,9 @@ export const useAuthStore = defineStore('auth', () => {
         }
       )
 
-      if (response.data.success && response.data.data) {
-        const { token, user: userData } = response.data.data
+      // 注意：request 拦截器已经返回了 response.data，所以这里直接使用 response
+      if (response.success && response.data) {
+        const { token, user: userData } = response.data
 
         // 保存 token 和用户信息
         TokenManager.setTokens(token, undefined, credentials.rememberMe)
@@ -100,7 +101,7 @@ export const useAuthStore = defineStore('auth', () => {
         user.value = userData
         isAuthenticated.value = true
       } else {
-        throw new Error(response.data.message || '登录失败')
+        throw new Error(response.message || '登录失败')
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : '登录失败，请检查用户名和密码'
@@ -128,8 +129,9 @@ export const useAuthStore = defineStore('auth', () => {
         }
       )
 
-      if (response.data.success && response.data.data) {
-        const { token, user: userData } = response.data.data
+      // 注意：request 拦截器已经返回了 response.data，所以这里直接使用 response
+      if (response.success && response.data) {
+        const { token, user: userData } = response.data
 
         // 保存 token 和用户信息
         TokenManager.setTokens(token, undefined, false)
@@ -137,7 +139,7 @@ export const useAuthStore = defineStore('auth', () => {
         user.value = userData
         isAuthenticated.value = true
       } else {
-        throw new Error(response.data.message || '注册失败')
+        throw new Error(response.message || '注册失败')
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : '注册失败'
