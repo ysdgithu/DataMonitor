@@ -181,6 +181,7 @@ export class HistoryApi {
 // 导出单例实例
 export const historyApi = HistoryApi.getInstance();
 
+
 // 时间范围选项
 export const TIME_RANGE_OPTIONS = [
 

@@ -10,6 +10,17 @@ import App from './App.vue'
 import router from './router'
 import { useAuthStore } from './stores/auth'
 
+// 打印环境变量配置（开发环境）
+if (import.meta.env.DEV) {
+  console.log('=== 环境配置信息 ===')
+  console.log('模式:', import.meta.env.MODE)
+  console.log('开发环境:', import.meta.env.DEV)
+  console.log('生产环境:', import.meta.env.PROD)
+  console.log('WebSocket URL:', import.meta.env.VITE_WS_URL)
+  console.log('API URL:', import.meta.env.VITE_API_URL)
+  console.log('==================')
+}
+
 const app = createApp(App)
 
 const pinia = createPinia()

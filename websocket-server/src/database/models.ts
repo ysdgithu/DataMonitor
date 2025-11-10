@@ -350,6 +350,189 @@ class DataModel {
             return row;
         }
     }
+
+    // ==================== 诊断任务管理方法 ====================
+
+    // 创建诊断任务
+    async createDiagnosisTask(task: {
+        name: string;
+        deviceId: string;
+        priority: number;
+        assignee: string;
+        detail?: string;
+        status?: number;
+    }): Promise<number> {
+        const now = Date.now();
+        const sql = `
+            INSERT INTO diagnosis_tasks
+            (name, device_id, status, priority, detail, assignee, create_time, update_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+        const params = [
+            task.name,
+            task.deviceId,
+            task.status ?? 0, // 默认状态为待执行
+            task.priority,
+            task.detail || '',
+            task.assignee,
+            now,
+            now
+        ];
+
+        const pool = await this.db.connect();
+        const connection = await pool.getConnection();
+        try {
+            const [result] = await connection.execute(sql, params);
+            return (result as any).insertId;
+        } finally {
+            connection.release();
+        }
+    }
+
+    // 查询诊断任务列表（分页）
+    async queryDiagnosisTasks(params: {
+        page?: number;
+        pageSize?: number;
+        status?: number;
+        deviceId?: string;
+        assignee?: string;
+        priority?: number;
+    }): Promise<{ tasks: any[]; total: number }> {
+        const page = params.page || 1;
+        const pageSize = params.pageSize || 5;
+        const offset = (page - 1) * pageSize;
+
+        let whereClauses: string[] = [];
+        let sqlParams: any[] = [];
+
+        if (params.status !== undefined) {
+            whereClauses.push('status = ?');
+            sqlParams.push(params.status);
+        }
+        if (params.deviceId) {
+            whereClauses.push('device_id = ?');
+            sqlParams.push(params.deviceId);
+        }
+        if (params.assignee) {
+            whereClauses.push('assignee = ?');
+            sqlParams.push(params.assignee);
+        }
+        if (params.priority !== undefined) {
+            whereClauses.push('priority = ?');
+            sqlParams.push(params.priority);
+        }
+
+        const whereClause = whereClauses.length > 0 ? 'WHERE ' + whereClauses.join(' AND ') : '';
+
+        // 查询总数
+        const countSql = `SELECT COUNT(*) as total FROM diagnosis_tasks ${whereClause}`;
+        const countResult = await this.db.get(countSql, sqlParams);
+        const total = countResult?.total || 0;
+
+        // 查询数据
+        const dataSql = `
+            SELECT * FROM diagnosis_tasks
+            ${whereClause}
+            ORDER BY create_time DESC
+            LIMIT ${pageSize} OFFSET ${offset}
+        `;
+        const tasks = await this.db.all(dataSql, sqlParams);
+
+        return { tasks, total };
+    }
+
+    // 根据ID查询诊断任务详情
+    async getDiagnosisTaskById(id: number): Promise<any> {
+        const sql = 'SELECT * FROM diagnosis_tasks WHERE id = ?';
+        return await this.db.get(sql, [id]);
+    }
+
+    // 更新诊断任务
+    async updateDiagnosisTask(id: number, updates: {
+        name?: string;
+        deviceId?: string;
+        status?: number;
+        priority?: number;
+        detail?: string;
+        assignee?: string;
+    }): Promise<void> {
+        const updateFields: string[] = [];
+        const params: any[] = [];
+
+        if (updates.name !== undefined) {
+            updateFields.push('name = ?');
+            params.push(updates.name);
+        }
+        if (updates.deviceId !== undefined) {
+            updateFields.push('device_id = ?');
+            params.push(updates.deviceId);
+        }
+        if (updates.status !== undefined) {
+            updateFields.push('status = ?');
+            params.push(updates.status);
+        }
+        if (updates.priority !== undefined) {
+            updateFields.push('priority = ?');
+            params.push(updates.priority);
+        }
+        if (updates.detail !== undefined) {
+            updateFields.push('detail = ?');
+            params.push(updates.detail);
+        }
+        if (updates.assignee !== undefined) {
+            updateFields.push('assignee = ?');
+            params.push(updates.assignee);
+        }
+
+        if (updateFields.length === 0) {
+            return; // 没有需要更新的字段
+        }
+
+        // 总是更新 update_time
+        updateFields.push('update_time = ?');
+        params.push(Date.now());
+
+        params.push(id); // WHERE 条件的参数
+
+        const sql = `UPDATE diagnosis_tasks SET ${updateFields.join(', ')} WHERE id = ?`;
+        await this.db.run(sql, params);
+    }
+
+    // 删除诊断任务
+    async deleteDiagnosisTask(id: number): Promise<void> {
+        const sql = 'DELETE FROM diagnosis_tasks WHERE id = ?';
+        await this.db.run(sql, [id]);
+    }
+
+    // 获取任务统计信息
+    async getDiagnosisTaskStats(): Promise<{
+        total: number;
+        running: number;
+        completed: number;
+        failed: number;
+        paused: number;
+        pending: number;
+    }> {
+        const sql = `
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as running,
+                SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as failed,
+                SUM(CASE WHEN status = 3 THEN 1 ELSE 0 END) as paused,
+                SUM(CASE WHEN status = 4 THEN 1 ELSE 0 END) as pending
+            FROM diagnosis_tasks
+        `;
+        const result = await this.db.get(sql, []);
+        return {
+            total: result?.total || 0,
+            running: result?.running || 0,
+            completed: result?.completed || 0,
+            failed: result?.failed || 0,
+            paused: result?.paused || 0,
+            pending: result?.pending || 0
+        };
+    }
 }
 
 export { DataModel, QueryParams, CoreMetricRecord, EnvironmentRecord, TelemetryRecord, DeviceStatusRecord, FactoryDeviceRecord };

@@ -88,6 +88,26 @@ CREATE TABLE users (
 )
 ```
 密码使用 bcrypt 加密存储
+
+4. 诊断任务表 (diagnosis_tasks)
+```sql
+CREATE TABLE IF NOT EXISTS diagnosis_tasks (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(200) NOT NULL,  --'任务标题'
+    device_id VARCHAR(50) NOT NULL,-- COMMENT '设备ID',
+    status TINYINT NOT NULL DEFAULT 4 ,--COMMENT '任务状态: 0-进行中, 1-已完成, 2-失败, 3-暂停, 4-待执行',
+    priority TINYINT NOT NULL DEFAULT 0 ,--COMMENT '优先级: 0-低, 1-中, 2-高',
+    detail TEXT ,--COMMENT '任务详情',
+    assignee VARCHAR(50) NOT NULL ,--COMMENT '任务负责人',
+    create_time BIGINT NOT NULL ,--COMMENT '创建时间戳',
+    update_time BIGINT NOT NULL ,--COMMENT '更新时间戳',
+    INDEX idx_device_id (device_id),
+    INDEX idx_status (status),
+    INDEX idx_assignee (assignee),
+    INDEX idx_create_time (create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+```
+
 ## 接口设计
 
 **JWT token 保护接口**
@@ -540,6 +560,243 @@ curl http://localhost:3002/api/factory-devices?limit=2&zone&status
     }
 }
 ```
+
+### 诊断任务管理接口
+
+#### 数据字段说明
+| 字段名 | 类型 | 说明 |
+|--------|------|------|
+| id | number | 主键自增ID |
+| name | string | 任务标题，如 'CPU性能诊断' |
+| deviceId | string | 设备ID (001-温度传感器, 002-通信量统计器, 1001+-工厂设备) |
+| status | number | 任务状态: 0-进行中, 1-已完成, 2-失败, 3-暂停 |
+| priority | number | 优先级: 0-低, 1-中, 2-高 |
+| detail | string | 任务详情描述 |
+| assignee | string | 任务负责人，如 'admin' |
+| createTime | number | 创建时间戳（毫秒） |
+| updateTime | number | 更新时间戳（毫秒） |
+
+#### GET /api/diagnosis-tasks - 获取诊断任务列表（分页）
+
+**调用示例**:
+```bash
+# 获取第1页的任务列表（每页5条）
+curl -X GET http://localhost:3002/api/diagnosis-tasks?page=1&pageSize=5 \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc2Mjc1NDk5OCwiZXhwIjoxNzYyODQxMzk4fQ.EBtYdB4NO0vVTISV7UAxNn6YfI-CTyewAHHe2SWYJQo" \
+  -H "Content-Type: application/json"
+
+# 按状态筛选（获取进行中的任务）
+curl -X GET "http://localhost:3002/api/diagnosis-tasks?status=0" \
+  -H "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc2Mjc1NDk5OCwiZXhwIjoxNzYyODQxMzk4fQ.EBtYdB4NO0vVTISV7UAxNn6YfI-CTyewAHHe2SWYJQo"
+
+# 按设备ID筛选
+curl -X GET "http://localhost:3002/api/diagnosis-tasks?deviceId=001" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# 按负责人筛选
+curl -X GET "http://localhost:3002/api/diagnosis-tasks?assignee=admin" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# 组合筛选
+curl -X GET "http://localhost:3002/api/diagnosis-tasks?status=0&priority=2&page=1&pageSize=10" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+**请求参数**:
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| page | number | 否 | 页码，默认1 |
+| pageSize | number | 否 | 每页条数，默认5 |
+| status | number | 否 | 任务状态筛选 |
+| deviceId | string | 否 | 设备ID筛选 |
+| assignee | string | 否 | 负责人筛选 |
+| priority | number | 否 | 优先级筛选 |
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "name": "CPU性能诊断",
+      "device_id": "001",
+      "status": 0,
+      "priority": 2,
+      "detail": "检测CPU使用率异常峰值",
+      "assignee": "admin",
+      "create_time": 1705294200000,
+      "update_time": 1705308000000
+    }
+  ],
+  "total": 10,
+  "page": 1,
+  "pageSize": 5
+}
+```
+
+#### GET /api/diagnosis-tasks/:id - 获取诊断任务详情
+
+**调用示例**:
+```bash
+curl -X GET "http://localhost:3002/api/diagnosis-tasks/1" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc2Mjc1NDk5OCwiZXhwIjoxNzYyODQxMzk4fQ.EBtYdB4NO0vVTISV7UAxNn6YfI-CTyewAHHe2SWYJQo" \
+  -H "Content-Type: application/json"
+```
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "CPU性能诊断",
+    "device_id": "001",
+    "status": 0,
+    "priority": 2,
+    "detail": "检测CPU使用率异常峰值，需要分析近24小时数据",
+    "assignee": "admin",
+    "create_time": 1705294200000,
+    "update_time": 1705308000000
+  }
+}
+```
+
+#### POST /api/diagnosis-tasks - 创建诊断任务
+
+**调用示例**:
+```bash
+curl -X POST "http://localhost:3002/api/diagnosis-tasks" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc2Mjc1NDk5OCwiZXhwIjoxNzYyODQxMzk4fQ.EBtYdB4NO0vVTISV7UAxNn6YfI-CTyewAHHe2SWYJQo" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "温度传感器校准",
+    "deviceId": "001",
+    "priority": 2,
+    "assignee": "admin",
+    "detail": "温度读数偏差较大，需要重新校准",
+    "status": 4
+  }'
+```
+
+**请求参数**:
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| name | string | 是 | 任务标题 |
+| deviceId | string | 是 | 设备ID |
+| priority | number | 是 | 优先级 (0-低, 1-中, 2-高) |
+| assignee | string | 是 | 任务负责人 |
+| detail | string | 否 | 任务详情 |
+| status | number | 否 | 任务状态，默认4(待执行) |
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "data": {
+    "id": 5
+  },
+  "message": "任务创建成功"
+}
+```
+
+#### PUT /api/diagnosis-tasks/:id - 更新诊断任务
+
+**调用示例**:
+```bash
+# 更新任务状态为已完成
+curl -X PUT "http://localhost:3002/api/diagnosis-tasks/1" \
+  -H "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc2Mjc1NDk5OCwiZXhwIjoxNzYyODQxMzk4fQ.EBtYdB4NO0vVTISV7UAxNn6YfI-CTyewAHHe2SWYJQo" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": 1
+  }'
+
+# 更新多个字段
+curl -X PUT "http://localhost:3002/api/diagnosis-tasks/1" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": 0,
+    "priority": 2,
+    "detail": "发现新的异常情况，提高优先级"
+  }'
+```
+
+**请求参数**:
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| name | string | 否 | 任务标题 |
+| deviceId | string | 否 | 设备ID |
+| status | number | 否 | 任务状态 |
+| priority | number | 否 | 优先级 |
+| detail | string | 否 | 任务详情 |
+| assignee | string | 否 | 任务负责人 |
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "message": "任务更新成功"
+}
+```
+
+#### DELETE /api/diagnosis-tasks/:id - 删除诊断任务
+
+**调用示例**:
+```bash
+curl -X DELETE "http://localhost:3002/api/diagnosis-tasks/1" \
+  -H "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc2Mjc1NDk5OCwiZXhwIjoxNzYyODQxMzk4fQ.EBtYdB4NO0vVTISV7UAxNn6YfI-CTyewAHHe2SWYJQo" \
+  -H "Content-Type: application/json"
+```
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "message": "任务删除成功"
+}
+```
+
+#### GET /api/diagnosis-tasks-stats - 获取诊断任务统计
+
+**调用示例**:
+```bash
+curl -X GET "http://localhost:3002/api/diagnosis-tasks-stats" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json"
+```
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "data": {
+    "total": 25,
+    "running": 5,
+    "completed": 15,
+    "failed": 2,
+    "paused": 1,
+    "pending": 2
+  }
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ## api鉴权处理

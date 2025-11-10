@@ -130,7 +130,7 @@
         >
           <el-table-column prop="id" label="任务ID" width="100" />
           <el-table-column prop="name" label="任务名称" min-width="180" />
-          <el-table-column prop="deviceId" label="设备ID" width="120" />
+          <el-table-column prop="device_id" label="设备ID" width="120" />
           <el-table-column label="任务状态" width="120">
             <template #default="{ row }">
               <el-tag :type="getStatusType(row.status)" size="small">
@@ -145,11 +145,19 @@
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="createTime" label="创建时间" width="160" />
-          <el-table-column prop="updateTime" label="更新时间" width="160" />
+          <el-table-column label="创建时间" width="160" >
+            <template #default="{ row }">
+              {{ formatTimestamp(row.create_time) }}
+            </template>
+          </el-table-column>
+          <el-table-column  label="更新时间" width="160">
+            <template #default="{ row }">
+              {{ formatTimestamp(row.update_time) }}
+            </template>
+          </el-table-column>
           <el-table-column label="操作" width="200" fixed="right">
             <template #default="{ row }">
-              <el-button link type="primary" size="small" @click="showPanel = true">查看</el-button>
+              <el-button link type="primary" size="small" @click="detailClick(row.id)">查看</el-button>
               <el-button link type="warning" size="small" v-if="row.status === 'running'">暂停</el-button>
               <el-button link type="success" size="small" v-if="row.status === 'pending'">启动</el-button>
               <el-button link type="danger" size="small">删除</el-button>
@@ -174,16 +182,19 @@
         <el-dialog
           v-model="showPanel"
           :before-close="handleClosePanel"
+          title="任务详情"
+          width="50%"
         >
-          <TaskDetailsComponent />
+          <TaskDetailsComponent :taskId="currentTaskId" />
         </el-dialog>
   </main-layout>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import MainLayout from '../components/layout/MainLayout.vue'
-import TaskDetailsComponent from './TaskDetails.vue'     
+import TaskDetailsComponent from './TaskDetails.vue'
+import { DiagnosticApi, type DiagnosisTask, type QueryParams } from '../utils/diagnosticApi'
 import {
   Plus,
   Document,
@@ -195,8 +206,16 @@ import {
 
 // 弹窗
 const showPanel = ref(false)
+const currentTaskId = ref<number>(0)
+
+const detailClick = (id: number) => {
+  currentTaskId.value = id
+  showPanel.value = true
+}
+
 const handleClosePanel = () => {
   showPanel.value = false
+  currentTaskId.value = 0
 }
 
 // 搜索和筛选
@@ -210,72 +229,49 @@ const currentPage = ref(1)
 const pageSize = ref(20)
 const total = ref(128)
 
-
-const taskList = ref([
-  {
-    id: 'T001',
-    name: 'CPU性能诊断',
-    deviceId: 'DEV-001',
-    status: 'running',
-    priority: 'high',
-    createTime: '2024-01-15 10:30:00',
-    updateTime: '2024-01-15 14:20:00'
-  },
-  {
-    id: 'T002',
-    name: '内存泄漏检测',
-    deviceId: 'DEV-002',
-    status: 'completed',
-    priority: 'medium',
-    createTime: '2024-01-15 09:00:00',
-    updateTime: '2024-01-15 12:45:00'
-  },
-  {
-    id: 'T003',
-    name: '网络连接诊断',
-    deviceId: 'DEV-003',
-    status: 'pending',
-    priority: 'low',
-    createTime: '2024-01-15 11:20:00',
-    updateTime: '2024-01-15 11:20:00'
-  },
-  {
-    id: 'T004',
-    name: '温度传感器校准',
-    deviceId: 'DEV-004',
-    status: 'failed',
-    priority: 'high',
-    createTime: '2024-01-14 16:00:00',
-    updateTime: '2024-01-14 18:30:00'
-  },
-  {
-    id: 'T005',
-    name: '设备健康检查',
-    deviceId: 'DEV-005',
-    status: 'running',
-    priority: 'medium',
-    createTime: '2024-01-15 13:00:00',
-    updateTime: '2024-01-15 14:15:00'
+// 查询参数
+const queryParams = ref<QueryParams>({})
+const taskList = ref<DiagnosisTask[]>([])
+const api = new DiagnosticApi()
+const getData = async () => {
+  try {
+    queryParams.value = {
+      page: currentPage.value,
+      pageSize: pageSize.value,
+    }
+    console.log('[DiagnosisView] 请求参数:', queryParams.value)
+    const res = await api.getDiagnosisList(queryParams.value)
+    if (res.success) {
+      taskList.value = res.data
+      total.value = res.total
+    }
+  } catch (error) {
+    console.error('获取诊断任务列表失败:', error)
   }
-])
+}
 
+
+// 时间戳转换
+const formatTimestamp = (timestamp: number) => {
+  return new Date(timestamp).toLocaleString()
+}
 // 状态映射
 const getStatusType = (status: string) => {
   const map: Record<string, any> = {
-    pending: 'info',
-    running: 'warning',
-    completed: 'success',
-    failed: 'danger'
+    pending: 4,
+    running: 0,
+    completed: 1,
+    failed: 2
   }
   return map[status] || 'info'
 }
 
 const getStatusText = (status: string) => {
   const map: Record<string, string> = {
-    pending: '待执行',
-    running: '进行中',
-    completed: '已完成',
-    failed: '失败'
+    4: '待执行',
+    0: '进行中',
+    1: '已完成',
+    2: '失败'
   }
   return map[status] || status
 }
@@ -283,21 +279,26 @@ const getStatusText = (status: string) => {
 // 优先级映射
 const getPriorityType = (priority: string) => {
   const map: Record<string, any> = {
-    high: 'danger',
-    medium: 'warning',
-    low: 'info'
+    2: 'danger',
+    1: 'warning',
+    0: 'info'
   }
   return map[priority] || 'info'
 }
 
 const getPriorityText = (priority: string) => {
   const map: Record<string, string> = {
-    high: '高',
-    medium: '中',
-    low: '低'
+    2: '高',
+    1: '中',
+    0: '低'
   }
   return map[priority] || priority
 }
+
+// 初始化加载数据
+onMounted(() => {
+  getData()
+})
 </script>
 
 <style scoped>

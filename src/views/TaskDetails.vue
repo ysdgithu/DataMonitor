@@ -5,9 +5,9 @@
         <!-- 任务名+状态+优先级 -->
         <el-row class="task-header">
             <el-space size="medium">
-                <h3 class="task-title">cpu 持续超限问题</h3>
-                <el-tag type="warning">进行中</el-tag>
-                <el-tag type="danger">高</el-tag>
+                <h3 class="task-title">{{ taskDetail?.name || '加载中...' }}</h3>
+                <el-tag :type="getStatusType(taskDetail?.status)">{{ getStatusText(taskDetail?.status) }}</el-tag>
+                <el-tag :type="getPriorityType(taskDetail?.priority)">{{ getPriorityText(taskDetail?.priority) }}</el-tag>
             </el-space>
         </el-row>
       </el-header>
@@ -15,10 +15,10 @@
       <el-main style="padding: 20px;">
         <!-- 处理人+任务详情+设备+创建时间 -->
         <el-col class="info-section">
-            <p class="info-item"><span class="label">处理人：</span>admin</p>
-            <p class="info-item"><span class="label">任务描述：</span>cpu持续5分钟超限，其他数据无异常</p>
-            <p class="info-item"><span class="label">设备：</span>DEV-001</p>
-            <p class="info-item"><span class="label">创建时间：</span>2024-01-15 10:30:00</p>
+            <p class="info-item"><span class="label">处理人：</span>{{ taskDetail?.assignee }}</p>
+            <p class="info-item"><span class="label">任务描述：</span>{{ taskDetail?.detail }}</p>
+            <p class="info-item"><span class="label">设备：</span>{{ taskDetail?.device_id }}</p>
+            <p class="info-item"><span class="label">创建时间：</span>{{ formatTime(taskDetail?.createTime) }}</p>
         </el-col>
         <el-divider />
         <!-- ai 分析部分 -->
@@ -46,7 +46,86 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted, watch, defineProps } from 'vue'
 import { Connection, ChatRound } from '@element-plus/icons-vue'
+import { DiagnosticApi, type DiagnosisTask } from '../utils/diagnosticApi'
+
+// 接收任务ID属性
+const props = defineProps<{
+  taskId: number
+}>()
+
+// 任务详情数据
+const taskDetail = ref<DiagnosisTask>()
+
+// 获取任务详情
+const getTaskDetail = async () => {
+  if (!props.taskId) return
+  
+  try {
+    const api = new DiagnosticApi()
+    const res = await api.getDiagnosisDetail(props.taskId)
+    if (res.success) {
+      taskDetail.value = res.data
+    }
+  } catch (error) {
+    console.error('获取任务详情失败:', error)
+  }
+}
+
+// 监听任务ID变化
+watch(() => props.taskId, (newId) => {
+  if (newId) {
+    getTaskDetail()
+  }
+}, { immediate: true })
+
+// 格式化时间戳
+const formatTime = (timestamp?: number) => {
+  if (!timestamp) return '暂无数据'
+  return new Date(timestamp).toLocaleString()
+}
+
+// 状态映射
+const getStatusType = (status?: number) => {
+  const map: Record<number, string> = {
+    4: 'info',
+    0: 'warning',
+    1: 'success',
+    2: 'danger'
+  }
+  return map[status || 4] || 'info'
+}
+
+const getStatusText = (status?: number) => {
+  const map: Record<number, string> = {
+    4: '待执行',
+    0: '进行中',
+    1: '已完成',
+    2: '失败'
+  }
+  return map[status || 4] || '未知'
+}
+
+// 优先级映射
+const getPriorityType = (priority?: number) => {
+  const map: Record<number, string> = {
+    2: 'danger',
+    1: 'warning',
+    0: 'info'
+  }
+  return map[priority || 0] || 'info'
+}
+
+const getPriorityText = (priority?: number) => {
+  const map: Record<number, string> = {
+    2: '高',
+    1: '中',
+    0: '低'
+  }
+  return map[priority || 0] || '未知'
+}
+
 </script>
 
 <style scoped>

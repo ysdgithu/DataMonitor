@@ -88,6 +88,26 @@ async function initDatabase() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         `);
 
+        // 诊断任务表
+        console.log('创建 diagnosis_tasks 表...');
+        await connection.execute(`
+            CREATE TABLE IF NOT EXISTS diagnosis_tasks (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(200) NOT NULL,
+                device_id VARCHAR(50) NOT NULL,
+                status TINYINT NOT NULL DEFAULT 4 ,
+                priority TINYINT NOT NULL DEFAULT 0 ,
+                detail TEXT ,
+                assignee VARCHAR(50) NOT NULL ,
+                create_time BIGINT NOT NULL,
+                update_time BIGINT NOT NULL,
+                INDEX idx_device_id (device_id),
+                INDEX idx_status (status),
+                INDEX idx_assignee (assignee),
+                INDEX idx_create_time (create_time)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+
         console.log('数据表创建完成，开始创建索引...');
 
         // 创建复合索引 - 优化查询性能

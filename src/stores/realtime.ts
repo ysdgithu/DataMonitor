@@ -32,22 +32,33 @@ export const useRealtimeStore = defineStore('realtime', () => {
   // 获取WebSocket URL并添加调试信息
   const getWebSocketUrl = () => {
     const envUrl = import.meta.env.VITE_WS_URL
+
+    // 开发环境下打印环境变量信息
+    if (import.meta.env.DEV) {
+      console.log('[Realtime Store] 环境变量配置:', {
+        VITE_WS_URL: import.meta.env.VITE_WS_URL,
+        VITE_API_URL: import.meta.env.VITE_API_URL,
+        MODE: import.meta.env.MODE
+      })
+    }
+
     if (envUrl) {
+      console.log('[Realtime Store] 使用环境变量 WebSocket URL:', envUrl)
       return envUrl
     }
 
-    // 根据当前协议自动选择WebSocket协议
+    // 根据当前协议自动选择WebSocket协议（后备方案）
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const defaultUrl = `${protocol} //cloudgu.xyz:8080`
+    const defaultUrl = `${protocol}//localhost:8080`
 
+    console.log('[Realtime Store] 使用默认 WebSocket URL:', defaultUrl)
     console.log('[Realtime Store] 自动选择协议:', protocol)
     return defaultUrl
   }
 
   const wsUrl = getWebSocketUrl()
-  console.log('[Realtime Store] WebSocket URL:', wsUrl)
+  console.log('[Realtime Store] 最终 WebSocket URL:', wsUrl)
   console.log('[Realtime Store] 当前页面协议:', window.location.protocol)
-  console.log('[Realtime Store] 环境变量:', import.meta.env)
 
   // WebSocket 相关状态
   const {

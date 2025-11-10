@@ -470,6 +470,268 @@ app.get('/api/overview', authMiddleware, async (req, res) => {
     }
 });
 
+// ==================== 诊断任务管理接口 ====================
+
+// 获取诊断任务列表（分页）
+app.get('/api/diagnosis-tasks', authMiddleware, async (req, res) => {
+    try {
+        const page = parseInt(req.query.page as string) || 1;
+        const pageSize = parseInt(req.query.pageSize as string) || 5;
+        const status = req.query.status ? parseInt(req.query.status as string) : undefined;
+        const deviceId = req.query.deviceId as string;
+        const assignee = req.query.assignee as string;
+        const priority = req.query.priority ? parseInt(req.query.priority as string) : undefined;
+
+        const result = await dataModel.queryDiagnosisTasks({
+            page,
+            pageSize,
+            status,
+            deviceId,
+            assignee,
+            priority
+        });
+
+        res.json({
+            success: true,
+            data: result.tasks,
+            total: result.total,
+            page,
+            pageSize
+        });
+    } catch (error) {
+        console.error('查询诊断任务列表失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '查询失败',
+            message: error instanceof Error ? error.message : '未知错误'
+        });
+    }
+});
+
+// 获取诊断任务详情
+app.get('/api/diagnosis-tasks/:id', authMiddleware, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            res.status(400).json({
+                success: false,
+                error: '参数错误',
+                message: '任务ID必须是数字'
+            });
+            return;
+        }
+
+        const task = await dataModel.getDiagnosisTaskById(id);
+        if (!task) {
+            res.status(404).json({
+                success: false,
+                error: '任务不存在',
+                message: `未找到ID为 ${id} 的任务`
+            });
+            return;
+        }
+
+        res.json({
+            success: true,
+            data: task
+        });
+    } catch (error) {
+        console.error('查询诊断任务详情失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '查询失败',
+            message: error instanceof Error ? error.message : '未知错误'
+        });
+    }
+});
+
+// 创建诊断任务
+app.post('/api/diagnosis-tasks', authMiddleware, async (req, res) => {
+    try {
+        const { name, deviceId, priority, assignee, detail, status } = req.body;
+
+        // 验证必填字段
+        if (!name || !deviceId || priority === undefined || !assignee) {
+            res.status(400).json({
+                success: false,
+                error: '参数错误',
+                message: '缺少必填字段: name, deviceId, priority, assignee'
+            });
+            return;
+        }
+
+        // 验证优先级范围
+        if (priority < 0 || priority > 2) {
+            res.status(400).json({
+                success: false,
+                error: '参数错误',
+                message: '优先级必须是 0(低), 1(中), 2(高)'
+            });
+            return;
+        }
+
+        // 验证状态范围（如果提供）
+        if (status !== undefined && (status < 0 || status > 4)) {
+            res.status(400).json({
+                success: false,
+                error: '参数错误',
+                message: '状态必须是 0-4 之间的数字'
+            });
+            return;
+        }
+
+        const taskId = await dataModel.createDiagnosisTask({
+            name,
+            deviceId,
+            priority,
+            assignee,
+            detail,
+            status
+        });
+
+        res.json({
+            success: true,
+            data: { id: taskId },
+            message: '任务创建成功'
+        });
+    } catch (error) {
+        console.error('创建诊断任务失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '创建失败',
+            message: error instanceof Error ? error.message : '未知错误'
+        });
+    }
+});
+
+// 更新诊断任务
+app.put('/api/diagnosis-tasks/:id', authMiddleware, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            res.status(400).json({
+                success: false,
+                error: '参数错误',
+                message: '任务ID必须是数字'
+            });
+            return;
+        }
+
+        // 检查任务是否存在
+        const existingTask = await dataModel.getDiagnosisTaskById(id);
+        if (!existingTask) {
+            res.status(404).json({
+                success: false,
+                error: '任务不存在',
+                message: `未找到ID为 ${id} 的任务`
+            });
+            return;
+        }
+
+        const { name, deviceId, status, priority, detail, assignee } = req.body;
+
+        // 验证优先级范围（如果提供）
+        if (priority !== undefined && (priority < 0 || priority > 2)) {
+            res.status(400).json({
+                success: false,
+                error: '参数错误',
+                message: '优先级必须是 0(低), 1(中), 2(高)'
+            });
+            return;
+        }
+
+        // 验证状态范围（如果提供）
+        if (status !== undefined && (status < 0 || status > 4)) {
+            res.status(400).json({
+                success: false,
+                error: '参数错误',
+                message: '状态必须是 0-4 之间的数字'
+            });
+            return;
+        }
+
+        await dataModel.updateDiagnosisTask(id, {
+            name,
+            deviceId,
+            status,
+            priority,
+            detail,
+            assignee
+        });
+
+        res.json({
+            success: true,
+            message: '任务更新成功'
+        });
+    } catch (error) {
+        console.error('更新诊断任务失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '更新失败',
+            message: error instanceof Error ? error.message : '未知错误'
+        });
+    }
+});
+
+// 删除诊断任务
+app.delete('/api/diagnosis-tasks/:id', authMiddleware, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            res.status(400).json({
+                success: false,
+                error: '参数错误',
+                message: '任务ID必须是数字'
+            });
+            return;
+        }
+
+        // 检查任务是否存在
+        const existingTask = await dataModel.getDiagnosisTaskById(id);
+        if (!existingTask) {
+            res.status(404).json({
+                success: false,
+                error: '任务不存在',
+                message: `未找到ID为 ${id} 的任务`
+            });
+            return;
+        }
+
+        await dataModel.deleteDiagnosisTask(id);
+
+        res.json({
+            success: true,
+            message: '任务删除成功'
+        });
+    } catch (error) {
+        console.error('删除诊断任务失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '删除失败',
+            message: error instanceof Error ? error.message : '未知错误'
+        });
+    }
+});
+
+// 获取诊断任务统计信息
+app.get('/api/diagnosis-tasks-stats', authMiddleware, async (req, res) => {
+    try {
+        const stats = await dataModel.getDiagnosisTaskStats();
+
+        res.json({
+            success: true,
+            data: stats
+        });
+    } catch (error) {
+        console.error('查询诊断任务统计失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '查询失败',
+            message: error instanceof Error ? error.message : '未知错误'
+        });
+    }
+});
+
 // 错误处理中间件
 app.use(errorHandler);
 
@@ -497,6 +759,12 @@ function startApiServer() {
         console.log('  GET /api/factory-devices - 工厂设备数据 (需要认证)');
         console.log('  GET /api/statistics/:dataType - 统计数据 (需要认证)');
         console.log('  GET /api/overview - 数据概览 (需要认证)');
+        console.log('  GET /api/diagnosis-tasks - 诊断任务列表 (需要认证)');
+        console.log('  GET /api/diagnosis-tasks/:id - 诊断任务详情 (需要认证)');
+        console.log('  POST /api/diagnosis-tasks - 创建诊断任务 (需要认证)');
+        console.log('  PUT /api/diagnosis-tasks/:id - 更新诊断任务 (需要认证)');
+        console.log('  DELETE /api/diagnosis-tasks/:id - 删除诊断任务 (需要认证)');
+        console.log('  GET /api/diagnosis-tasks-stats - 诊断任务统计 (需要认证)');
     });
 }
 

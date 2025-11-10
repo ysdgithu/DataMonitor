@@ -14,7 +14,20 @@ import type { InternalAxiosRequestConfig, AxiosError } from 'axios'
 import { TokenManager } from './tokenManager'
 import type { ApiResponse, RefreshTokenResponse } from './auth.types'
 
+// 获取 API 基础 URL，优先使用环境变量
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002/api'
+
+// 开发环境下打印配置信息
+if (import.meta.env.DEV) {
+  console.log('[Request Config] 环境变量:', {
+    VITE_API_URL: import.meta.env.VITE_API_URL,
+    VITE_WS_URL: import.meta.env.VITE_WS_URL,
+    MODE: import.meta.env.MODE,
+    DEV: import.meta.env.DEV,
+    PROD: import.meta.env.PROD
+  })
+  console.log('[Request Config] API_BASE_URL:', API_BASE_URL)
+}
 
 // 请求队列，用于在 token 刷新期间缓存失败的请求
 interface PendingRequest {
