@@ -5,6 +5,7 @@ import { DataModel, QueryParams } from '../database/models';
 import UserModel from '../database/userModel';
 import { authMiddleware, requestLogMiddleware, errorHandler } from './middleware';
 import { generateToken, validateUsername, validatePasswordStrength } from '../utils/auth';
+import { buildAIContext, BuildContextParams } from '../services/aiContextBuilder';
 
 const app = express();
 const PORT = process.env.API_PORT || 3002;
@@ -727,6 +728,91 @@ app.get('/api/diagnosis-tasks-stats', authMiddleware, async (req, res) => {
         res.status(500).json({
             success: false,
             error: '查询失败',
+            message: error instanceof Error ? error.message : '未知错误'
+        });
+    }
+});
+
+// ==================== AI 相关接口 ====================
+
+// 触发 AI 诊断接口
+app.post('/api/trigger-diagnosis', authMiddleware, async (req, res) => {
+    try {
+        const { timestamp, deviceId, diagnosisTaskId, anomalyInfo } = req.body;
+
+        // 基本校验
+        if (!timestamp || !deviceId) {
+            res.status(400).json({
+                success: false,
+                error: '参数错误',
+                message: '缺少必填字段：timestamp, deviceId'
+            });
+            return;
+        }
+
+        console.log('[AI 诊断] 收到请求:', { timestamp, deviceId, diagnosisTaskId, anomalyInfo });
+
+        // 1. 构建 AI 上下文（收集异常前后5分钟的所有数据）
+        const buildParams: BuildContextParams = {
+            timestamp: Number(timestamp),
+            deviceId: String(deviceId)
+        };
+
+        // 如果提供了诊断任务ID，添加到参数中
+        if (diagnosisTaskId) {
+            buildParams.diagnosisTaskId = Number(diagnosisTaskId);
+        }
+
+        // 如果提供了异常信息，添加到参数中
+        if (anomalyInfo) {
+            buildParams.anomalyInfo = anomalyInfo;
+        }
+
+        console.log('[AI 诊断] 开始构建上下文...');
+        const context = await buildAIContext(buildParams);
+        console.log('[AI 诊断] 上下文构建完成，数据统计:', context.statistics);
+
+        // 2. 准备传给 AI 服务的数据结构
+        // ai-client.js 期望的格式：{ metrics, device, context }
+        const anomalyEvent = {
+            metrics: {
+                coreMetrics: context.coreMetrics,
+                environment: context.environmentData,
+                telemetry: context.telemetryData,
+                factory: context.factoryDeviceData,
+                statistics: context.statistics,
+                anomaly: context.anomaly
+            },
+            device: context.deviceInfo,
+            context: context  // 完整上下文
+        };
+
+        // 3. 调用 AI 客户端生成诊断
+        // ai-client.js 导出的是单例实例，直接使用
+        const aiClient = require('../services/ai-client');
+
+        console.log('[AI 诊断] 调用 AI 服务...');
+        const diagnosis = await aiClient.generateDiagnosis(anomalyEvent);
+
+        if (!diagnosis) {
+            throw new Error('AI 服务未返回诊断结果');
+        }
+
+        console.log('[AI 诊断] AI 服务返回成功');
+
+        // 4. 返回上下文与诊断结果给前端
+        res.json({
+            success: true,
+            data: {
+                context,
+                diagnosis
+            }
+        });
+    } catch (error) {
+        console.error('[AI 诊断] 失败:', error);
+        res.status(500).json({
+            success: false,
+            error: 'AI 诊断失败',
             message: error instanceof Error ? error.message : '未知错误'
         });
     }

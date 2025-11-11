@@ -54,20 +54,20 @@ async def create_diagnosis(request: DiagnosisRequest):
     try:
         # 调用星火大模型生成诊断报告
         result = await spark_service.generate_diagnosis(
-            anomaly_data=request.anomaly_data,    # 异常数据
-            device_info=request.device_info,      # 设备信息
-            context_data=request.context_data     # 上下文数据
+            anomaly_data=request.anomaly_data,
+            device_info=request.device_info,
+            context_data=request.context_data
         )
-        # 封装诊断结果响应
+
+        # 返回诊断结果
         return DiagnosisResponse(
             success=True,
-            diagnosis=result.diagnosis,           # 诊断结论
-            possible_causes=result.possible_causes, # 可能原因
-            suggestions=result.suggestions,       # 建议措施
-            confidence=result.confidence          # 置信度
+            diagnosis=result["diagnosis"],
+            possible_causes=result["possible_causes"],
+            suggestions=result["suggestions"],
+            confidence=result["confidence"]
         )
     except Exception as e:
-        # 诊断失败时返回500错误
         raise HTTPException(status_code=500, detail=f"诊断生成失败: {str(e)}")
 
 # AI问答接口

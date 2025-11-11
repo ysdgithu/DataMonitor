@@ -9,6 +9,7 @@ class AIClient {
     });
   }
 
+  // 异常诊断
   async generateDiagnosis(anomalyEvent) {
     try {
       const response = await this.client.post('/api/ai/diagnosis', {
@@ -19,12 +20,16 @@ class AIClient {
 
       return response.data;
     } catch (error) {
-      console.error('AI服务调用失败:', error.message);
-      // 降级方案：返回基础诊断模板
-      // return this.getFallbackDiagnosis(anomalyEvent);
+      console.error('AI 服务调用失败:', error.message);
+      if (error.response) {
+        console.error('响应状态:', error.response.status);
+        console.error('响应数据:', error.response.data);
+      }
+      throw error;
     }
   }
 
+  // 智能问答
   async chatWithAI(question, context, history = []) {
     try {
       const response = await this.client.post('/api/ai/chat', {

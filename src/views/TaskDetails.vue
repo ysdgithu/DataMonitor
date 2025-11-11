@@ -23,8 +23,8 @@
         <el-divider />
         <!-- ai 分析部分 -->
         <div class="ai-analysis-section">
-          <el-button type="primary" class="ai-button">
-            <el-icon><Connection /></el-icon>
+          <el-button type="primary" class="ai-button" @click="askAI">
+            <el-icon ><Connection /></el-icon>
             AI 一键分析
           </el-button>
           <!-- ai 分析结果 -->
@@ -36,7 +36,7 @@
               </div>
             </template>
             <div class="ai-result-content">
-              cpu持续超限，可能是散热问题
+              <div v-loading="loading" v-html="aiResultHtml"></div>
             </div>
           </el-card>
         </div>
@@ -48,8 +48,8 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, defineProps } from 'vue'
 import { Connection, ChatRound } from '@element-plus/icons-vue'
-import { DiagnosticApi, type DiagnosisTask } from '../utils/diagnosticApi'
-
+import { DiagnosticApi, type DiagnosisTask ,type TriggerDiagnosisParams,type AIDiagnosisResponse} from '../utils/diagnosticApi'
+import MarkdownIt from 'markdown-it'
 // 接收任务ID属性
 const props = defineProps<{
   taskId: number
@@ -57,7 +57,10 @@ const props = defineProps<{
 
 // 任务详情数据
 const taskDetail = ref<DiagnosisTask>()
-
+let aiResult = ref('')
+let aiResultHtml = ref('')
+const loading = ref(true)
+const md = new MarkdownIt()
 // 获取任务详情
 const getTaskDetail = async () => {
   if (!props.taskId) return
@@ -86,6 +89,32 @@ const formatTime = (timestamp?: number) => {
   return new Date(timestamp).toLocaleString()
 }
 
+// askAI
+const askAI = async() => {
+   const api=new DiagnosticApi()
+   const params: TriggerDiagnosisParams = {
+     timestamp: Date.now(),
+     deviceId: taskDetail.value?.device_id || '000',
+     diagnosisTaskId: props.taskId
+   }
+   const res: AIDiagnosisResponse =await api.triggerAIDiagnosis(params)
+   aiResult.value=convertMD(res.data.diagnosis.diagnosis)
+   aiResultHtml.value=aiResult.value
+   loading.value=false
+}
+// md格式转换
+const convertMD = (data: string) => {
+  let raw = data
+  // 1. 每个 #### 前加换行
+  raw = raw.replace(/(####)/g, '\n$1')
+  // 2. 标题后加换行（让标题和内容分开）
+  raw = raw.replace(/(#### .+?)(?=[^#])/g, '$1\n')
+  // 3. 短横线前加换行（让列表项单独一行）
+  raw = raw.replace(/(\s)- /g, '\n- ')
+  // 4. 数字列表前加换行
+  raw = raw.replace(/(\d\.) /g, '\n$1 ')
+  return md.render(raw)
+}
 // 状态映射
 const getStatusType = (status?: number) => {
   const map: Record<number, string> = {
@@ -125,6 +154,9 @@ const getPriorityText = (priority?: number) => {
   }
   return map[priority || 0] || '未知'
 }
+onMounted(() => {
+  //askAI()
+})
 
 </script>
 
