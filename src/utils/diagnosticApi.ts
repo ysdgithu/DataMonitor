@@ -27,6 +27,9 @@ export interface QueryParams {
     pageSize?: number;
     priority?: number;
     status?: number;
+    name?: string;
+    startTime?: number; 
+    endTime?: number;  
 }
 
 // AI 诊断相关接口

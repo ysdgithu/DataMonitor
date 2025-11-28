@@ -4,7 +4,7 @@
       <!-- 页面标题 -->
       <div class="page-header">
         <h2 class="page-title">诊断任务管理</h2>
-        <el-button type="primary" class="create-btn">
+        <el-button type="primary" class="create-btn" @click="add()">
           <el-icon><Plus /></el-icon>
           新建任务
         </el-button>
@@ -72,26 +72,26 @@
           <el-col :span="6">
             <el-input
               v-model="searchKeyword"
-              placeholder="搜索任务名称或设备ID"
+              placeholder="搜索任务名称"
               prefix-icon="Search"
               clearable
             />
           </el-col>
           <el-col :span="4">
-            <el-select v-model="filterStatus" placeholder="任务状态" clearable>
-              <el-option label="全部" value="" />
-              <el-option label="待执行" value="pending" />
-              <el-option label="进行中" value="running" />
-              <el-option label="已完成" value="completed" />
-              <el-option label="失败" value="failed" />
+            <el-select v-model="filterStatus" placeholder="任务状态" clearable @change="getData()">
+              <el-option label="全部" value=-1 />
+              <el-option label="待执行" value=4 />
+              <el-option label="进行中" value=0 />
+              <el-option label="已完成" value=1 />
+              <el-option label="失败" value=2 />
             </el-select>
           </el-col>
           <el-col :span="4">
-            <el-select v-model="filterPriority" placeholder="优先级" clearable>
-              <el-option label="全部" value="" />
-              <el-option label="高" value="high" />
-              <el-option label="中" value="medium" />
-              <el-option label="低" value="low" />
+            <el-select v-model="filterPriority" placeholder="优先级" clearable @change="getData()">
+              <el-option label="全部" value=-1 />
+              <el-option label="高" value=2 />
+              <el-option label="中" value=1 />
+              <el-option label="低" value=0 />
             </el-select>
           </el-col>
           <el-col :span="6">
@@ -105,7 +105,7 @@
             />
           </el-col>
           <el-col :span="4">
-            <el-button type="primary">查询</el-button>
+            <el-button type="primary" @click="getData()">查询</el-button>
             <el-button>重置</el-button>
           </el-col>
         </el-row>
@@ -116,7 +116,7 @@
         <template #header>
           <div class="card-header">
             <span>任务列表</span>
-            <el-button text type="primary">
+            <el-button text type="primary" @click="getData()">
               <el-icon><Refresh /></el-icon>
               刷新
             </el-button>
@@ -158,9 +158,9 @@
           <el-table-column label="操作" width="200" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" size="small" @click="detailClick(row.id)">查看</el-button>
-              <el-button link type="warning" size="small" v-if="row.status === 'running'">暂停</el-button>
-              <el-button link type="success" size="small" v-if="row.status === 'pending'">启动</el-button>
-              <el-button link type="danger" size="small">删除</el-button>
+              <el-button link type="warning" size="small" v-if="row.status === 0">暂停</el-button>
+              <el-button link type="success" size="small" v-if="row.status === 4">启动</el-button>
+              <el-button link type="danger" size="small" @click="deleteTask(row.id)">删除</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -179,14 +179,24 @@
       </el-card>
     </div>
     <!-- 历史数据查询面板弹窗 -->
-        <el-dialog
-          v-model="showPanel"
-          :before-close="handleClosePanel"
-          title="任务详情"
-          width="50%"
-        >
-          <TaskDetailsComponent :taskId="currentTaskId" />
-        </el-dialog>
+        <el-drawer 
+        v-model="showPanel" :modal="false" modal-penetrable :with-header="false"
+        :resizable="true" size="50%">
+          <!-- <span>任务详情</span> -->
+          <TaskDetailsComponent :taskId="currentTaskId" :before-close="close"/>
+          <template #footer>
+            <div class="drawer-footer">
+              <el-button @click="showPanel = false">取消</el-button>
+              <el-button type="primary" @click="showPanel = false">
+                确认
+              </el-button> 
+            </div>
+          </template>
+        </el-drawer>
+    <!-- 新增弹窗 -->
+     <el-dialog v-model="addShow">
+      <AddTask @close="addShow = false"></AddTask>
+     </el-dialog>
   </main-layout>
 </template>
 
@@ -194,6 +204,8 @@
 import { ref, onMounted } from 'vue'
 import MainLayout from '../components/layout/MainLayout.vue'
 import TaskDetailsComponent from './TaskDetails.vue'
+import AddTask from './AddTask.vue'
+import { ElMessage } from 'element-plus'
 import { DiagnosticApi, type DiagnosisTask, type QueryParams } from '../utils/diagnosticApi'
 import {
   Plus,
@@ -206,6 +218,7 @@ import {
 
 // 弹窗
 const showPanel = ref(false)
+const addShow=ref(false)
 const currentTaskId = ref<number>(0)
 
 const detailClick = (id: number) => {
@@ -220,10 +233,9 @@ const handleClosePanel = () => {
 
 // 搜索和筛选
 const searchKeyword = ref('')
-const filterStatus = ref('')
-const filterPriority = ref('')
-const dateRange = ref<[Date, Date] | null>(null)
-
+const filterStatus = ref(undefined)
+const filterPriority = ref(undefined)
+const dateRange = ref<[Date, Date]>()
 // 分页
 const currentPage = ref(1)
 const pageSize = ref(20)
@@ -238,6 +250,12 @@ const getData = async () => {
     queryParams.value = {
       page: currentPage.value,
       pageSize: pageSize.value,
+      status:filterStatus.value==-1?undefined:filterStatus.value,
+      priority:filterPriority.value==-1?undefined:filterPriority.value,
+      name:searchKeyword.value,
+      startTime:dateRange.value?dateRange.value[0].getTime():undefined,
+      endTime:dateRange.value?dateRange.value[1].getTime():undefined
+      
     }
     console.log('[DiagnosisView] 请求参数:', queryParams.value)
     const res = await api.getDiagnosisList(queryParams.value)
@@ -250,6 +268,29 @@ const getData = async () => {
   }
 }
 
+// 新增
+const add=()=>{
+  // 新增表单弹出
+  addShow.value=true
+  getData()
+}
+// 新增表单的关闭
+const close=()=>{
+  addShow.value=true
+}
+
+// 删除
+const deleteTask = async (id: number) => {
+  const res = await api.deleteDiagnosisTask(id)
+  if(res.success){
+    ElMessage.success('删除成功')
+    getData()
+  }else{
+    ElMessage.error('删除失败')
+  }
+}
+
+
 
 // 时间戳转换
 const formatTimestamp = (timestamp: number) => {
@@ -258,10 +299,10 @@ const formatTimestamp = (timestamp: number) => {
 // 状态映射
 const getStatusType = (status: string) => {
   const map: Record<string, any> = {
-    pending: 4,
-    running: 0,
-    completed: 1,
-    failed: 2
+    4:'pending',
+    0:'running',
+    1:'completed',
+    2:'failed'
   }
   return map[status] || 'info'
 }
@@ -509,5 +550,6 @@ onMounted(() => {
 .diagnosis-main::-webkit-scrollbar-thumb:hover {
   background: #909399;
 }
+
 </style>
 

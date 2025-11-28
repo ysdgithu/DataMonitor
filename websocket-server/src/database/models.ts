@@ -397,6 +397,9 @@ class DataModel {
         deviceId?: string;
         assignee?: string;
         priority?: number;
+        name?: string;
+        startTime?: number; 
+        endTime?: number;   
     }): Promise<{ tasks: any[]; total: number }> {
         const page = params.page || 1;
         const pageSize = params.pageSize || 5;
@@ -420,6 +423,18 @@ class DataModel {
         if (params.priority !== undefined) {
             whereClauses.push('priority = ?');
             sqlParams.push(params.priority);
+        }
+        if (params.name) {
+            whereClauses.push('name LIKE ?');
+            sqlParams.push(`%${params.name}%`);
+        }
+        if (params.startTime) {
+            whereClauses.push('create_time >= ?');
+            sqlParams.push(params.startTime);
+        }
+        if (params.endTime) {
+            whereClauses.push('create_time <= ?');
+            sqlParams.push(params.endTime);
         }
 
         const whereClause = whereClauses.length > 0 ? 'WHERE ' + whereClauses.join(' AND ') : '';

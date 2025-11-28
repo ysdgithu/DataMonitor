@@ -1,14 +1,15 @@
 <template>
-    <div class="common-layout">
+    <div class="common-layout" style="height: 100%;">
     <el-container>
       <el-header style="height: auto; padding: 16px;">
-        <!-- 任务名+状态+优先级 -->
+        <!-- 任务名+状态+优先级   修改状态和优先级-->
         <el-row class="task-header">
             <el-space size="medium">
-                <h3 class="task-title">{{ taskDetail?.name || '加载中...' }}</h3>
+                <h3 class="task-title">{{ taskDetail?.name }}</h3>
                 <el-tag :type="getStatusType(taskDetail?.status)">{{ getStatusText(taskDetail?.status) }}</el-tag>
                 <el-tag :type="getPriorityType(taskDetail?.priority)">{{ getPriorityText(taskDetail?.priority) }}</el-tag>
             </el-space>
+            <el-button type="primary">完成</el-button>
         </el-row>
       </el-header>
       <el-divider style="margin: 0"/>
@@ -36,13 +37,15 @@
               </div>
             </template>
             <div class="ai-result-content">
-              <div v-loading="loading" v-html="aiResultHtml"></div>
+              <div v-if="first"></div>
+              <div v-loading="loading" v-html="aiResultHtml" v-else></div>
             </div>
           </el-card>
         </div>
       </el-main>
     </el-container>
   </div>
+
 </template>
 
 <script setup lang="ts">
@@ -50,6 +53,8 @@ import { ref, onMounted, watch, defineProps } from 'vue'
 import { Connection, ChatRound } from '@element-plus/icons-vue'
 import { DiagnosticApi, type DiagnosisTask ,type TriggerDiagnosisParams,type AIDiagnosisResponse} from '../utils/diagnosticApi'
 import MarkdownIt from 'markdown-it'
+
+const first=ref(true)
 // 接收任务ID属性
 const props = defineProps<{
   taskId: number
@@ -91,6 +96,7 @@ const formatTime = (timestamp?: number) => {
 
 // askAI
 const askAI = async() => {
+   first.value=false
    const api=new DiagnosticApi()
    const params: TriggerDiagnosisParams = {
      timestamp: Date.now(),
@@ -115,6 +121,15 @@ const convertMD = (data: string) => {
   raw = raw.replace(/(\d\.) /g, '\n$1 ')
   return md.render(raw)
 }
+
+// 完成当前任务处理 4-0-1
+const updateTask = () => {
+  const api = new DiagnosticApi()
+  const res=api.updateDiagnosisTask(props.taskId,{})
+}
+
+
+
 // 状态映射
 const getStatusType = (status?: number) => {
   const map: Record<number, string> = {
