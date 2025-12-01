@@ -24,6 +24,7 @@
     "@tsconfig/node22": "^22.0.0",
     "@types/axios": "^0.9.36",
     "@types/echarts": "^4.9.22",
+    "@types/markdown-it": "^14.1.2",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-vue": "^5.2.1",
     "@vue/eslint-config-typescript": "^14.5.0",

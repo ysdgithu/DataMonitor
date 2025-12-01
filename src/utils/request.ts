@@ -9,10 +9,22 @@
  * - 实现双 token 机制（access token + refresh token）
  */
 
-import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
+import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios';
 import type { InternalAxiosRequestConfig, AxiosError } from 'axios'
 import { TokenManager } from './tokenManager'
 import type { ApiResponse, RefreshTokenResponse } from './auth.types'
+
+// 自定义请求实例类型，响应拦截器会解包 response.data
+interface CustomAxiosInstance extends Omit<AxiosInstance, 'get' | 'post' | 'put' | 'delete' | 'patch' | 'request'> {
+  <T = any>(config: AxiosRequestConfig): Promise<T>
+  <T = any>(url: string, config?: AxiosRequestConfig): Promise<T>
+  request<T = any>(config: AxiosRequestConfig): Promise<T>
+  get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>
+  post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T>
+  put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T>
+  delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>
+  patch<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T>
+}
 
 // 获取 API 基础 URL，优先使用环境变量
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002/api'
@@ -57,13 +69,13 @@ function onTokenRefreshed(token: string) {
 /**
  * 创建 Axios 实例
  */
-const request: AxiosInstance = axios.create({
+const request = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'
   }
-})
+}) as CustomAxiosInstance
 
 /**
  * 请求拦截器
