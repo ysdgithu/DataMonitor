@@ -1,6 +1,5 @@
 # DataMonitor - 工业设备实时监控与智能诊断平台
 
-<div align="center">
 
 **基于 Vue 3 + Node.js + AI 的新一代工业物联网监控系统**
 
@@ -741,7 +740,6 @@ ECharts 图表 (实时渲染)
 
 ---
 
-<div align="center">
 
 **⭐ 如果这个项目对您有帮助，请给我们一个 Star！**
 
