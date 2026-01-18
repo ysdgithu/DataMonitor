@@ -47,6 +47,29 @@ export const useCoreMetricStore = defineStore('coreMetric', () => {
     }
   }
 
+  // 【高频优化】批量推送数据
+  function batchPushMetricData(dataList: CoreMetricData[]) {
+    // 使用 Map 去重，只保留每个类别的最新数据
+    const latestMap = new Map<string, BoardItem>()
+
+    dataList.forEach(data => {
+      const name = metricNameMap[data.category] || data.category
+      const value = data.value.toFixed(1) + metricUnitMap[data.category]
+      const status = data.dataStatus || 'normal'
+      latestMap.set(name, { name, value, status })
+    })
+
+    // 一次性更新所有数据
+    latestMap.forEach((item, name) => {
+      const idx = boardList.value.findIndex(b => b.name === name)
+      if (idx >= 0) {
+        boardList.value[idx] = item
+      } else {
+        boardList.value.push(item)
+      }
+    })
+  }
+
   // 清空
   function clearAll() {
     boardList.value = []
@@ -58,6 +81,7 @@ export const useCoreMetricStore = defineStore('coreMetric', () => {
   return {
     boardList: boardDisplay,
     pushMetricData,
+    batchPushMetricData, // 【新增】批量推送接口
     clearAll
   }
 })

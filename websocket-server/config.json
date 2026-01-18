@@ -18,10 +18,10 @@
   },
   "database": {
     "type": "mysql",
-    "host": "8.134.137.185",
+    "host": "localhost",
     "port": 3306,
     "user": "root",
-    "password": "Aly2025520!",
+    "password": "1234",
     "database": "monitor_db",
     "options": {
       "autoInit": true,

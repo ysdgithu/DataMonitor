@@ -59,6 +59,8 @@
           <template #header>实时环境温度</template>
            <BaseChart
             :options="environmentDataChartOptions"
+            :highFrequency="true"
+            :dataOnly="true"
             style="height: 220px;"
           />
         </el-card>
@@ -68,6 +70,8 @@
           </template>
           <BaseChart
             :options="requestCountChartOptions"
+            :highFrequency="true"
+            :dataOnly="true"
             style="height: 220px;"
           />
         </el-card>
@@ -93,7 +97,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, shallowRef } from 'vue'
 import BaseChart from '../charts/BaseChart.vue'
 import HistoryDataPanel from './HistoryDataPanel.vue'
 import { createLineChart, createBarChart, createPieChart} from '../../utils/chartOptions'
@@ -112,28 +116,69 @@ const timeRange = ref('1h')
 const showHistoryPanel = ref(false)
 
 
-//环境数据统计图表配置
-const environmentDataChartOptions = computed(() => {
+
+// 1. 定义缓存的配置对象和数据指纹
+const chartOptionsCache = shallowRef<EChartsOption | null>(null)
+const dataFingerprint = ref('')
+
+// 2. 只计算数据和指纹
+const recentData = computed(() => {
   const boardList = environmentDataStore.boardList;
-  // 确保数据按时间戳排序
-  const sortedData = [...boardList].sort((a, b) => a.timestamp - b.timestamp);
-  // 只取最新的10条数据
-  const recentData = sortedData.slice(-10);
-  return createLineChart({
-    series: recentData.map(item => item.value),
-    xAxis: recentData.map(item => new Date(item.timestamp).toLocaleTimeString()),
-    status: recentData.map(item => item.status)
-  }) as EChartsOption;
+  const data = boardList.slice(-10);
+  // 生成数据指纹：timestamp+value+status的拼接
+  const fingerprint = data.map(item => `${item.timestamp}-${item.value}-${item.status}`).join('|');
+  dataFingerprint.value = fingerprint;
+  return data;
 })
 
-// 请求量统计图表配置
-const requestCountChartOptions = computed(() => createBarChart({
-  series: telemetryData.boardData.map(item => item.value),
-  xAxis: {
-    type:'category',
-    data: telemetryData.boardData.map(item => new Date(item.timestamp).toLocaleTimeString())},
-  maxPoints: 10  // 限制显示最新的20条数据
-}) as EChartsOption)
+// 3. 缓存配置对象的 computed
+const environmentDataChartOptions = computed(() => {
+  const data = recentData.value;
+  // 如果缓存存在且指纹未变，直接返回缓存
+  if (chartOptionsCache.value && dataFingerprint.value === (chartOptionsCache.value as any).__fingerprint) {
+    return chartOptionsCache.value;
+  }
+  // 指纹变化时，重新创建配置对象
+  const options = createLineChart({
+    series: data.map(item => item.value),
+    xAxis: data.map(item => new Date(item.timestamp).toLocaleTimeString()),
+    status: data.map(item => item.status)
+  }) as EChartsOption;
+  // 给配置对象添加指纹标识
+  (options as any).__fingerprint = dataFingerprint.value;
+  // 更新缓存
+  chartOptionsCache.value = options;
+  return options;
+})
+
+
+// 请求量统计图表配置缓存优化
+const requestChartOptionsCache = shallowRef<EChartsOption | null>(null)
+const requestDataFingerprint = ref('')
+const recentRequestData = computed(() => {
+  const data = telemetryData.boardData.slice(-10)
+  // 生成数据指纹：timestamp+value的拼接
+  const fingerprint = data.map(item => `${item.timestamp}-${item.value}`).join('|')
+  requestDataFingerprint.value = fingerprint
+  return data
+})
+const requestCountChartOptions = computed(() => {
+  const data = recentRequestData.value
+  if (requestChartOptionsCache.value && requestDataFingerprint.value === (requestChartOptionsCache.value as any).__fingerprint) {
+    return requestChartOptionsCache.value
+  }
+  const options = createBarChart({
+    series: data.map(item => item.value),
+    xAxis: {
+      type: 'category',
+      data: data.map(item => new Date(item.timestamp).toLocaleTimeString())
+    },
+    maxPoints: 10
+  }) as EChartsOption
+  ;(options as any).__fingerprint = requestDataFingerprint.value
+  requestChartOptionsCache.value = options
+  return options
+})
 
 
 // 存储设备类型数据

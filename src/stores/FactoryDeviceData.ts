@@ -14,6 +14,14 @@ export const useFactoryDeviceDataStore = defineStore('factoryDevice', () => {
     //console.log('设备更新', allDevices)
   }
 
+  // 【优化】批量推送数据
+  function batchPushFactoryDeviceData(dataList: FactoryDevice[]) {
+    // 批量更新设备状态，减少响应式触发次数
+    dataList.forEach(device => {
+      deviceMap.value.set(device.deviceId, device)
+    })
+  }
+
   // 获取所有设备列表
   const allDevices = computed(() => Array.from(deviceMap.value.values()))
 
@@ -85,6 +93,7 @@ export const useFactoryDeviceDataStore = defineStore('factoryDevice', () => {
     getDevicesByStatus,
     getDevicesByZone,
     pushFactoryDeviceData,
+    batchPushFactoryDeviceData, // 【新增】批量推送接口
     clearAll,
     removeDevice,
     getDevice

@@ -14,20 +14,19 @@ import { useCoreMetricStore } from './CoreMetricData'
 import { useEnvironmentDataStore } from './EnvironmentData'
 import { useDeviceTelemetryDataStore } from './DeviceTelemetryData'
 import { useFactoryDeviceDataStore } from './FactoryDeviceData'
+import { performanceMonitor } from '../utils/performanceMonitor' // 【新增】性能监控
 
-const MAX_POINTS = 20
 
-// 所有可能的设备数据类型
-type AllDeviceData = CoreMetricData | EnvironmentData | DeviceTelemetryData | DeviceStatusData | FactoryDevice
 
-// 按类型分组的数据结构
-type DataGroupMap = Record<string, AllDeviceData[]>
+// 【高频优化】数据批处理配置
+const BATCH_SIZE = 50 // 批量处理50条数据
+const BATCH_INTERVAL = 16 // 16ms ≈ 60fps
+const MAX_BUFFER_SIZE = 1000 // 【修复】缓冲区最大长度，防止内存溢出
+const CRITICAL_TYPES = ['anomaly_alert', 'critical_alarm'] // 【修复】关键消息类型，立即处理
 
 export const useRealtimeStore = defineStore('realtime', () => {
   // 监控开关
   const isMonitoring = ref(false)
-  // 按类型分组的数据
-  const dataGroupMap = ref<DataGroupMap>({})
 
   // 获取WebSocket URL并添加调试信息
   const getWebSocketUrl = () => {
@@ -73,12 +72,167 @@ export const useRealtimeStore = defineStore('realtime', () => {
     retryDelay: 2000
   })
 
-  // 处理并分组数据
+  // 【高频优化】消息缓冲区
+  const messageBuffer = ref<WebSocketMessage[]>([])
+  let rafId: number | null = null
+  let isProcessing = false // 【修复】防止 RAF 回调堆积
+
+  // 【高频优化】批量处理缓冲区数据
+  function flushMessageBuffer() {
+    //console.log('[Buffer] 当前积压:', messageBuffer.value.length)
+    if (messageBuffer.value.length === 0) {
+      rafId = null
+      isProcessing = false
+      return
+    }
+
+    // 【修复】如果正在处理，跳过本帧
+    if (isProcessing) {
+      rafId = requestAnimationFrame(flushMessageBuffer)
+      return
+    }
+
+    isProcessing = true
+    const startTime = performance.now() // 【性能监控】记录开始时间
+
+    // 【修复】按时间戳排序，保证数据时序性
+    messageBuffer.value.sort((a, b) => {
+      const timeA = (a.data as any).timestamp || 0
+      const timeB = (b.data as any).timestamp || 0
+      return timeA - timeB
+    })
+
+    const batch = messageBuffer.value.splice(0, BATCH_SIZE)
+
+    // 【优化】按类型分组消息，实现真正的批量处理
+    const groupedMessages: Record<string, any[]> = {}
+    const anomalyAlerts: any[] = []
+
+    batch.forEach(message => {
+      if (message.type === 'anomaly_alert') {
+        anomalyAlerts.push(message)
+      } else {
+        if (!groupedMessages[message.type]) {
+          groupedMessages[message.type] = []
+        }
+        groupedMessages[message.type].push(message.data)
+      }
+    })
+
+    // 批量处理各类型消息
+    //console.time('批处理耗时')
+    processBatchMessages(groupedMessages)
+    //console.timeEnd('批处理耗时')
+
+    // 处理异常告警
+    anomalyAlerts.forEach(alert => handleAnomalyAlert(alert))
+
+    const endTime = performance.now() // 【性能监控】记录结束时间
+    performanceMonitor.recordProcessingTime(endTime - startTime)
+
+    isProcessing = false
+
+    // 如果还有数据，继续处理
+    if (messageBuffer.value.length > 0) {
+      rafId = requestAnimationFrame(flushMessageBuffer)
+    } else {
+      rafId = null
+    }
+  }
+
+  // 【高频优化】调度批处理
+  function scheduleFlush() {
+    if (rafId === null) {
+      rafId = requestAnimationFrame(flushMessageBuffer)
+    }
+  }
+
+  // 【优化】批量处理分组后的消息
+  function processBatchMessages(groupedMessages: Record<string, any[]>) {
+    // 处理核心指标数据
+    if (groupedMessages['core_metrics'] && groupedMessages['core_metrics'].length > 0) {
+      const coreMetricStore = useCoreMetricStore()
+      // 将所有批次的数据合并成一个数组
+      const allMetrics: CoreMetricData[] = []
+      groupedMessages['core_metrics'].forEach(dataArray => {
+        if (Array.isArray(dataArray)) {
+          allMetrics.push(...dataArray)
+        }
+      })
+      if (allMetrics.length > 0) {
+        coreMetricStore.batchPushMetricData(allMetrics)
+      }
+    }
+
+    // 处理环境数据
+    if (groupedMessages['environment'] && groupedMessages['environment'].length > 0) {
+      const environmentDataStore = useEnvironmentDataStore()
+      environmentDataStore.batchPushEnvironmentData(groupedMessages['environment'])
+    }
+
+    // 处理工厂设备数据
+    if (groupedMessages['factory_devices'] && groupedMessages['factory_devices'].length > 0) {
+      const factoryDeviceDataStore = useFactoryDeviceDataStore()
+      // 将所有批次的数据合并成一个数组
+      const allDevices: any[] = []
+      groupedMessages['factory_devices'].forEach(dataArray => {
+        if (Array.isArray(dataArray)) {
+          allDevices.push(...dataArray)
+        }
+      })
+      if (allDevices.length > 0) {
+        factoryDeviceDataStore.batchPushFactoryDeviceData(allDevices)
+      }
+    }
+
+    // 处理通信数据
+    if (groupedMessages['telemetry'] && groupedMessages['telemetry'].length > 0) {
+      const deviceStatusStore = useDeviceTelemetryDataStore()
+      deviceStatusStore.batchPushDeviceTelemetryData(groupedMessages['telemetry'])
+    }
+  }
+
+  // 处理并分组数据（入口函数 - 高频优化版）
   function handleRealtimeMessage(message: WebSocketMessage) {
     if (!isMonitoring.value) return
 
+    // 【性能监控】记录收到的消息
+    performanceMonitor.recordMessage()
+
+    // 【修复】关键消息立即处理，不走批处理
+    if (CRITICAL_TYPES.includes(message.type)) {
+      console.warn('[realtime] 关键消息立即处理:', message.type)
+      processMessage(message)
+      return
+    }
+
+    // 【修复】缓冲区溢出保护
+    if (messageBuffer.value.length >= MAX_BUFFER_SIZE) {
+      console.error('[realtime] 缓冲区溢出，丢弃最旧的数据')
+      // 【性能监控】记录丢弃的消息数
+      const droppedCount = messageBuffer.value.length - MAX_BUFFER_SIZE / 2
+      for (let i = 0; i < droppedCount; i++) {
+        performanceMonitor.recordDroppedMessage()
+      }
+      // 保留最新的数据，丢弃最旧的
+      messageBuffer.value = messageBuffer.value.slice(-MAX_BUFFER_SIZE / 2)
+    }
+
+    // 【优化】将消息加入缓冲区，而不是立即处理
+    messageBuffer.value.push(message)
+
+    // 达到批量大小立即处理
+    if (messageBuffer.value.length >= BATCH_SIZE) {
+      flushMessageBuffer()
+    } else {
+      // 否则调度下一帧处理
+      scheduleFlush()
+    }
+  }
+
+  // 实际处理单条消息的逻辑
+  function processMessage(message: WebSocketMessage) {
     const { type, data } = message;
-    // console.log('收到WebSocket消息:', type, data);  // 添加调试日志
 
     // 处理异常告警消息
     if (type === 'anomaly_alert') {
@@ -91,30 +245,14 @@ export const useRealtimeStore = defineStore('realtime', () => {
       case 'core_metrics':
         // 核心指标数据是数组
         if (Array.isArray(data)) {
-          data.forEach(metric => {
-            const key = metric.category;
-            if (!dataGroupMap.value[key]) dataGroupMap.value[key] = [];
-            dataGroupMap.value[key].push(metric);
-            if (dataGroupMap.value[key].length > MAX_POINTS) {
-              dataGroupMap.value[key].shift();
-            }
-
-            // 推送到核心指标store
-            const coreMetricStore = useCoreMetricStore();
-            coreMetricStore.pushMetricData(metric as CoreMetricData);
-          });
+          // 【优化】使用批量更新，减少响应式触发次数
+          const coreMetricStore = useCoreMetricStore();
+          coreMetricStore.batchPushMetricData(data as CoreMetricData[]);
         }
         break;
 
       case 'environment':
         // 环境数据是单个对象
-        const envKey = data.type;
-        if (!dataGroupMap.value[envKey]) dataGroupMap.value[envKey] = [];
-        dataGroupMap.value[envKey].push(data);
-        if (dataGroupMap.value[envKey].length > MAX_POINTS) {
-          dataGroupMap.value[envKey].shift();
-        }
-        //推送store
         const environmentDataStore = useEnvironmentDataStore();
         environmentDataStore.pushEnvironmentData(data);
         break;
@@ -122,34 +260,20 @@ export const useRealtimeStore = defineStore('realtime', () => {
       case 'factory_devices':
         // 设备状态数据是数组
         if (Array.isArray(data)) {
-          data.forEach(device => {
-            const key = 'factory_devices';
-            if (!dataGroupMap.value[key]) dataGroupMap.value[key] = [];
-            dataGroupMap.value[key].push(device);
-            if (dataGroupMap.value[key].length > MAX_POINTS) {
-              dataGroupMap.value[key].shift();
-            }
-            const factoryDeviceDataStore=useFactoryDeviceDataStore()
-            factoryDeviceDataStore.pushFactoryDeviceData(device);
-            //console.log('factory_devices'+JSON.stringify(dataGroupMap.value[key]));
-          });
+          // 【优化】使用批量更新，减少响应式触发次数
+          const factoryDeviceDataStore = useFactoryDeviceDataStore();
+          factoryDeviceDataStore.batchPushFactoryDeviceData(data);
         }
         break;
 
       case 'telemetry':
         // 通信数据是单个对象
-        const telemetryKey = data.dataType;
-        if (!dataGroupMap.value[telemetryKey]) dataGroupMap.value[telemetryKey] = [];
-        dataGroupMap.value[telemetryKey].push(data);
-        if (dataGroupMap.value[telemetryKey].length > MAX_POINTS) {
-          dataGroupMap.value[telemetryKey].shift();
-        }
         const deviceStatusStore = useDeviceTelemetryDataStore();
         deviceStatusStore.pushDeviceTelemetryData(data);
         break;
     }
 
-    console.log(`[realtime] 处理${type}数据 时间:`, message.timestamp ? new Date(message.timestamp).toLocaleTimeString() : 'unknown');
+    //console.log(`[realtime] 处理${type}数据 时间:`, message.timestamp ? new Date(message.timestamp).toLocaleTimeString() : 'unknown');
   }
 
   // 处理异常告警消息
@@ -193,30 +317,16 @@ export const useRealtimeStore = defineStore('realtime', () => {
     }
     if (!val) {
       disconnect()
-      clearData()
     }
-  }
-
-  // 清空所有分组数据
-  function clearData() {
-    dataGroupMap.value = {}
-  }
-
-  // 获取某一类型分组数据
-  function getGroupData(type: string) {
-    return dataGroupMap.value[type] || []
   }
 
   return {
     isMonitoring,
     isConnected,
     retryCount,
-    dataGroupMap,
     setMonitoring,
-    clearData,
     connect,
-    disconnect,
-    getGroupData
+    disconnect
   }
 })
 

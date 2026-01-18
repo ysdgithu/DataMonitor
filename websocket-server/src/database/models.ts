@@ -56,17 +56,27 @@ class DataModel {
     // 通用插入方法 - 将数据插入统一的device_data表
     private async insertDeviceData(
         dataType: string,
-        records: Array<{ deviceId: string; timestamp: number; dataStatus: string; location?: any; [key: string]: any }>
+        records: Array<{ deviceId: string; timestamp: number; dataStatus?: string; location?: any; [key: string]: any }>
     ): Promise<void> {
         const columns = ['device_id', 'data_type', 'timestamp', 'data_status', 'payload'];
 
-        const rows = records.map(item => [
-            item.deviceId,
-            dataType,
-            item.timestamp,
-            item.dataStatus,
-            JSON.stringify(item) // 将整个对象序列化为JSON
-        ]);
+        const rows = records.map(item => {
+            // 【修复】过滤掉所有 undefined 值，避免 MySQL 报错
+            const cleanItem: any = {};
+            for (const key in item) {
+                if (item[key] !== undefined) {
+                    cleanItem[key] = item[key];
+                }
+            }
+
+            return [
+                cleanItem.deviceId || 'unknown',
+                dataType,
+                cleanItem.timestamp || Date.now(),
+                cleanItem.dataStatus || 'normal',
+                JSON.stringify(cleanItem) // 将清理后的对象序列化为JSON
+            ];
+        });
 
         await this.db.batchInsert('device_data', columns, rows);
     }
@@ -398,8 +408,8 @@ class DataModel {
         assignee?: string;
         priority?: number;
         name?: string;
-        startTime?: number; 
-        endTime?: number;   
+        startTime?: number;
+        endTime?: number;
     }): Promise<{ tasks: any[]; total: number }> {
         const page = params.page || 1;
         const pageSize = params.pageSize || 5;

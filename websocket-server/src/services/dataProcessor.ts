@@ -94,10 +94,20 @@ export class DataProcessor {
         this.wsClients.delete(ws);
     }
 
-    // 处理数据并推送
+    // 【新增】获取客户端数量
+    public getClientCount(): number {
+        return this.wsClients.size;
+    }
+
+    // 【新增】获取数据库缓冲区大小
+    public getDbBufferSize(): number {
+        return this.dbBuffer.length;
+    }
+
+    // 处理数据并推送（优化版 - 支持高频数据）
     public async processAndPush(messages: { type: string; data: any }[]) {
-        for (const message of messages) {
-            // 为数据添加状态标记
+        // 批量处理数据状态标记
+        const processedMessages = messages.map(message => {
             if (Array.isArray(message.data)) {
                 message.data = message.data.map(item => ({
                     ...item,
@@ -109,26 +119,93 @@ export class DataProcessor {
                     dataStatus: getDataStatus(message.data)
                 };
             }
+            return message;
+        });
 
-            // 异常检测
+        // 批量异常检测
+        processedMessages.forEach(message => {
             this.detectAnomalies(message);
+        });
 
-            // 推送至所有客户端
-            for (const ws of this.wsClients) {
-                if (ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({
-                        type: message.type,
-                        data: message.data,
-                        timestamp: Date.now()
-                    }));
-                }
+        // 【优化1】预先序列化消息，避免重复 JSON.stringify
+        const serializedMessages = processedMessages.map(message =>
+            JSON.stringify({
+                type: message.type,
+                data: message.data,
+                timestamp: Date.now()
+            })
+        );
+
+        // 【优化2】批量推送给所有客户端
+        for (const ws of this.wsClients) {
+            if (ws.readyState === WebSocket.OPEN) {
+                // 一次性发送所有消息（减少系统调用）
+                serializedMessages.forEach(msg => {
+                    try {
+                        ws.send(msg);
+                    } catch (error) {
+                        console.error('WebSocket发送失败:', error);
+                    }
+                });
             }
-
-            // 异步写入数据库（不阻塞WebSocket推送）
-            this.saveToDatabase(message.type, message.data).catch(error => {
-                console.error(`数据库写入失败 [${message.type}]:`, error);
-            });
         }
+
+        // 【优化3】批量写入数据库（使用批处理缓冲区）
+        this.batchSaveToDatabase(processedMessages).catch(error => {
+            console.error(`批量数据库写入失败:`, error);
+        });
+    }
+
+    // 数据库批处理缓冲区
+    private dbBuffer: { type: string; data: any }[] = [];
+    private dbFlushTimer: NodeJS.Timeout | null = null;
+    private readonly DB_BATCH_SIZE = 100; // 每100条批量写入
+    private readonly DB_FLUSH_INTERVAL = 1000; // 或每1秒写入一次
+
+    // 批量数据库写入
+    private async batchSaveToDatabase(messages: { type: string; data: any }[]) {
+        this.dbBuffer.push(...messages);
+
+        // 达到批量大小立即写入
+        if (this.dbBuffer.length >= this.DB_BATCH_SIZE) {
+            await this.flushDatabaseBuffer();
+        } else {
+            // 否则设置定时器
+            if (!this.dbFlushTimer) {
+                this.dbFlushTimer = setTimeout(() => {
+                    this.flushDatabaseBuffer();
+                }, this.DB_FLUSH_INTERVAL);
+            }
+        }
+    }
+
+    // 刷新数据库缓冲区
+    private async flushDatabaseBuffer() {
+        if (this.dbBuffer.length === 0) return;
+
+        const toWrite = [...this.dbBuffer];
+        this.dbBuffer = [];
+
+        if (this.dbFlushTimer) {
+            clearTimeout(this.dbFlushTimer);
+            this.dbFlushTimer = null;
+        }
+
+        // 按类型分组批量写入
+        const grouped = toWrite.reduce((acc, msg) => {
+            if (!acc[msg.type]) acc[msg.type] = [];
+            acc[msg.type].push(msg.data);
+            return acc;
+        }, {} as Record<string, any[]>);
+
+        // 并行写入所有类型
+        await Promise.all(
+            Object.entries(grouped).map(([type, dataList]) =>
+                this.saveToDatabase(type, dataList).catch(error => {
+                    console.error(`数据库写入失败 [${type}]:`, error);
+                })
+            )
+        );
     }
 
     // 异常检测方法
