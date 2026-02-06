@@ -29,7 +29,7 @@ async function initializeAdmin() {
         // 创建默认管理员账号
         const adminUser = await userModel.createUser({
             username: 'admin',
-            password: 'Admin@123456',  // 默认密码，建议首次登录后修改
+            password: '123456',  // 默认密码，建议首次登录后修改
             email: 'admin@datamonitor.local',
             role: 'admin'
         });

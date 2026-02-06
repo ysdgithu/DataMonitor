@@ -3,6 +3,9 @@ import HomeView from '../views/HomeView.vue'
 import LoginView from '../views/LoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
 import DiagnosisView from '../views/DiagnosisView.vue'
+import HistoryDataView from '../views/HistoryData.vue';
+import ChatQAView from '../views/ChatQA.vue';
+import PermissionView from '../views/Permission.vue';
 import { useAuthStore } from '../stores/auth'
 
 const routes: RouteRecordRaw[] = [
@@ -31,6 +34,33 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: true,
       title: 'DataMonitor - 实时数据监控平台'
+    }
+  },
+   {
+    path: '/history',
+    name: 'history',
+    component: HistoryDataView,
+    meta: {
+      requiresAuth: true,
+      title: '历史数据总览'
+    }
+  },
+   {
+    path: '/chatqa',
+    name: 'chatqa',
+    component: ChatQAView,
+    meta: {
+      requiresAuth: true,
+      title: '智能问答'
+    }
+  },
+   {
+    path: '/permission',
+    name: 'permission',
+    component: PermissionView,
+    meta: {
+      requiresAuth: true,
+      title: '权限管理'
     }
   },
   {

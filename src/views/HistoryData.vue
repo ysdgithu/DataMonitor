@@ -1,0 +1,208 @@
+<template>
+ <main-layout>
+  <div class="history-main">
+  <h3 class="title">历史数据总览</h3>
+  <!-- 筛选区 -->
+  <div class="selection">
+    <!-- 第一行 -->
+  <el-row :gutter="20" style="margin-bottom: 15px;">
+    <el-col :span="8">
+      <div class="input-row"><span class="small-title">设备名称/ID</span><el-input v-model="input" style="width: 240px; margin-left: 8px;" placeholder="请输入设备名称/id" /></div>
+    </el-col>
+    <el-col :span="8">
+      <div class="input-row">
+          <span class="small-title">设备类型</span>
+          <el-select  placeholder="请选择设备类型"
+          style="width: 240px; margin-left: 8px;" clearable>
+          <el-option label="全部设备" value="" />
+          <el-option label="调配罐" value="mixer" />
+          <el-option label="灌装机" value="filler" />
+          <el-option label="封盖机" value="capper" />
+          <el-option label="贴标机" value="labeler" />
+          <el-option label="包装码垛机" value="packer" />
+          </el-select>
+        </div>
+    </el-col>
+    <!-- 查询按钮 -->
+    <el-col :span="6">
+      <el-button type="primary">
+        <el-icon style="margin-right: 5px;"><Search /></el-icon>
+        查询
+      </el-button>
+    </el-col>
+  </el-row>
+  <!-- 第二行 -->
+  <el-row :gutter="20">
+    <el-col :span="10">
+      <div class="input-row">
+        <span class="small-title">时间范围</span>
+        <el-date-picker
+          type="daterange"
+          range-separator="至"
+          start-placeholder="开始日期"
+          end-placeholder="结束日期"
+          size="default"
+          />
+      </div>
+    </el-col>
+    <el-col :span="8">
+      <div class="input-row">
+        <span class="small-title">数据类型</span>
+        <el-select  placeholder="请选择数据类型"
+        style="width: 240px; margin-left: 8px;" clearable>
+        <el-option label="全部数据" value="" />
+        <el-option label="运行状态" value="status" />
+        <el-option label="性能参数" value="performance" />
+        <el-option label="能耗数据" value="energy" />
+        <el-option label="产量数据" value="production" />
+        </el-select>
+      </div>
+    </el-col>
+    <!-- 重置按钮 -->
+    <el-col :span="6">
+      <el-button>
+        <el-icon style="margin-right: 5px;"><Refresh /></el-icon>
+        重置
+      </el-button>
+    </el-col>
+  </el-row>
+  </div>
+  <el-row class="btn-area" justify="space-between">
+    <div>
+      <el-button type="primary">新增</el-button>
+      <el-button>批量导入</el-button>
+    </div>
+    <el-button>
+      <el-icon style="margin-right: 5px;"><Download /></el-icon>
+      下载
+    </el-button>
+  </el-row>
+  <!-- 范围提示 -->
+  <el-row class="tips">
+   数据范围：<span style="font-weight: bold;">2025-09-10 10:00:00 ~ 2025-09-10 10:30:00 </span>
+  </el-row>
+  <!-- <el-table :data="tableData" class="task-table">
+  <el-table-column prop="date" label="时间" width="180" />
+  <el-table-column prop="name" label="设备名称" width="180" />
+  <el-table-column prop="type" label="监控参数" width="180" />
+  <el-table-column prop="value" label="监控参数数值" />
+  <el-table-column prop="status" label="数据状态" />
+  <el-table-column label="操作" width="200" fixed="right">
+    <template #default>
+      <el-button type="primary" size="small" >删除</el-button>
+    </template>
+  </el-table-column>
+  </el-table> -->
+  <TableV2
+  :columns="columns"
+  :data="tableData"
+  :width="1000"
+  :height="400"
+  fixed
+  class="task-table"
+  />
+  <el-row justify="end">
+    <span class="font">共100条</span>
+    <el-pagination
+      v-model:current-page="currentPage"
+      :page-size="100"
+      layout="prev, pager, next"
+      :total="1000"
+      @current-change="handleCurrentChange"
+    />
+  </el-row>
+  </div>
+  </main-layout>
+</template>
+<script setup lang="ts">
+import MainLayout from '../components/layout/MainLayout.vue'
+import { h } from 'vue'
+import { Download, Refresh, Search } from '@element-plus/icons-vue'
+import { TableV2 } from 'element-plus'
+import { ref } from 'vue'
+const tableData = [
+  {
+    date:'23:42:04',
+    name:'调配罐',
+    type:'温度',
+    value:'30',
+    status:'正常',
+  },
+  {
+    date:'23:42:04',
+    name:'调配罐',
+    type:'液位',
+    value:'50%',
+    status:'正常',
+  },
+
+]
+const columns = [
+  { key: 'date', title: '时间', dataKey: 'date', width: 180 },
+  { key: 'name', title: '设备名称', dataKey: 'name', width: 180 },
+  { key: 'type', title: '监控参数', dataKey: 'type', width: 180 },
+  { key: 'value', title: '监控参数数值', dataKey: 'value', width: 180 },
+  { key: 'status', title: '数据状态', dataKey: 'status', width: 180 },
+  {
+    key: 'actions',
+    title: '操作',
+    dataKey: 'actions',
+    width: 200,
+    cellRenderer: ({ rowIndex }) => {
+      return h(
+        'el-button',
+        { type: 'primary', size: 'small',
+        },
+        '删除'
+      )
+    }
+  }
+]
+const currentPage = ref(1)
+const input = ref('')
+//处理分页
+const handleCurrentChange=()=>{
+
+}
+
+</script>
+<style scoped>
+  .history-main {
+    padding: 20px;
+    margin: 20px;
+    background-color: #ffffff;
+    min-height: 100vh;
+  }
+  .title{
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 20px;
+  }
+  .selection{
+    margin-bottom: 20px;
+  }
+  .font {
+    font-size: 16px;
+    color: #606266;
+  }
+  .input-row {
+  display: flex;
+  align-items: center;
+  }
+  .small-title{
+    font-size: 14px;
+    font-weight: bold;
+    color: #4E5969;
+    margin-right: 8px;
+  }
+  .tips {
+    font-size: 14px;
+    color: #606266;
+    margin:20px 0;
+  }
+  .task-table :deep(.el-table__header th) {
+  background-color: #F5F7FA;
+  font-weight: bold;
+  border-bottom: 1px solid #EBEEF5;
+  }
+</style>

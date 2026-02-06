@@ -182,7 +182,7 @@ const validatePasswordStrengthRule = (rule: any, value: string, callback: any) =
   if (value === '') {
     callback(new Error('请输入密码'))
   } else if (value.length < 8) {
-    callback(new Error('密码长度至少 8 个字符'))
+    // callback(new Error('密码长度至少 8 个字符'))
   } else if (!/[A-Z]/.test(value)) {
     callback(new Error('密码必须包含大写字母'))
   } else if (!/[a-z]/.test(value)) {
