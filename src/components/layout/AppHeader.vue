@@ -1,16 +1,18 @@
 <template>
   <el-header class="app-header" style="color: #303133;">
-    <div class="header-left" >
-      <div class="title-h1" >IoT设备监控中心</div>
+    <div class="header-left">
+      <div class="title-h1">IoT设备监控中心</div>
     </div>
     <div class="header-right">
       <el-badge :value="3" class="notification">
-        <el-icon><Bell /></el-icon>
+        <el-icon>
+          <Bell />
+        </el-icon>
       </el-badge>
       <el-dropdown>
         <span class="user-info">
           <!-- <el-avatar :size="32" src="src\assets\玫瑰长诗-头像.jpg" />  -->
-          <span >管理员</span>
+          <span>管理员</span>
         </span>
         <template #dropdown>
           <el-dropdown-menu>
@@ -35,7 +37,7 @@ const router = useRouter()
 // 当前激活的菜单项
 const activeIndex = computed(() => route.path)
 
-const logout =()=>{
+const logout = () => {
   router.push('/login')
   authStore.logout()
 }
@@ -48,14 +50,14 @@ const logout =()=>{
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 var(--spacing-base);
   height: 60px;
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: var(--spacing-base);
 }
 
 .header-menu {
@@ -64,22 +66,22 @@ const logout =()=>{
 }
 
 .header-menu :deep(.el-menu-item) {
-  color: #606266;
+  color: var(--text-secondary);
   border-bottom: 2px solid transparent;
   height: 60px;
   line-height: 60px;
-  padding: 0 15px;
+  padding: 0 var(--spacing-sm);
 }
 
 .header-menu :deep(.el-menu-item:hover) {
-  background-color: rgba(74, 144, 226, 0.05);
-  color: #4A90E2;
+  background-color: var(--primary-light);
+  color: var(--primary);
 }
 
 .header-menu :deep(.el-menu-item.is-active) {
-  color: #4A90E2;
-  border-bottom-color: #4A90E2;
-  background-color: rgba(74, 144, 226, 0.1);
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  background-color: var(--primary-light);
 }
 
 .logo {
@@ -89,11 +91,11 @@ const logout =()=>{
 .header-right {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: var(--spacing-base);
 }
 
 .theme-switch {
-  margin-right: 16px;
+  margin-right: var(--spacing-base);
 }
 
 .notification {
@@ -102,9 +104,9 @@ const logout =()=>{
 
 .user-info {
   display: flex;
-  color: #606266;
+  color: var(--text-secondary);
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-sm);
   cursor: pointer;
 }
 </style>

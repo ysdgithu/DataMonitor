@@ -1,38 +1,42 @@
 <template>
-    <div class="common-layout" style="height: 100%;">
+  <div class="common-layout" style="height: 100%;">
     <el-container>
       <el-header style="height: auto; padding: 16px;">
         <!-- 任务名+状态+优先级   修改状态和优先级-->
         <el-row class="task-header">
-            <el-space size="medium">
-                <h3 class="task-title">{{ taskDetail?.name }}</h3>
-                <el-tag :type="getStatusType(taskDetail?.status)">{{ getStatusText(taskDetail?.status) }}</el-tag>
-                <el-tag :type="getPriorityType(taskDetail?.priority)">{{ getPriorityText(taskDetail?.priority) }}</el-tag>
-            </el-space>
-            <el-button type="primary">完成</el-button>
+          <el-space size="medium">
+            <h3 class="task-title">{{ taskDetail?.name }}</h3>
+            <el-tag :type="getStatusType(taskDetail?.status)">{{ getStatusText(taskDetail?.status) }}</el-tag>
+            <el-tag :type="getPriorityType(taskDetail?.priority)">{{ getPriorityText(taskDetail?.priority) }}</el-tag>
+          </el-space>
+          <el-button type="primary">完成</el-button>
         </el-row>
       </el-header>
-      <el-divider style="margin: 0"/>
+      <el-divider style="margin: 0" />
       <el-main style="padding: 20px;">
         <!-- 处理人+任务详情+设备+创建时间 -->
         <el-col class="info-section">
-            <p class="info-item"><span class="label">处理人：</span>{{ taskDetail?.assignee }}</p>
-            <p class="info-item"><span class="label">任务描述：</span>{{ taskDetail?.detail }}</p>
-            <p class="info-item"><span class="label">设备：</span>{{ taskDetail?.device_id }}</p>
-            <p class="info-item"><span class="label">创建时间：</span>{{ formatTime(taskDetail?.createTime) }}</p>
+          <p class="info-item"><span class="label">处理人：</span>{{ taskDetail?.assignee }}</p>
+          <p class="info-item"><span class="label">任务描述：</span>{{ taskDetail?.detail }}</p>
+          <p class="info-item"><span class="label">设备：</span>{{ taskDetail?.device_id }}</p>
+          <p class="info-item"><span class="label">创建时间：</span>{{ formatTime(taskDetail?.createTime) }}</p>
         </el-col>
         <el-divider />
         <!-- ai 分析部分 -->
         <div class="ai-analysis-section">
           <el-button type="primary" class="ai-button" @click="askAI">
-            <el-icon ><Connection /></el-icon>
+            <el-icon>
+              <Connection />
+            </el-icon>
             AI 一键分析
           </el-button>
           <!-- ai 分析结果 -->
           <el-card class="ai-result-card">
             <template #header>
               <div class="ai-result-header">
-                <el-icon><ChatRound /></el-icon>
+                <el-icon>
+                  <ChatRound />
+                </el-icon>
                 <span>AI 分析结果</span>
               </div>
             </template>
@@ -51,10 +55,10 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, defineProps } from 'vue'
 import { Connection, ChatRound } from '@element-plus/icons-vue'
-import { DiagnosticApi, type DiagnosisTask ,type TriggerDiagnosisParams,type AIDiagnosisResponse} from '../utils/diagnosticApi'
+import { DiagnosticApi, type DiagnosisTask, type TriggerDiagnosisParams, type AIDiagnosisResponse } from '../utils/diagnosticApi'
 import MarkdownIt from 'markdown-it'
 
-const first=ref(true)
+const first = ref(true)
 // 接收任务ID属性
 const props = defineProps<{
   taskId: number
@@ -69,7 +73,7 @@ const md = new MarkdownIt()
 // 获取任务详情
 const getTaskDetail = async () => {
   if (!props.taskId) return
-  
+
   try {
     const api = new DiagnosticApi()
     const res = await api.getDiagnosisDetail(props.taskId)
@@ -95,18 +99,18 @@ const formatTime = (timestamp?: number) => {
 }
 
 // askAI
-const askAI = async() => {
-   first.value=false
-   const api=new DiagnosticApi()
-   const params: TriggerDiagnosisParams = {
-     timestamp: Date.now(),
-     deviceId: taskDetail.value?.device_id || '000',
-     diagnosisTaskId: props.taskId
-   }
-   const res: AIDiagnosisResponse =await api.triggerAIDiagnosis(params)
-   aiResult.value=convertMD(res.data.diagnosis.diagnosis)
-   aiResultHtml.value=aiResult.value
-   loading.value=false
+const askAI = async () => {
+  first.value = false
+  const api = new DiagnosticApi()
+  const params: TriggerDiagnosisParams = {
+    timestamp: Date.now(),
+    deviceId: taskDetail.value?.device_id || '000',
+    diagnosisTaskId: props.taskId
+  }
+  const res: AIDiagnosisResponse = await api.triggerAIDiagnosis(params)
+  aiResult.value = convertMD(res.data.diagnosis.diagnosis)
+  aiResultHtml.value = aiResult.value
+  loading.value = false
 }
 // md格式转换
 const convertMD = (data: string) => {
@@ -125,7 +129,7 @@ const convertMD = (data: string) => {
 // 完成当前任务处理 4-0-1
 const updateTask = () => {
   const api = new DiagnosticApi()
-  const res=api.updateDiagnosisTask(props.taskId,{})
+  const res = api.updateDiagnosisTask(props.taskId, {})
 }
 
 
@@ -177,69 +181,69 @@ onMounted(() => {
 
 <style scoped>
 .task-header {
-    display: flex;
-    align-items: center;
+  display: flex;
+  align-items: center;
 }
 
 .task-title {
-    font-weight: bold;
-    font-size: 18px;
-    margin: 0;
+  font-weight: bold;
+  font-size: var(--font-lg);
+  margin: 0;
 }
 
 .info-section {
-    margin-bottom: 20px;
+  margin-bottom: var(--spacing-base);
 }
 
 .info-item {
-    margin: 8px 0;
+  margin: var(--spacing-sm) 0;
 }
 
 .label {
-    color: #94A3B8;
-    display: inline-block;
-    width: 80px;
+  color: var(--text-tertiary);
+  display: inline-block;
+  width: 80px;
 }
 
 .ai-analysis-section {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-base);
 }
 
 .ai-button {
-    align-self: flex-start;
+  align-self: flex-start;
 }
 
 .ai-result-card {
-    border: 1px solid rgba(74, 144, 226, 0.15);
-    border-radius: 8px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
 }
 
 .ai-result-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-weight: 600;
 }
 
 .ai-result-content {
-    padding: 12px;
-    background-color: rgba(74, 144, 226, 0.1);
-    border-radius: 4px;
-    line-height: 1.5;
+  padding: var(--spacing-sm);
+  background-color: var(--primary-light);
+  border-radius: var(--radius-sm);
+  line-height: 1.5;
 }
 
 :deep(.el-card__header) {
-    padding: 12px 16px;
-    border-bottom: 1px solid rgba(74, 144, 226, 0.15);
+  padding: var(--spacing-sm) var(--spacing-base);
+  border-bottom: 1px solid var(--border-light);
 }
 
 :deep(.el-card__body) {
-    padding: 16px;
+  padding: var(--spacing-base);
 }
 
 :deep(.el-divider--horizontal) {
-    border-color: rgba(74, 144, 226, 0.15);
+  border-color: var(--border-light);
 }
 </style>

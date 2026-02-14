@@ -4,12 +4,7 @@
       <template #header>
         <div class="card-header">
           <span>历史数据查询</span>
-          <el-button 
-            type="primary" 
-            size="small" 
-            @click="refreshData"
-            :loading="loading"
-          >
+          <el-button type="primary" size="small" @click="refreshData" :loading="loading">
             刷新数据
           </el-button>
         </div>
@@ -26,26 +21,18 @@
               <el-option label="通信数据" value="telemetry" />
             </el-select>
           </el-col>
-          
+
           <el-col :span="6" v-if="queryParams.dataType">
             <el-select v-model="queryParams.category" placeholder="选择具体类型" @change="queryData()">
-              <el-option 
-                v-for="option in categoryOptions" 
-                :key="option.value"
-                :label="option.label" 
-                :value="option.value" 
-              />
+              <el-option v-for="option in categoryOptions" :key="option.value" :label="option.label"
+                :value="option.value" />
             </el-select>
           </el-col>
 
           <el-col :span="6">
             <el-select v-model="timeRange" placeholder="选择时间范围" @change="onTimeRangeChange">
-              <el-option 
-                v-for="option in timeRangeOptions" 
-                :key="option.value"
-                :label="option.label" 
-                :value="option.value" 
-              />
+              <el-option v-for="option in timeRangeOptions" :key="option.value" :label="option.label"
+                :value="option.value" />
             </el-select>
           </el-col>
 
@@ -79,12 +66,9 @@
               {{ scope.row.unit || '' }}
             </template>
           </el-table-column>
-          <el-table-column prop="status" label="状态" >
+          <el-table-column prop="status" label="状态">
             <template #default="scope">
-              <el-tag 
-                :type="getStatusType(scope.row.status)" 
-                size="small"
-              >
+              <el-tag :type="getStatusType(scope.row.status)" size="small">
                 {{ getStatusText(scope.row.status) }}
               </el-tag>
             </template>
@@ -109,7 +93,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, nextTick } from 'vue';
 import { ElMessage } from 'element-plus';
-import { historyApi, TIME_RANGE_OPTIONS, DATA_TYPE_OPTIONS, type QueryParams,DEVICE_TYPE_NAMES } from '@/utils/historyApi';
+import { historyApi, TIME_RANGE_OPTIONS, DATA_TYPE_OPTIONS, type QueryParams, DEVICE_TYPE_NAMES } from '@/utils/historyApi';
 // 后期考虑写个防抖处理
 
 // 响应式数据
@@ -117,7 +101,7 @@ const loading = ref(false);
 const initializing = ref(true); // 添加初始化状态
 const connectionStatus = ref(false);
 const lastUpdateTime = ref('');
-const timeRange=ref(24);
+const timeRange = ref(24);
 const tableData = ref<any[]>([]);
 
 
@@ -172,7 +156,7 @@ const onTimeRangeChange = async () => {
 
 // 查询数据
 const queryData = async () => {
-   // 确保必需的参数存在
+  // 确保必需的参数存在
   if (!queryParams.dataType || !queryParams.category) {
     ElMessage.warning('请选择数据类型和具体类型');
     return;
@@ -183,9 +167,9 @@ const queryData = async () => {
     const now = Date.now();
     queryParams.endTime = now;
     queryParams.startTime = now - (timeRange.value * 60 * 60 * 1000);
-    
+
     let data: any[] = [];
-    
+
     console.log('查询参数:', queryParams);
     console.log('数据类型:', queryParams.dataType);
     console.log('分类:', queryParams.category);
@@ -255,13 +239,13 @@ const queryData = async () => {
       unit: item.unit || getDefaultUnit() // 如果后端没有提供单位，使用默认单位
     }));
 
-    console.log('111'+data)
+    console.log('111' + data)
 
     await nextTick();
-    
+
     lastUpdateTime.value = new Date().toLocaleTimeString();
     ElMessage.success(`查询到 ${data.length} 条历史数据`);
-    
+
   } catch (error) {
     console.error('查询历史数据失败:', error);
     ElMessage.error('查询历史数据失败');
@@ -305,7 +289,7 @@ onMounted(async () => {
 }
 
 .panel-card {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-base);
 }
 
 .card-header {
@@ -315,39 +299,39 @@ onMounted(async () => {
 }
 
 .query-controls {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-base);
 }
 
 .connection-status {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
-  padding: 10px;
-  background-color: #f5f7fa;
-  border-radius: 4px;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-base);
+  padding: var(--spacing-sm);
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-sm);
 }
 
 .status-text {
-  font-size: 12px;
-  color: #909399;
+  font-size: var(--font-xs);
+  color: var(--text-tertiary);
 }
 
 .data-display {
-  margin-top: 20px;
+  margin-top: var(--spacing-base);
 }
 
 .chart-container {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-base);
 }
 
 .no-data {
   text-align: center;
-  padding: 40px 0;
+  padding: var(--spacing-xl) 0;
 }
 
 .loading-container {
   text-align: center;
-  padding: 40px 0;
+  padding: var(--spacing-xl) 0;
 }
 </style>

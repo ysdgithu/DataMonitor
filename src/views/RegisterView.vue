@@ -6,53 +6,26 @@
         <p>加入 DataMonitor 实时监控平台</p>
       </div>
 
-      <el-form
-        ref="formRef"
-        :model="form"
-        :rules="rules"
-        @submit.prevent="handleRegister"
-        class="register-form"
-      >
+      <el-form ref="formRef" :model="form" :rules="rules" @submit.prevent="handleRegister" class="register-form">
         <!-- 用户名输入框 -->
         <el-form-item prop="username">
-          <el-input
-            v-model="form.username"
-            placeholder="请输入用户名（3-50字符）"
-            prefix-icon="User"
-            clearable
-          />
+          <el-input v-model="form.username" placeholder="请输入用户名（3-50字符）" prefix-icon="User" clearable />
         </el-form-item>
 
         <!-- 邮箱输入框 -->
         <el-form-item prop="email">
-          <el-input
-            v-model="form.email"
-            type="email"
-            placeholder="请输入邮箱地址（可选）"
-            prefix-icon="Message"
-            clearable
-          />
+          <el-input v-model="form.email" type="email" placeholder="请输入邮箱地址（可选）" prefix-icon="Message" clearable />
         </el-form-item>
 
         <!-- 密码输入框 -->
         <el-form-item prop="password">
-          <el-input
-            v-model="form.password"
-            type="password"
-            placeholder="请输入密码（至少8字符，包含大小写和数字）"
-            prefix-icon="Lock"
-            show-password
-            clearable
-            @input="validatePasswordStrength"
-          />
+          <el-input v-model="form.password" type="password" placeholder="请输入密码（至少8字符，包含大小写和数字）" prefix-icon="Lock"
+            show-password clearable @input="validatePasswordStrength" />
           <!-- 密码强度提示 -->
           <div v-if="form.password" class="password-strength">
             <div class="strength-bar">
-              <div
-                class="strength-fill"
-                :class="`strength-${passwordStrength}`"
-                :style="{ width: strengthPercentage + '%' }"
-              />
+              <div class="strength-fill" :class="`strength-${passwordStrength}`"
+                :style="{ width: strengthPercentage + '%' }" />
             </div>
             <span class="strength-text" :class="`strength-${passwordStrength}`">
               {{ strengthText }}
@@ -62,38 +35,20 @@
 
         <!-- 确认密码输入框 -->
         <el-form-item prop="confirmPassword">
-          <el-input
-            v-model="form.confirmPassword"
-            type="password"
-            placeholder="请再次输入密码"
-            prefix-icon="Lock"
-            show-password
-            clearable
-            @keyup.enter="handleRegister"
-          />
+          <el-input v-model="form.confirmPassword" type="password" placeholder="请再次输入密码" prefix-icon="Lock"
+            show-password clearable @keyup.enter="handleRegister" />
         </el-form-item>
 
         <!-- 注册按钮 -->
         <el-form-item>
-          <el-button
-            type="primary"
-            class="register-button"
-            :loading="authStore.loading"
-            @click="handleRegister"
-          >
+          <el-button type="primary" class="register-button" :loading="authStore.loading" @click="handleRegister">
             {{ authStore.loading ? '注册中...' : '注册' }}
           </el-button>
         </el-form-item>
 
         <!-- 错误提示 -->
-        <el-alert
-          v-if="authStore.error"
-          :title="authStore.error"
-          type="error"
-          :closable="true"
-          @close="authStore.clearError"
-          class="register-error"
-        />
+        <el-alert v-if="authStore.error" :title="authStore.error" type="error" :closable="true"
+          @close="authStore.clearError" class="register-error" />
       </el-form>
 
       <!-- 登录链接 -->
@@ -268,10 +223,10 @@ function goToLogin() {
 .register-box {
   width: 100%;
   max-width: 450px;
-  padding: 40px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  padding: var(--spacing-xl);
+  background: var(--bg-main);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-dark);
   animation: slideIn 0.3s ease-out;
 }
 
@@ -280,6 +235,7 @@ function goToLogin() {
     opacity: 0;
     transform: translateY(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -288,43 +244,43 @@ function goToLogin() {
 
 .register-header {
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: var(--spacing-lg);
 }
 
 .register-header h1 {
   margin: 0;
-  font-size: 28px;
+  font-size: var(--font-2xl);
   font-weight: 600;
-  color: #333;
+  color: var(--text-main);
 }
 
 .register-header p {
-  margin: 8px 0 0 0;
-  font-size: 14px;
-  color: #999;
+  margin: var(--spacing-sm) 0 0 0;
+  font-size: var(--font-sm);
+  color: var(--text-tertiary);
 }
 
 .register-form {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-base);
 }
 
 .register-form :deep(.el-form-item) {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-base);
 }
 
 /* 全局已使用浅色主题，无需额外覆盖 */
 
 .password-strength {
-  margin-top: 8px;
-  font-size: 12px;
+  margin-top: var(--spacing-sm);
+  font-size: var(--font-xs);
 }
 
 .strength-bar {
   height: 4px;
-  background-color: #e4e7eb;
-  border-radius: 2px;
+  background-color: var(--border-light);
+  border-radius: var(--radius-sm);
   overflow: hidden;
-  margin-bottom: 4px;
+  margin-bottom: var(--spacing-xs);
 }
 
 .strength-fill {
@@ -333,15 +289,15 @@ function goToLogin() {
 }
 
 .strength-fill.strength-weak {
-  background-color: #f56c6c;
+  background-color: var(--alert-danger);
 }
 
 .strength-fill.strength-medium {
-  background-color: #e6a23c;
+  background-color: var(--alert-warning);
 }
 
 .strength-fill.strength-strong {
-  background-color: #67c23a;
+  background-color: var(--alert-success);
 }
 
 .strength-text {
@@ -349,48 +305,47 @@ function goToLogin() {
 }
 
 .strength-text.strength-weak {
-  color: #f56c6c;
+  color: var(--alert-danger);
 }
 
 .strength-text.strength-medium {
-  color: #e6a23c;
+  color: var(--alert-warning);
 }
 
 .strength-text.strength-strong {
-  color: #67c23a;
+  color: var(--alert-success);
 }
 
 .register-button {
   width: 100%;
   height: 40px;
-  font-size: 16px;
+  font-size: var(--font-base);
   font-weight: 500;
 }
 
 .register-error {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-base);
 }
 
 .register-footer {
   text-align: center;
-  font-size: 14px;
-  color: #666;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
 }
 
 .register-footer :deep(.el-link) {
-  margin-left: 5px;
+  margin-left: var(--spacing-xs);
 }
 
 /* 响应式设计 */
 @media (max-width: 600px) {
   .register-box {
-    margin: 20px;
-    padding: 30px 20px;
+    margin: var(--spacing-base);
+    padding: var(--spacing-lg) var(--spacing-base);
   }
 
   .register-header h1 {
-    font-size: 24px;
+    font-size: var(--font-xl);
   }
 }
 </style>
-

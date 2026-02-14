@@ -19,13 +19,13 @@ header {
 
 nav {
   width: 100%;
-  font-size: 12px;
+  font-size: var(--font-xs);
   text-align: center;
   margin-top: 2rem;
 }
 
 nav a.router-link-exact-active {
-  color: var(--color-text);
+  color: var(--text-main);
 }
 
 nav a.router-link-exact-active:hover {
@@ -35,7 +35,7 @@ nav a.router-link-exact-active:hover {
 nav a {
   display: inline-block;
   padding: 0 1rem;
-  border-left: 1px solid var(--color-border);
+  border-left: 1px solid var(--border-base);
 }
 
 nav a:first-of-type {

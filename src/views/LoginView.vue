@@ -6,35 +6,17 @@
         <p>实时数据监控平台</p>
       </div>
 
-      <el-form
-        ref="formRef"
-        :model="form"
-        :rules="rules"
-        @submit.prevent="handleLogin"
-        class="login-form"
-      >
+      <el-form ref="formRef" :model="form" :rules="rules" @submit.prevent="handleLogin" class="login-form">
         <!-- 用户名输入框 -->
         <el-form-item prop="username">
-          <el-input
-            v-model="form.username"
-            placeholder="请输入用户名"
-            prefix-icon="User"
-            clearable
-            @keyup.enter="handleLogin"
-          />
+          <el-input v-model="form.username" placeholder="请输入用户名" prefix-icon="User" clearable
+            @keyup.enter="handleLogin" />
         </el-form-item>
 
         <!-- 密码输入框 -->
         <el-form-item prop="password">
-          <el-input
-            v-model="form.password"
-            type="password"
-            placeholder="请输入密码"
-            prefix-icon="Lock"
-            show-password
-            clearable
-            @keyup.enter="handleLogin"
-          />
+          <el-input v-model="form.password" type="password" placeholder="请输入密码" prefix-icon="Lock" show-password
+            clearable @keyup.enter="handleLogin" />
         </el-form-item>
 
         <!-- 记住我和忘记密码 -->
@@ -45,25 +27,14 @@
 
         <!-- 登录按钮 -->
         <el-form-item>
-          <el-button
-            type="primary"
-            class="login-button"
-            :loading="authStore.loading"
-            @click="handleLogin"
-          >
+          <el-button type="primary" class="login-button" :loading="authStore.loading" @click="handleLogin">
             {{ authStore.loading ? '登录中...' : '登录' }}
           </el-button>
         </el-form-item>
 
         <!-- 错误提示 -->
-        <el-alert
-          v-if="authStore.error"
-          :title="authStore.error"
-          type="error"
-          :closable="true"
-          @close="authStore.clearError"
-          class="login-error"
-        />
+        <el-alert v-if="authStore.error" :title="authStore.error" type="error" :closable="true"
+          @close="authStore.clearError" class="login-error" />
       </el-form>
 
       <!-- 注册链接 -->
@@ -159,10 +130,10 @@ onMounted(() => {
 .login-box {
   width: 100%;
   max-width: 400px;
-  padding: 40px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  padding: var(--spacing-xl);
+  background: var(--bg-main);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-dark);
   animation: slideIn 0.3s ease-out;
 }
 
@@ -171,6 +142,7 @@ onMounted(() => {
     opacity: 0;
     transform: translateY(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -179,28 +151,28 @@ onMounted(() => {
 
 .login-header {
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: var(--spacing-lg);
 }
 
 .login-header h1 {
   margin: 0;
-  font-size: 28px;
+  font-size: var(--font-2xl);
   font-weight: 600;
-  color: #333;
+  color: var(--text-main);
 }
 
 .login-header p {
-  margin: 8px 0 0 0;
-  font-size: 14px;
-  color: #999;
+  margin: var(--spacing-sm) 0 0 0;
+  font-size: var(--font-sm);
+  color: var(--text-tertiary);
 }
 
 .login-form {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-base);
 }
 
 .login-form :deep(.el-form-item) {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-base);
 }
 
 /* 全局已使用浅色主题，无需额外覆盖 */
@@ -209,41 +181,40 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  font-size: 14px;
+  margin-bottom: var(--spacing-base);
+  font-size: var(--font-sm);
 }
 
 .login-button {
   width: 100%;
   height: 40px;
-  font-size: 16px;
+  font-size: var(--font-base);
   font-weight: 500;
 }
 
 .login-error {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-base);
 }
 
 .login-footer {
   text-align: center;
-  font-size: 14px;
-  color: #666;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
 }
 
 .login-footer :deep(.el-link) {
-  margin-left: 5px;
+  margin-left: var(--spacing-xs);
 }
 
 /* 响应式设计 */
 @media (max-width: 600px) {
   .login-box {
-    margin: 20px;
-    padding: 30px 20px;
+    margin: var(--spacing-base);
+    padding: var(--spacing-lg) var(--spacing-base);
   }
 
   .login-header h1 {
-    font-size: 24px;
+    font-size: var(--font-xl);
   }
 }
 </style>
-

@@ -2,66 +2,62 @@
   <main-layout>
     <div>
       <div class="background user">
-      <h2 class="title">用户权限管理</h2>
-      <!-- 权限分配表格 -->
-       <el-table :data="permissionList" style="width: 100%">
-        <el-table-column prop="username" label="用户名" width="180" />
-        <el-table-column prop="role" label="角色" width="180" />
-        <el-table-column label="权限变更">
-          <template #default="scope">
-            <el-select
-              v-model="scope.row.role"
-              size="small"
-              style="width: 120px;"
-              @change="updateUserRole(scope.row)"
-              >
-              <el-option label="普通用户" value="1" />
-              <el-option label="管理员" value="0" />
+        <h2 class="title">用户权限管理</h2>
+        <!-- 权限分配表格 -->
+        <el-table :data="permissionList" style="width: 100%">
+          <el-table-column prop="username" label="用户名" width="180" />
+          <el-table-column prop="role" label="角色" width="180" />
+          <el-table-column label="权限变更">
+            <template #default="scope">
+              <el-select v-model="scope.row.role" size="small" style="width: 120px;"
+                @change="updateUserRole(scope.row)">
+                <el-option label="普通用户" value="1" />
+                <el-option label="管理员" value="0" />
               </el-select>
             </template>
-        </el-table-column>
-        <el-table-column prop="role" label="操作" width="180">
-          <template #default="scope">
-            <el-button size="small" type="danger" @click="deleteUser(scope.row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+          </el-table-column>
+          <el-table-column prop="role" label="操作" width="180">
+            <template #default="scope">
+              <el-button size="small" type="danger" @click="deleteUser(scope.row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
       </div>
       <div class="background permission">
-      <h2 class="title">权限范围配置</h2>
-      <!-- 权限范围配置列表 -->
-      <table class="permission-table">
-        <thead>
-          <tr>
-            <th>权限</th>
-            <th>普通用户</th>
-            <th>管理员</th>
-          </tr>
-        </thead>
-        <tbody>
-        <template v-for="category in permissionConfig" :key="category.category">
-        <!-- 分类标题行 -->
-        <tr class="category-title">
-          <td class="title" style="border: 0px;">{{ category.category }}</td>
-          <td></td>
-          <td></td>
-        </tr>
-        <!-- 该分类下的权限项 -->
-        <tr v-for="item in category.items" :key="item.key" class="category-item">
-        <td>
-          <p>{{ item.name }}</p>
-          <p>{{ item.desc }}</p>
-        </td>
-        <td></td>
-        <td>
-        <el-checkbox v-model="permissions.user[item.key]" />
-        <el-checkbox v-model="permissions.admin[item.key]" />
-        </td>
-        </tr>
-        </template>
-        </tbody>
+        <h2 class="title">权限范围配置</h2>
+        <!-- 权限范围配置列表 -->
+        <table class="permission-table">
+          <thead>
+            <tr>
+              <th>权限</th>
+              <th>普通用户</th>
+              <th>管理员</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template v-for="category in permissionConfig" :key="category.category">
+              <!-- 分类标题行 -->
+              <tr class="category-title">
+                <td class="title" style="border: 0px;">{{ category.category }}</td>
+                <td></td>
+                <td></td>
+              </tr>
+              <!-- 该分类下的权限项 -->
+              <tr v-for="item in category.items" :key="item.key" class="category-item">
+                <td>
+                  <p>{{ item.name }}</p>
+                  <p>{{ item.desc }}</p>
+                </td>
+                <td></td>
+                <td>
+                  <el-checkbox v-model="permissions.user[item.key]" />
+                  <el-checkbox v-model="permissions.admin[item.key]" />
+                </td>
+              </tr>
+            </template>
+          </tbody>
 
-      </table>
+        </table>
       </div>
     </div>
   </main-layout>
@@ -73,9 +69,9 @@ import { ref } from 'vue'
 // 代号说明：0-管理员，1-普通用户
 const permissionData = [
   {
-  id: 1,
-  username: 'admin',
-  role: 0,
+    id: 1,
+    username: 'admin',
+    role: 0,
   },
   {
     id: 2,
@@ -94,7 +90,7 @@ const roleMap = {
   1: '普通用户'
 }
 //映射处理
-const permissionList=permissionData.map(item=>{
+const permissionList = permissionData.map(item => {
   return {
     ...item,
     role: roleMap[item.role]
@@ -105,8 +101,8 @@ const updateUserRole = (row: any) => {
   console.log('修改权限', row)
 }
 //删除用户
-const deleteUser=(row:any)=>{
-  console.log('删除用户',row)
+const deleteUser = (row: any) => {
+  console.log('删除用户', row)
 }
 // 权限分布配置项
 const permissionConfig = [
@@ -186,33 +182,39 @@ const permissions = ref({
 <style scoped>
 /* 公共样式 */
 .title {
-  font-size: 16px;
+  font-size: var(--font-base);
   font-weight: bold;
-  padding-bottom: 10px;
-  margin-bottom: 10px;
-  border-bottom:1px #ccc solid ;
+  padding-bottom: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+  border-bottom: 1px var(--border-base) solid;
 }
-.background{
-  background-color: #fff;
-  border-radius: 5px;
-  padding: 10px;
-  margin: 10px;
+
+.background {
+  background-color: var(--bg-main);
+  border-radius: var(--radius-base);
+  padding: var(--spacing-sm);
+  margin: var(--spacing-sm);
 }
+
 /* 权限分配表格样式 */
 .permission-table {
   width: 100%;
 }
+
 .checkbox-cell {
   text-align: center;
 }
+
 .category-item p:first-child {
-  color: #7e7e7e;
+  color: var(--text-secondary);
 }
+
 .category-item p:last-child {
-  color: #c3c3c3;
+  color: var(--text-disabled);
 }
-.table-title{
+
+.table-title {
   font-weight: bold;
-  font-size: 14px;
+  font-size: var(--font-sm);
 }
 </style>

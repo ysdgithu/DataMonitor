@@ -25,7 +25,7 @@ import AppSidebar from './AppSidebar.vue'
 
 .main-content {
   padding: 0;
-  background-color: #F5F7FA;
+  background-color: var(--bg-secondary);
   overflow-y: auto;
 }
 
@@ -35,17 +35,16 @@ import AppSidebar from './AppSidebar.vue'
 }
 
 .main-content::-webkit-scrollbar-track {
-  background: #F0F2F5;
-  border-radius: 4px;
+  background: var(--bg-hover);
+  border-radius: var(--radius-sm);
 }
 
 .main-content::-webkit-scrollbar-thumb {
-  background: #C0C4CC;
-  border-radius: 4px;
+  background: var(--border-dark);
+  border-radius: var(--radius-sm);
 }
 
 .main-content::-webkit-scrollbar-thumb:hover {
-  background: #909399;
+  background: var(--text-tertiary);
 }
 </style>
-

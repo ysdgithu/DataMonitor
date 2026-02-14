@@ -31,15 +31,11 @@
             </el-col>
           </el-row>
         </el-card>
-        <el-card class="chart-card metrics-panel"
-        @click="openHistory('device_type')">
+        <el-card class="chart-card metrics-panel" @click="openHistory('device_type')">
           <template #header>
             <div class="panel-header">设备类型分布</div>
           </template>
-          <BaseChart
-            :options="deviceTypeDataChartOptions"
-            style="height: 220px;"
-          />
+          <BaseChart :options="deviceTypeDataChartOptions" style="height: 220px;" />
         </el-card>
       </el-col>
 
@@ -54,43 +50,27 @@
       </el-col>
 
       <!-- 右侧图表 -->
-      <el-col :span="6" >
+      <el-col :span="6">
         <el-card class="chart-card panel-header" style="margin-bottom: 10px;">
           <template #header>实时环境温度</template>
-           <BaseChart
-            :options="environmentDataChartOptions"
-            :highFrequency="true"
-            :dataOnly="true"
-            style="height: 220px;"
-          />
+          <BaseChart :options="environmentDataChartOptions" :highFrequency="true" :dataOnly="true"
+            style="height: 220px;" />
         </el-card>
         <el-card class="chart-card" @click="openHistory('request_count')">
           <template #header>
             <div class="panel-header">实时通信数据</div>
           </template>
-          <BaseChart
-            :options="requestCountChartOptions"
-            :highFrequency="true"
-            :dataOnly="true"
-            style="height: 220px;"
-          />
+          <BaseChart :options="requestCountChartOptions" :highFrequency="true" :dataOnly="true"
+            style="height: 220px;" />
         </el-card>
       </el-col>
     </el-row>
 
     <!-- 添加历史数据弹窗 -->
-    <HistoryDataDialog
-      v-model="showHistory"
-      :type="currentType"
-    />
+    <HistoryDataDialog v-model="showHistory" :type="currentType" />
 
     <!-- 历史数据查询面板弹窗 -->
-    <el-dialog
-      v-model="showHistoryPanel"
-      title="历史数据查询"
-      width="90%"
-      :before-close="handleCloseHistoryPanel"
-    >
+    <el-dialog v-model="showHistoryPanel" title="历史数据查询" width="90%" :before-close="handleCloseHistoryPanel">
       <HistoryDataPanel />
     </el-dialog>
   </el-main>
@@ -100,7 +80,7 @@
 import { ref, onMounted, computed, shallowRef } from 'vue'
 import BaseChart from '../charts/BaseChart.vue'
 import HistoryDataPanel from './HistoryDataPanel.vue'
-import { createLineChart, createBarChart, createPieChart} from '../../utils/chartOptions'
+import { createLineChart, createBarChart, createPieChart } from '../../utils/chartOptions'
 import { useCoreMetricStore } from '../../stores/CoreMetricData'
 import { useEnvironmentDataStore } from '../../stores/EnvironmentData'
 import { useDeviceTelemetryDataStore } from '../../stores/DeviceTelemetryData'
@@ -111,7 +91,7 @@ import FactoryMap from '../FactoryMap.vue'
 const realtimeStore = useRealtimeStore()  // 实时监控
 const coreMetricStore = useCoreMetricStore()   // 核心指标
 const environmentDataStore = useEnvironmentDataStore()  //环境数据
-const telemetryData=useDeviceTelemetryDataStore()  //通信数据
+const telemetryData = useDeviceTelemetryDataStore()  //通信数据
 const timeRange = ref('1h')
 const showHistoryPanel = ref(false)
 
@@ -175,7 +155,7 @@ const requestCountChartOptions = computed(() => {
     },
     maxPoints: 10
   }) as EChartsOption
-  ;(options as any).__fingerprint = requestDataFingerprint.value
+    ; (options as any).__fingerprint = requestDataFingerprint.value
   requestChartOptionsCache.value = options
   return options
 })
@@ -226,23 +206,23 @@ const handleCloseHistoryPanel = () => {
 
 <style scoped>
 .dashboard-main {
-  padding: 20px;
-  background-color: #F5F7FA;
+  padding: var(--spacing-base);
+  background-color: var(--bg-secondary);
   min-height: 100vh;
-  color: #303133;
+  color: var(--text-main);
 }
 
 /* 控制栏样式 */
 .control-bar {
-  background-color: #FFFFFF;
-  border: 1px solid rgba(74, 144, 226, 0.15);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  border-radius: 8px;
+  background-color: var(--bg-main);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-light);
+  border-radius: var(--radius-lg);
 }
 
 .control-bar :deep(.el-button--primary) {
-  background-color: #4A90E2;
-  border-color: #4A90E2;
+  background-color: var(--primary);
+  border-color: var(--primary);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
@@ -255,19 +235,17 @@ const handleCloseHistoryPanel = () => {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.2),
-    transparent
-  );
+  background: linear-gradient(90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent);
   transition: 0.5s;
 }
 
 .control-bar :deep(.el-button--primary.is-active) {
-  background-color: #1d4ed8;
-  border-color: #1d4ed8;
-  color: #ffffff;
+  background-color: var(--primary-active);
+  border-color: var(--primary-active);
+  color: var(--text-white);
   box-shadow: 0 0 10px rgba(29, 78, 216, 0.4);
 }
 
@@ -276,38 +254,38 @@ const handleCloseHistoryPanel = () => {
 }
 
 .control-bar :deep(.el-button--primary.is-plain) {
-  color: #4A90E2;
-  background: rgba(74, 144, 226, 0.1);
-  border-color: #4A90E2;
+  color: var(--primary);
+  background: var(--primary-light);
+  border-color: var(--primary);
 }
 
 /* 卡片通用样式 */
 :deep(.el-card) {
-  background-color: #FFFFFF;
-  border: 1px solid rgba(74, 144, 226, 0.15);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  border-radius: 12px;
+  background-color: var(--bg-main);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-light);
+  border-radius: var(--radius-lg);
 }
 
 :deep(.el-card__header) {
-  border-bottom: 1px solid rgba(74, 144, 226, 0.15);
-  padding: 12px 20px;
+  border-bottom: 1px solid var(--border-light);
+  padding: var(--spacing-sm) var(--spacing-base);
 }
 
 
 .metric-item:hover {
-  border-color: #4A90E2;
+  border-color: var(--primary);
   box-shadow: 0 0 12px rgba(74, 144, 226, 0.2);
 }
 
 .metric-header {
-  color: #909399;
-  font-size: 13px;
+  color: var(--text-tertiary);
+  font-size: var(--font-sm);
 }
 
 .metric-value {
-  color: #303133;
-  font-size: 22px;
+  color: var(--text-main);
+  font-size: var(--font-xl);
   font-weight: 600;
 }
 
@@ -321,28 +299,28 @@ const handleCloseHistoryPanel = () => {
 
 :deep(.el-tag--danger) {
   background-color: rgba(255, 86, 86, 0.1);
-  border-color: #FF5656;
-  color: #FF5656;
+  border-color: var(--alert-danger);
+  color: var(--alert-danger);
 }
 
 /* 加载状态样式 */
 .loading-placeholder {
-  color: #909399;
+  color: var(--text-tertiary);
 }
 
 /* 图表容器样式 */
 .chart-card {
-  background-color: #FFFFFF;
+  background-color: var(--bg-main);
 }
 
 .chart-card :deep(.el-card__body) {
-  padding: 12px;
+  padding: var(--spacing-sm);
 }
 
 /* 地图卡片特殊样式 */
 .map-card {
-  background: #FFFFFF;
-  border: 1px solid rgba(74, 144, 226, 0.15);
+  background: var(--bg-main);
+  border: 1px solid var(--border-light);
 }
 
 /* 滚动条美化 */
@@ -352,22 +330,22 @@ const handleCloseHistoryPanel = () => {
 }
 
 ::-webkit-scrollbar-track {
-  background: #F0F2F5;
+  background: var(--bg-hover);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #C0C4CC;
-  border-radius: 3px;
+  background: var(--border-dark);
+  border-radius: var(--radius-sm);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #909399;
+  background: var(--text-tertiary);
 }
 
 
 .metric-card {
   height: 150px;
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-base);
 }
 
 .metric-header {
@@ -380,7 +358,7 @@ const handleCloseHistoryPanel = () => {
   font-size: 80%;
   font-weight: bold;
   text-align: center;
-  margin-top: 10px;
+  margin-top: var(--spacing-sm);
   text-shadow: 0 0 10px rgba(74, 144, 226, 0.3);
 }
 
@@ -398,13 +376,13 @@ const handleCloseHistoryPanel = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f5f7fa;
-  border-radius: 4px;
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-sm);
 }
 
 .control-bar {
   height: 50px;
-  margin-bottom: 10px;
+  margin-bottom: var(--spacing-sm);
   display: flex;
   justify-content: flex-end;
   align-items: center;
@@ -412,45 +390,50 @@ const handleCloseHistoryPanel = () => {
 
 .time-range {
   width: 150px;
-  margin-right: 10px;
-  margin-left: 10px;
+  margin-right: var(--spacing-sm);
+  margin-left: var(--spacing-sm);
 }
 
 .metrics-panel {
-  height: 300px;  /* 减小面板高度 */
-  margin-bottom: 10px;
+  height: 300px;
+  /* 减小面板高度 */
+  margin-bottom: var(--spacing-sm);
   cursor: pointer;
   transition: all 0.3s;
 }
 
 .metrics-panel:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-dark);
 }
 
 .metrics-list {
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--spacing-base);
 }
 
 .metrics-grid {
-  padding: 0;  /* 减小内边距 */
+  padding: 0;
+  /* 减小内边距 */
 }
 
 .metric-item {
-  background-color: #FFFFFF;
-  color: #606266;
-  border: 1px solid rgba(74, 144, 226, 0.15);
-  border-radius: 4px;
-  padding: 6px;  /* 减小内边距 */
-  margin-bottom: 12px;  /* 减小底部间距 */
+  background-color: var(--bg-main);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs);
+  /* 减小内边距 */
+  margin-bottom: var(--spacing-sm);
+  /* 减小底部间距 */
   transition: all 0.3s;
-  height: 95px;  /* 限制每个卡片的高度 */
+  height: 95px;
+  /* 限制每个卡片的高度 */
   position: relative;
   overflow: hidden;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-light);
 }
 
 /* .metric-item::after {
@@ -476,34 +459,41 @@ const handleCloseHistoryPanel = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 13px;  /* 稍微减小字体 */
-  margin-bottom: 6px;  /* 减小间距 */
+  font-size: var(--font-sm);
+  /* 稍微减小字体 */
+  margin-bottom: var(--spacing-xs);
+  /* 减小间距 */
 }
 
 .metric-value {
-  font-size: 20px;  /* 减小数值字体大小 */
+  font-size: var(--font-lg);
+  /* 减小数值字体大小 */
   font-weight: bold;
   text-align: center;
-  margin-top: 6px;  /* 减小上边距 */
+  margin-top: var(--spacing-xs);
+  /* 减小上边距 */
 }
 
 /* 状态颜色 */
 .metric-value.normal {
-  color: #67C23A;  /* 绿色 */
+  color: var(--alert-success);
+  /* 绿色 */
 }
 
 .metric-value.warning {
-  color: #E6A23C;  /* 黄色 */
+  color: var(--alert-warning);
+  /* 黄色 */
 }
 
 .metric-value.error {
-  color: #F56C6C;  /* 红色 */
+  color: var(--alert-danger);
+  /* 红色 */
 }
 
 .panel-header {
-  font-size: 16px;
+  font-size: var(--font-base);
   font-weight: bold;
-  color: #303133;
+  color: var(--text-main);
   letter-spacing: 1px;
   text-transform: uppercase;
   opacity: 0.9;

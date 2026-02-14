@@ -35,85 +35,35 @@
     </div>
 
     <div class="map-content" ref="mapContainer">
-      <svg
-        ref="svgElement"
-        :width="svgWidth"
-        :height="svgHeight"
-        :viewBox="`0 0 ${baseWidth} ${baseHeight}`"
-        class="factory-svg"
-        @mousedown="startPan"
-        @mousemove="onPan"
-        @mouseup="endPan"
-        @mouseleave="endPan"
-        @wheel="onWheel"
-      >
+      <svg ref="svgElement" :width="svgWidth" :height="svgHeight" :viewBox="`0 0 ${baseWidth} ${baseHeight}`"
+        class="factory-svg" @mousedown="startPan" @mousemove="onPan" @mouseup="endPan" @mouseleave="endPan"
+        @wheel="onWheel">
         <!-- 工厂区域 -->
         <g class="zones">
-          <path
-            v-for="zone in zones"
-            :key="zone.id"
-            :d="zone.path"
-            :fill="zone.color"
-            :stroke="darkenColor(zone.color)"
-            stroke-width="2"
-            fill-opacity="0.3"
-            class="zone-area"
-          />
-          
+          <path v-for="zone in zones" :key="zone.id" :d="zone.path" :fill="zone.color" :stroke="darkenColor(zone.color)"
+            stroke-width="2" fill-opacity="0.3" class="zone-area" />
+
           <!-- 区域标签 -->
-          <text
-            v-for="zone in zones"
-            :key="`label-${zone.id}`"
-            :x="getZoneLabelPosition(zone).x"
-            :y="getZoneLabelPosition(zone).y"
-            text-anchor="middle"
-            class="zone-label"
-            fill="#fff"
-            font-size="16"
-            font-weight="bold"
-          >
+          <text v-for="zone in zones" :key="`label-${zone.id}`" :x="getZoneLabelPosition(zone).x"
+            :y="getZoneLabelPosition(zone).y" text-anchor="middle" class="zone-label" fill="#fff" font-size="16"
+            font-weight="bold">
             {{ zone.name }}
           </text>
         </g>
-        
+
         <!-- 设备点位 -->
         <g class="devices">
-          <g
-            v-for="device in devices"
-            :key="device.id"
-            class="device-group"
-            @click="showDeviceInfo(device)"
-          >
+          <g v-for="device in devices" :key="device.id" class="device-group" @click="showDeviceInfo(device)">
             <!-- 设备图标 -->
-            <circle
-              :cx="device.x"
-              :cy="device.y"
-              :r="8"
-              :fill="getDeviceColor(device.status)"
-              :stroke="getDeviceStrokeColor(device.status)"
-              stroke-width="2"
-              class="device-icon"
-            />
-            
+            <circle :cx="device.x" :cy="device.y" :r="8" :fill="getDeviceColor(device.status)"
+              :stroke="getDeviceStrokeColor(device.status)" stroke-width="2" class="device-icon" />
+
             <!-- 设备状态指示器 -->
-            <circle
-              v-if="device.status === 'warning'"
-              :cx="device.x + 6"
-              :cy="device.y - 6"
-              r="3"
-              fill="#ff9800"
-              class="status-indicator"
-            />
-            
+            <circle v-if="device.status === 'warning'" :cx="device.x + 6" :cy="device.y - 6" r="3" fill="#ff9800"
+              class="status-indicator" />
+
             <!-- 设备标签 -->
-            <text
-              :x="device.x"
-              :y="device.y + 20"
-              text-anchor="middle"
-              class="device-label"
-              fill="#fff"
-              font-size="10"
-            >
+            <text :x="device.x" :y="device.y + 20" text-anchor="middle" class="device-label" fill="#fff" font-size="10">
               {{ device.position }}
             </text>
           </g>
@@ -121,52 +71,46 @@
       </svg>
     </div>
 
-    </div>
-    
-    
-    <!-- 设备信息弹窗 -->
-    <el-dialog
-      v-model="showDeviceDialog"
-      :title="selectedDevice?.name || '设备信息'"
-      width="400px"
-      :before-close="closeDeviceDialog"
-    >
-      <div v-if="selectedDevice" class="device-info">
-        <el-descriptions :column="1" border>
-          <el-descriptions-item label="设备名称">
-            {{ selectedDevice.name }}
-          </el-descriptions-item>
-          <el-descriptions-item label="设备类型">
-            {{ selectedDevice.type }}
-          </el-descriptions-item>
-          <el-descriptions-item label="位置编码">
-            {{ selectedDevice.position }}
-          </el-descriptions-item>
-          <el-descriptions-item label="所属区域">
-            {{ getZoneName(selectedDevice.zone) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="设备状态">
-            <el-tag :type="getStatusTagType(selectedDevice.status)">
-              {{ getStatusText(selectedDevice.status) }}
-            </el-tag>
-          </el-descriptions-item>
-        </el-descriptions>
-        
-        <!-- 设备参数 -->
-        <div v-if="selectedDevice.parameters" class="device-parameters">
-          <h4>设备参数</h4>
-          <el-row :gutter="16">
-            <el-col :span="12" v-for="(value, key) in selectedDevice.parameters" :key="key">
-              <div class="parameter-item">
-                <span class="parameter-label">{{ getParameterLabel(key) }}:</span>
-                <span class="parameter-value">{{ formatParameterValue(key, value) }}</span>
-              </div>
-            </el-col>
-          </el-row>
-        </div>
+  </div>
+
+
+  <!-- 设备信息弹窗 -->
+  <el-dialog v-model="showDeviceDialog" :title="selectedDevice?.name || '设备信息'" width="400px"
+    :before-close="closeDeviceDialog">
+    <div v-if="selectedDevice" class="device-info">
+      <el-descriptions :column="1" border>
+        <el-descriptions-item label="设备名称">
+          {{ selectedDevice.name }}
+        </el-descriptions-item>
+        <el-descriptions-item label="设备类型">
+          {{ selectedDevice.type }}
+        </el-descriptions-item>
+        <el-descriptions-item label="位置编码">
+          {{ selectedDevice.position }}
+        </el-descriptions-item>
+        <el-descriptions-item label="所属区域">
+          {{ getZoneName(selectedDevice.zone) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="设备状态">
+          <StatusTag category="device" :value="selectedDevice.status" />
+        </el-descriptions-item>
+      </el-descriptions>
+
+      <!-- 设备参数 -->
+      <div v-if="selectedDevice.parameters" class="device-parameters">
+        <h4>设备参数</h4>
+        <el-row :gutter="16">
+          <el-col :span="12" v-for="(value, key) in selectedDevice.parameters" :key="key">
+            <div class="parameter-item">
+              <span class="parameter-label">{{ getParameterLabel(key) }}:</span>
+              <span class="parameter-value">{{ formatParameterValue(key, value) }}</span>
+            </div>
+          </el-col>
+        </el-row>
       </div>
-    </el-dialog>
-    
+    </div>
+  </el-dialog>
+
 </template>
 
 <script setup lang="ts">
@@ -322,25 +266,7 @@ const getZoneName = (zoneId: string) => {
   return zone?.name || '未知区域'
 }
 
-const getStatusText = (status: string) => {
-  const statusMap = {
-    online: '在线',
-    offline: '离线',
-    warning: '警告',
-    error: '错误'
-  }
-  return statusMap[status as keyof typeof statusMap] || '未知'
-}
 
-const getStatusTagType = (status: string) => {
-  const typeMap = {
-    online: 'success',
-    offline: 'danger',
-    warning: 'warning',
-    error: 'info'
-  }
-  return typeMap[status as keyof typeof typeMap] || 'info'
-}
 
 /**
  * 获取参数的中文标签
@@ -399,7 +325,7 @@ const closeDeviceDialog = () => {
 const zoomIn = () => {
   scale.value = Math.min(scale.value * 1.2, 3)
   updateSvgSize()
-  updateViewBox() 
+  updateViewBox()
 }
 
 /**
@@ -408,7 +334,7 @@ const zoomIn = () => {
 const zoomOut = () => {
   scale.value = Math.max(scale.value / 1.2, 0.5)
   updateSvgSize()
-  updateViewBox() 
+  updateViewBox()
 }
 
 /**
@@ -419,7 +345,7 @@ const resetView = () => {
   panX.value = 0
   panY.value = 0
   updateSvgSize()
-  updateViewBox() 
+  updateViewBox()
 }
 
 const updateSvgSize = () => {
@@ -506,7 +432,7 @@ onMounted(() => {
   height: 500px;
   display: flex;
   flex-direction: column;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
@@ -514,7 +440,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px;
+  padding: var(--spacing-base);
 }
 
 .map-content {
@@ -556,7 +482,7 @@ onMounted(() => {
 }
 
 .device-icon {
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
 }
 
 .device-label {
@@ -569,35 +495,43 @@ onMounted(() => {
 }
 
 @keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.5; }
-  100% { opacity: 1; }
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+
+  100% {
+    opacity: 1;
+  }
 }
 
 .map-legend {
-  padding: 12px;
-  border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-base);
+  box-shadow: var(--shadow-light);
   min-width: 120px;
 }
 
 .map-legend h4 {
-  margin: 0 0 8px 0;
-  font-size: 12px;
-  color: #fff;
+  margin: 0 0 var(--spacing-sm) 0;
+  font-size: var(--font-xs);
+  color: var(--text-white);
 }
 
 .legend-items {
   display: flex;
   flex-direction: row;
-  gap: 6px;
+  gap: var(--spacing-xs);
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
+  gap: var(--spacing-sm);
+  font-size: var(--font-xs);
 }
 
 .legend-color {
@@ -607,31 +541,31 @@ onMounted(() => {
 }
 
 .device-info {
-  padding: 16px 0;
+  padding: var(--spacing-base) 0;
 }
 
 .device-parameters {
-  margin-top: 16px;
+  margin-top: var(--spacing-base);
 }
 
 .device-parameters h4 {
-  margin: 0 0 12px 0;
-  color: #fff;
+  margin: 0 0 var(--spacing-sm) 0;
+  color: var(--text-white);
 }
 
 .parameter-item {
   display: flex;
   justify-content: space-between;
-  padding: 4px 0;
-  font-size: 14px;
+  padding: var(--spacing-xs) 0;
+  font-size: var(--font-sm);
 }
 
 .parameter-label {
-  color: #fff;
+  color: var(--text-white);
 }
 
 .parameter-value {
   font-weight: 500;
-  color: #fff;
+  color: var(--text-white);
 }
 </style>

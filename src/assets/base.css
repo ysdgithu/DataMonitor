@@ -51,6 +51,26 @@
   --alert-info: #1677ff;
   /* 信息提示-主色蓝 */
 
+  /* 阴影-亮色柔和阴影，提升层次不突兀 */
+  --shadow-light: 0 2px 12px 0 rgba(0, 0, 0, 0.04);
+  /* 轻阴影-卡片/模块 */
+  --shadow-base: 0 2px 12px 0 rgba(0, 0, 0, 0.08);
+  /* 基础阴影-弹窗/浮层 */
+  --shadow-dark: 0 4px 16px 0 rgba(0, 0, 0, 0.12);
+  /* 深阴影-重点模块 */
+
+  /* 圆角-统一风格 */
+  --radius-sm: 4px;
+  --radius-base: 6px;
+  --radius-lg: 8px;
+
+  /* 间距-通用间距体系 */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-base: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
   /* 字体大小-适配大屏/普通页面 */
   --font-xs: 12px;
   --font-sm: 14px;
@@ -58,7 +78,8 @@
   --font-lg: 18px;
   --font-xl: 20px;
   --font-2xl: 24px;
-  --font-screen: 32px;/* 大屏数字专用字号 */
+  --font-screen: 32px;
+  /* 大屏数字专用字号 */
 }
 
 /* 1. 样式重置 - 解决浏览器默认差异 */
@@ -127,6 +148,7 @@ button {
   height: 0;
   visibility: hidden;
 }
+
 /* 3. 通用组件样式 - 贴合工业平台亮色风格 */
 /* 卡片-适配数据展示/设备信息/报表模块 */
 .card {
@@ -439,6 +461,7 @@ button {
   min-height: 200px;
   padding: var(--spacing-sm);
 }
+
 /* 8. 滚动条样式 - 亮色主题美化，统一各浏览器 */
 ::-webkit-scrollbar {
   width: 6px;

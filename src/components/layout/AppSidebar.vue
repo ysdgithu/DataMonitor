@@ -1,37 +1,26 @@
 <template>
   <el-aside width="220px" class="app-sidebar" style="height: 100vh;">
     <!-- 导航菜单 -->
-    <el-menu
-      :default-active="activeMenu"
-      class="sidebar-menu"
-      @select="handleMenuSelect"
-    >
-    <el-menu-item
-      v-for="item in menuItems.filter(i => !i.children)"
-      :key="item.index"
-      :index="item.route"
-    >
-    <el-icon><component :is="item.icon" /></el-icon>
-    <span>{{ item.label }}</span>
-    </el-menu-item>
-    <!-- 有子菜单的项 -->
-<el-sub-menu
-  v-for="item in menuItems.filter(i => i.children)"
-  :key="item.index"
-  :index="item.route || String(item.index)"
->
-  <template #title>
-    <el-icon><component :is="item.icon" /></el-icon>
-    <span>{{ item.label }}</span>
-  </template>
-  <el-menu-item class="child-menu"
-    v-for="child in item.children"
-    :key="child.route"
-    :index="child.route"
-  >
-    {{ child.label }}
-  </el-menu-item>
-</el-sub-menu>
+    <el-menu :default-active="activeMenu" class="sidebar-menu" @select="handleMenuSelect">
+      <el-menu-item v-for="item in menuItems.filter(i => !i.children)" :key="item.index" :index="item.route">
+        <el-icon>
+          <component :is="item.icon" />
+        </el-icon>
+        <span>{{ item.label }}</span>
+      </el-menu-item>
+      <!-- 有子菜单的项 -->
+      <el-sub-menu v-for="item in menuItems.filter(i => i.children)" :key="item.index"
+        :index="item.route || String(item.index)">
+        <template #title>
+          <el-icon>
+            <component :is="item.icon" />
+          </el-icon>
+          <span>{{ item.label }}</span>
+        </template>
+        <el-menu-item class="child-menu" v-for="child in item.children" :key="child.route" :index="child.route">
+          {{ child.label }}
+        </el-menu-item>
+      </el-sub-menu>
     </el-menu>
 
 
@@ -40,7 +29,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRouter} from 'vue-router'
+import { useRouter } from 'vue-router'
 import { Odometer, DataAnalysis, Document, ChatLineRound, User } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -94,8 +83,8 @@ const activeMenu = computed(() => router.currentRoute.value.path)
 
 <style scoped>
 .app-sidebar {
-  padding: 16px;
-  border-right: 1px solid #ccc;
+  padding: var(--spacing-base);
+  border-right: 1px solid var(--border-base);
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -107,25 +96,25 @@ const activeMenu = computed(() => router.currentRoute.value.path)
 .sidebar-menu {
   background-color: transparent;
   border: none;
-  margin-bottom: 8px;
+  margin-bottom: var(--spacing-sm);
 }
 
-.sidebar-menu :deep(.el-menu-item .el-sub-menu ) {
-  color: #606266;
+.sidebar-menu :deep(.el-menu-item .el-sub-menu) {
+  color: var(--text-secondary);
   background-color: transparent;
-  border-radius: 6px;
-  margin-bottom: 4px;
+  border-radius: var(--radius-base);
+  margin-bottom: var(--spacing-xs);
   transition: all 0.3s;
 }
 
 .sidebar-menu :deep(.el-menu-item:hover .el-sub-menu) {
-  background-color: rgba(74, 144, 226, 0.1);
-  color: #4A90E2;
+  background-color: var(--primary-light);
+  color: var(--primary);
 }
 
 .sidebar-menu :deep(.el-menu-item.is-active .el-sub-menu.is-active) {
-  background-color: rgba(74, 144, 226, 0.15);
-  color: #4A90E2;
+  background-color: var(--primary-light);
+  color: var(--primary);
   font-weight: 600;
 }
 
@@ -137,8 +126,8 @@ const activeMenu = computed(() => router.currentRoute.value.path)
 
 /* 分隔线 */
 .menu-divider {
-  margin: 12px 0;
-  border-color: #EBEEF5;
+  margin: var(--spacing-sm) 0;
+  border-color: var(--border-light);
 }
 
 /* 设备筛选区域 */
@@ -150,20 +139,18 @@ const activeMenu = computed(() => router.currentRoute.value.path)
 }
 
 .search-input {
-  margin-bottom: 16px;
+  margin-bottom: var(--spacing-base);
 }
 
 /* 历史数据按钮 */
 .history-btn {
   width: 100%;
-  background-color: #4A90E2;
-  color: #FFFFFF;
+  background-color: var(--primary);
+  color: var(--text-white);
   border: none;
 }
 
 .history-btn:hover {
-  background-color: #357ABD;
+  background-color: var(--primary-hover);
 }
-
-
 </style>

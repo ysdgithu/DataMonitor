@@ -7,19 +7,22 @@
 
 import CommonLoading from './Loading/index.vue'
 import CommonEmpty from './Empty/index.vue'
-import SearchInput from './searchInput.vue';
+import SearchInput from './searchInput.vue'
+import StatusTag from './statusTag.vue'
 
 // 导出所有组件
 export {
   CommonLoading,
   CommonEmpty,
-  SearchInput
+  SearchInput,
+  StatusTag
 }
 
 // 默认导出（用于全局注册）
 export default {
   CommonLoading,
   CommonEmpty,
-  SearchInput
+  SearchInput,
+  StatusTag
 }
 

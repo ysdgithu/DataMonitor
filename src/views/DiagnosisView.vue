@@ -5,7 +5,9 @@
       <div class="page-header">
         <h2 class="page-title">诊断任务管理</h2>
         <el-button type="primary" class="create-btn" @click="add()">
-          <el-icon><Plus /></el-icon>
+          <el-icon>
+            <Plus />
+          </el-icon>
           新建任务
         </el-button>
       </div>
@@ -16,7 +18,9 @@
           <el-card class="stat-card">
             <div class="stat-content">
               <div class="stat-icon total">
-                <el-icon><Document /></el-icon>
+                <el-icon>
+                  <Document />
+                </el-icon>
               </div>
               <div class="stat-info">
                 <div class="stat-label">总任务数</div>
@@ -29,7 +33,9 @@
           <el-card class="stat-card">
             <div class="stat-content">
               <div class="stat-icon running">
-                <el-icon><Loading /></el-icon>
+                <el-icon>
+                  <Loading />
+                </el-icon>
               </div>
               <div class="stat-info">
                 <div class="stat-label">进行中</div>
@@ -42,7 +48,9 @@
           <el-card class="stat-card">
             <div class="stat-content">
               <div class="stat-icon completed">
-                <el-icon><CircleCheck /></el-icon>
+                <el-icon>
+                  <CircleCheck />
+                </el-icon>
               </div>
               <div class="stat-info">
                 <div class="stat-label">已完成</div>
@@ -55,7 +63,9 @@
           <el-card class="stat-card">
             <div class="stat-content">
               <div class="stat-icon failed">
-                <el-icon><CircleClose /></el-icon>
+                <el-icon>
+                  <CircleClose />
+                </el-icon>
               </div>
               <div class="stat-info">
                 <div class="stat-label">失败</div>
@@ -70,12 +80,7 @@
       <el-card class="filter-card">
         <el-row :gutter="16" align="middle">
           <el-col :span="6">
-            <el-input
-              v-model="searchKeyword"
-              placeholder="搜索任务名称"
-              prefix-icon="Search"
-              clearable
-            />
+            <el-input v-model="searchKeyword" placeholder="搜索任务名称" prefix-icon="Search" clearable />
           </el-col>
           <el-col :span="4">
             <el-select v-model="filterStatus" placeholder="任务状态" clearable @change="getData()">
@@ -95,14 +100,8 @@
             </el-select>
           </el-col>
           <el-col :span="6">
-            <el-date-picker
-              v-model="dateRange"
-              type="daterange"
-              range-separator="至"
-              start-placeholder="开始日期"
-              end-placeholder="结束日期"
-              size="default"
-            />
+            <el-date-picker v-model="dateRange" type="daterange" range-separator="至" start-placeholder="开始日期"
+              end-placeholder="结束日期" size="default" />
           </el-col>
           <el-col :span="4">
             <el-button type="primary" @click="getData()">查询</el-button>
@@ -117,40 +116,34 @@
           <div class="card-header">
             <span>任务列表</span>
             <el-button text type="primary" @click="getData()">
-              <el-icon><Refresh /></el-icon>
+              <el-icon>
+                <Refresh />
+              </el-icon>
               刷新
             </el-button>
           </div>
         </template>
 
-        <el-table
-          :data="taskList"
-          style="width: 100%"
-          class="task-table"
-        >
+        <el-table :data="taskList" style="width: 100%" class="task-table">
           <el-table-column prop="id" label="任务ID" width="100" />
           <el-table-column prop="name" label="任务名称" min-width="180" />
           <el-table-column prop="device_id" label="设备ID" width="120" />
           <el-table-column label="任务状态" width="120">
             <template #default="{ row }">
-              <el-tag :type="getStatusType(row.status)" size="small">
-                {{ getStatusText(row.status) }}
-              </el-tag>
+              <StatusTag category="status" :value="row.status" size="small" />
             </template>
           </el-table-column>
           <el-table-column label="优先级" width="100">
             <template #default="{ row }">
-              <el-tag :type="getPriorityType(row.priority)" size="small">
-                {{ getPriorityText(row.priority) }}
-              </el-tag>
+              <StatusTag category="priority" :value="row.priority" size="small" />
             </template>
           </el-table-column>
-          <el-table-column label="创建时间" width="160" >
+          <el-table-column label="创建时间" width="160">
             <template #default="{ row }">
               {{ formatTimestamp(row.create_time) }}
             </template>
           </el-table-column>
-          <el-table-column  label="更新时间" width="160">
+          <el-table-column label="更新时间" width="160">
             <template #default="{ row }">
               {{ formatTimestamp(row.update_time) }}
             </template>
@@ -167,36 +160,28 @@
 
         <!-- 分页 -->
         <div class="pagination-container">
-          <el-pagination
-            v-model:current-page="currentPage"
-            v-model:page-size="pageSize"
-            :page-sizes="[10, 20, 50, 100]"
-            :total="total"
-            layout="total, sizes, prev, pager, next, jumper"
-            background
-          />
+          <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]"
+            :total="total" layout="total, sizes, prev, pager, next, jumper" background />
         </div>
       </el-card>
     </div>
     <!-- 历史数据查询面板弹窗 -->
-        <el-drawer 
-        v-model="showPanel" :modal="false" modal-penetrable :with-header="false"
-        :resizable="true" size="50%">
-          <!-- <span>任务详情</span> -->
-          <TaskDetailsComponent :taskId="currentTaskId" :before-close="close"/>
-          <template #footer>
-            <div class="drawer-footer">
-              <el-button @click="showPanel = false">取消</el-button>
-              <el-button type="primary" @click="showPanel = false">
-                确认
-              </el-button> 
-            </div>
-          </template>
-        </el-drawer>
+    <el-drawer v-model="showPanel" :modal="false" modal-penetrable :with-header="false" :resizable="true" size="50%">
+      <!-- <span>任务详情</span> -->
+      <TaskDetailsComponent :taskId="currentTaskId" :before-close="close" />
+      <template #footer>
+        <div class="drawer-footer">
+          <el-button @click="showPanel = false">取消</el-button>
+          <el-button type="primary" @click="showPanel = false">
+            确认
+          </el-button>
+        </div>
+      </template>
+    </el-drawer>
     <!-- 新增弹窗 -->
-     <el-dialog v-model="addShow">
+    <el-dialog v-model="addShow">
       <AddTask @close="addShow = false"></AddTask>
-     </el-dialog>
+    </el-dialog>
   </main-layout>
 </template>
 
@@ -218,7 +203,7 @@ import {
 
 // 弹窗
 const showPanel = ref(false)
-const addShow=ref(false)
+const addShow = ref(false)
 const currentTaskId = ref<number>(0)
 
 const detailClick = (id: number) => {
@@ -239,23 +224,102 @@ const dateRange = ref<[Date, Date]>()
 // 分页
 const currentPage = ref(1)
 const pageSize = ref(20)
-const total = ref(128)
+//const total = ref(128)
 
 // 查询参数
 const queryParams = ref<QueryParams>({})
-const taskList = ref<DiagnosisTask[]>([])
+
+// 测试数据
+const testTaskData: DiagnosisTask[] = [
+  {
+    id: 1,
+    name: '设备A异常诊断',
+    device_id: 'DEV-001',
+    status: '0',
+    priority: '2',
+    create_time: 1707900000000,
+    update_time: 1707906000000
+  },
+  {
+    id: 2,
+    name: '生产线性能分析',
+    device_id: 'DEV-002',
+    status: '1',
+    priority: '1',
+    create_time: 1707813600000,
+    update_time: 1707897600000
+  },
+  {
+    id: 3,
+    name: '传感器数据校准',
+    device_id: 'DEV-003',
+    status: '4',
+    priority: '0',
+    create_time: 1707727200000,
+    update_time: 1707727200000
+  },
+  {
+    id: 4,
+    name: '系统健康度评估',
+    device_id: 'DEV-001',
+    status: '2',
+    priority: '2',
+    create_time: 1707640800000,
+    update_time: 1707903600000
+  },
+  {
+    id: 5,
+    name: '预测性维护分析',
+    device_id: 'DEV-004',
+    status: '0',
+    priority: '1',
+    create_time: 1707554400000,
+    update_time: 1707904200000
+  },
+  {
+    id: 6,
+    name: '工业设备监测',
+    device_id: 'DEV-005',
+    status: '1',
+    priority: '0',
+    create_time: 1707468000000,
+    update_time: 1707901800000
+  },
+  {
+    id: 7,
+    name: '故障根因分析',
+    device_id: 'DEV-002',
+    status: '0',
+    priority: '2',
+    create_time: 1707381600000,
+    update_time: 1707906600000
+  },
+  {
+    id: 8,
+    name: '能源消耗优化',
+    device_id: 'DEV-006',
+    status: '4',
+    priority: '1',
+    create_time: 1707295200000,
+    update_time: 1707295200000
+  }
+]
+
+// const taskList = ref<DiagnosisTask[]>(testTaskData)
+const taskList = testTaskData
+const total = ref(testTaskData.length)
 const api = new DiagnosticApi()
 const getData = async () => {
   try {
     queryParams.value = {
       page: currentPage.value,
       pageSize: pageSize.value,
-      status:filterStatus.value==-1?undefined:filterStatus.value,
-      priority:filterPriority.value==-1?undefined:filterPriority.value,
-      name:searchKeyword.value,
-      startTime:dateRange.value?dateRange.value[0].getTime():undefined,
-      endTime:dateRange.value?dateRange.value[1].getTime():undefined
-      
+      status: filterStatus.value == -1 ? undefined : filterStatus.value,
+      priority: filterPriority.value == -1 ? undefined : filterPriority.value,
+      name: searchKeyword.value,
+      startTime: dateRange.value ? dateRange.value[0].getTime() : undefined,
+      endTime: dateRange.value ? dateRange.value[1].getTime() : undefined
+
     }
     console.log('[DiagnosisView] 请求参数:', queryParams.value)
     const res = await api.getDiagnosisList(queryParams.value)
@@ -269,23 +333,23 @@ const getData = async () => {
 }
 
 // 新增
-const add=()=>{
+const add = () => {
   // 新增表单弹出
-  addShow.value=true
+  addShow.value = true
   getData()
 }
 // 新增表单的关闭
-const close=()=>{
-  addShow.value=true
+const close = () => {
+  addShow.value = true
 }
 
 // 删除
 const deleteTask = async (id: number) => {
   const res = await api.deleteDiagnosisTask(id)
-  if(res.success){
+  if (res.success) {
     ElMessage.success('删除成功')
     getData()
-  }else{
+  } else {
     ElMessage.error('删除失败')
   }
 }
@@ -296,45 +360,6 @@ const deleteTask = async (id: number) => {
 const formatTimestamp = (timestamp: number) => {
   return new Date(timestamp).toLocaleString()
 }
-// 状态映射
-const getStatusType = (status: string) => {
-  const map: Record<string, any> = {
-    4:'pending',
-    0:'running',
-    1:'completed',
-    2:'failed'
-  }
-  return map[status] || 'info'
-}
-
-const getStatusText = (status: string) => {
-  const map: Record<string, string> = {
-    4: '待执行',
-    0: '进行中',
-    1: '已完成',
-    2: '失败'
-  }
-  return map[status] || status
-}
-
-// 优先级映射
-const getPriorityType = (priority: string) => {
-  const map: Record<string, any> = {
-    2: 'danger',
-    1: 'warning',
-    0: 'info'
-  }
-  return map[priority] || 'info'
-}
-
-const getPriorityText = (priority: string) => {
-  const map: Record<string, string> = {
-    2: '高',
-    1: '中',
-    0: '低'
-  }
-  return map[priority] || priority
-}
 
 // 初始化加载数据
 onMounted(() => {
@@ -344,8 +369,8 @@ onMounted(() => {
 
 <style scoped>
 .diagnosis-main {
-  padding: 20px;
-  background-color: #F5F7FA;
+  padding: var(--spacing-base);
+  background-color: var(--bg-secondary);
   min-height: 100%;
 }
 
@@ -354,83 +379,83 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-base);
 }
 
 .page-title {
-  color: #303133;
-  font-size: 24px;
+  color: var(--text-main);
+  font-size: var(--font-xl);
   font-weight: 600;
   margin: 0;
 }
 
 .create-btn {
-  background-color: #4A90E2;
-  border-color: #4A90E2;
+  background-color: var(--primary);
+  border-color: var(--primary);
 }
 
 .create-btn:hover {
-  background-color: #357ABD;
-  border-color: #357ABD;
+  background-color: var(--primary-hover);
+  border-color: var(--primary-hover);
 }
 
 /* 统计卡片 */
 .statistics-row {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-base);
 }
 
 .stat-card {
-  background-color: #FFFFFF;
-  border: 1px solid rgba(74, 144, 226, 0.15);
-  border-radius: 8px;
+  background-color: var(--bg-main);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
   transition: all 0.3s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-light);
 }
 
 .stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border-color: rgba(74, 144, 226, 0.3);
+  box-shadow: var(--shadow-base);
+  border-color: var(--border-light);
 }
 
 .stat-card :deep(.el-card__body) {
-  padding: 20px;
+  padding: var(--spacing-base);
 }
 
 .stat-content {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--spacing-base);
 }
 
 .stat-icon {
   width: 50px;
   height: 50px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: var(--font-xl);
 }
 
 .stat-icon.total {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
+  color: var(--text-white);
 }
 
 .stat-icon.running {
   background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: #fff;
+  color: var(--text-white);
 }
 
 .stat-icon.completed {
   background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  color: #fff;
+  color: var(--text-white);
 }
 
 .stat-icon.failed {
   background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-  color: #fff;
+  color: var(--text-white);
 }
 
 .stat-info {
@@ -438,28 +463,28 @@ onMounted(() => {
 }
 
 .stat-label {
-  color: #909399;
-  font-size: 14px;
-  margin-bottom: 4px;
+  color: var(--text-tertiary);
+  font-size: var(--font-sm);
+  margin-bottom: var(--spacing-xs);
 }
 
 .stat-value {
-  color: #303133;
-  font-size: 28px;
+  color: var(--text-main);
+  font-size: var(--font-2xl);
   font-weight: 700;
 }
 
 /* 筛选卡片 */
 .filter-card {
-  background-color: #FFFFFF;
-  border: 1px solid rgba(74, 144, 226, 0.15);
-  border-radius: 8px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  background-color: var(--bg-main);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--spacing-base);
+  box-shadow: var(--shadow-light);
 }
 
 .filter-card :deep(.el-card__body) {
-  padding: 16px;
+  padding: var(--spacing-base);
 }
 
 /* Select 和 DatePicker 宽度设置 */
@@ -473,63 +498,63 @@ onMounted(() => {
 
 /* 任务列表卡片 */
 .task-list-card {
-  background-color: #FFFFFF;
-  border: 1px solid rgba(74, 144, 226, 0.15);
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  background-color: var(--bg-main);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-light);
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: #303133;
+  color: var(--text-main);
   font-weight: 600;
 }
 
 /* 表格样式 */
 .task-table {
-  background-color: #FFFFFF;
+  background-color: var(--bg-main);
 }
 
 .task-table :deep(.el-table__header-wrapper) {
-  background-color: #F5F7FA;
+  background-color: var(--bg-secondary);
 }
 
 .task-table :deep(.el-table__header th) {
-  background-color: #F5F7FA;
-  color: #606266;
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
   font-weight: 600;
-  border-bottom: 1px solid #EBEEF5;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .task-table :deep(.el-table__body tr) {
-  background-color: #FFFFFF;
-  color: #606266;
+  background-color: var(--bg-main);
+  color: var(--text-secondary);
 }
 
 .task-table :deep(.el-table__body tr:hover > td) {
-  background-color: rgba(74, 144, 226, 0.05) !important;
+  background-color: var(--primary-light) !important;
 }
 
 .task-table :deep(.el-table__body tr.el-table__row--striped) {
-  background-color: #FAFAFA;
+  background-color: var(--bg-hover);
 }
 
 .task-table :deep(.el-table__body td) {
-  border-bottom: 1px solid #EBEEF5;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .task-table :deep(.el-table__empty-block) {
-  background-color: #FFFFFF;
+  background-color: var(--bg-main);
 }
 
 /* 分页 */
 .pagination-container {
   display: flex;
   justify-content: flex-end;
-  margin-top: 20px;
-  padding: 16px 0;
+  margin-top: var(--spacing-base);
+  padding: var(--spacing-base) 0;
 }
 
 /* 滚动条美化 */
@@ -538,18 +563,16 @@ onMounted(() => {
 }
 
 .diagnosis-main::-webkit-scrollbar-track {
-  background: #F0F2F5;
-  border-radius: 4px;
+  background: var(--bg-hover);
+  border-radius: var(--radius-sm);
 }
 
 .diagnosis-main::-webkit-scrollbar-thumb {
-  background: #C0C4CC;
-  border-radius: 4px;
+  background: var(--border-dark);
+  border-radius: var(--radius-sm);
 }
 
 .diagnosis-main::-webkit-scrollbar-thumb:hover {
-  background: #909399;
+  background: var(--text-tertiary);
 }
-
 </style>
-
