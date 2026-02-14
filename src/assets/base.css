@@ -1,0 +1,460 @@
+:root {
+  /* 主题蓝色 */
+  --primary: #1677ff;
+  /* 科技蓝主色-B端IOT平台经典色 */
+  --primary-light: #e8f3ff;
+  /* 主色浅背景 */
+  --primary-hover: #4096ff;
+  /* 主色悬停 */
+  --primary-active: #0958d9;
+  /* 主色激活 */
+
+
+  /* 背景色-亮色核心 */
+  --bg-main: #ffffff;
+  /* 全局主背景 */
+  --bg-secondary: #f5f7fa;
+  /* 模块/卡片浅灰背景 */
+  --bg-third: #fafafa;
+  /* 表单/输入框背景 */
+  --bg-hover: #f0f2f5;
+  /* 通用悬停背景 */
+
+
+  /* 边框色 */
+  --border-base: #e5e7eb;
+  /* 基础边框 */
+  --border-light: #f2f3f5;
+  /* 浅色边框 */
+  --border-dark: #dcdfe6;
+  /* 深色边框 */
+
+  /* 文本色-层级分明 */
+  --text-main: #1d2129;
+  /* 主文本-标题/重要数据 */
+  --text-secondary: #4e5969;
+  /* 次文本-正文/描述 */
+  --text-tertiary: #86909c;
+  /* 浅文本-提示/占位符 */
+  --text-disabled: #c9cdd4;
+  /* 禁用文本 */
+  --text-white: #ffffff;
+  /* 白色文本 */
+
+  /* 工业运维告警色-亮色下醒目不刺眼 */
+  --alert-danger: #f53f3f;
+  /* 紧急告警-红色 */
+  --alert-warning: #ff7d00;
+  /* 警告告警-橙色 */
+  --alert-success: #00b42a;
+  /* 正常/成功-绿色 */
+  --alert-info: #1677ff;
+  /* 信息提示-主色蓝 */
+
+  /* 字体大小-适配大屏/普通页面 */
+  --font-xs: 12px;
+  --font-sm: 14px;
+  --font-base: 16px;
+  --font-lg: 18px;
+  --font-xl: 20px;
+  --font-2xl: 24px;
+  --font-screen: 32px;/* 大屏数字专用字号 */
+}
+
+/* 1. 样式重置 - 解决浏览器默认差异 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: var(--font-base);
+  color: var(--text-main);
+  background-color: var(--bg-main);
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+/* 去除列表样式 */
+ul,
+ol,
+li {
+  list-style: none;
+}
+
+/* 去除链接下划线 */
+a {
+  text-decoration: none;
+  color: var(--primary);
+  cursor: pointer;
+}
+
+a:hover {
+  color: var(--primary-hover);
+}
+
+/* 表单元素重置 */
+input,
+select,
+textarea,
+button {
+  font-family: inherit;
+  font-size: inherit;
+  border: none;
+  outline: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* 禁用状态统一样式 */
+[disabled] {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* 清除浮动 */
+.clearfix::after {
+  content: "";
+  display: block;
+  clear: both;
+  height: 0;
+  visibility: hidden;
+}
+/* 3. 通用组件样式 - 贴合工业平台亮色风格 */
+/* 卡片-适配数据展示/设备信息/报表模块 */
+.card {
+  width: 100%;
+  background-color: var(--bg-main);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-light);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-base);
+  border-color: var(--primary-light);
+}
+
+.card-header {
+  padding: var(--spacing-base);
+  border-bottom: 1px solid var(--border-light);
+  font-size: var(--font-lg);
+  font-weight: 600;
+}
+
+.card-body {
+  padding: var(--spacing-base);
+}
+
+.card-footer {
+  padding: var(--spacing-sm) var(--spacing-base);
+  border-top: 1px solid var(--border-light);
+  text-align: right;
+}
+
+/* 按钮-分类型，适配工业运维操作（查询/诊断/导出/告警处理） */
+.btn {
+  padding: 6px 16px;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+  font-size: var(--font-sm);
+}
+
+/* 主按钮-核心操作（诊断分析/确认告警） */
+.btn-primary {
+  background-color: var(--primary);
+  color: var(--text-white);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+}
+
+.btn-primary:active {
+  background-color: var(--primary-active);
+}
+
+/* 次按钮-常规操作（查询/刷新） */
+.btn-secondary {
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  border: 1px solid var(--border-base);
+}
+
+.btn-secondary:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--primary-light);
+}
+
+/* 告警按钮-紧急操作（处理故障） */
+.btn-danger {
+  background-color: var(--alert-danger);
+  color: var(--text-white);
+}
+
+.btn-danger:hover {
+  background-color: #f76767;
+}
+
+/* 成功按钮-完成操作（导出成功/保存配置） */
+.btn-success {
+  background-color: var(--alert-success);
+  color: var(--text-white);
+}
+
+.btn-success:hover {
+  background-color: #36c768;
+}
+
+/* 大屏按钮-适配可视化大屏的大按钮 */
+.btn-screen {
+  padding: 10px 24px;
+  font-size: var(--font-base);
+  border-radius: var(--radius-base);
+}
+
+/* 输入框/选择器-适配权限管理/数据查询表单 */
+.input {
+  width: 100%;
+  padding: 8px 12px;
+  background-color: var(--bg-third);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  font-size: var(--font-sm);
+}
+
+.input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+.select {
+  width: 100%;
+  padding: 8px 12px;
+  background-color: var(--bg-third);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  font-size: var(--font-sm);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2386909c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  appearance: none;
+}
+
+/* 4. 文本样式 - 适配大屏数字/标题/正文/提示 */
+/* 大屏数字-工业监控大屏专用，等宽字体提升科技感 */
+.text-screen {
+  font-family: "Consolas", "Monaco", monospace;
+  font-size: var(--font-screen);
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* 标题 */
+.h1 {
+  font-size: var(--font-2xl);
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.h2 {
+  font-size: var(--font-xl);
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.h3 {
+  font-size: var(--font-lg);
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+/* 正文/描述 */
+.text-regular {
+  font-size: var(--font-base);
+  color: var(--text-secondary);
+}
+
+.text-sm {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+/* 提示文本 */
+.text-tip {
+  font-size: var(--font-xs);
+  color: var(--text-tertiary);
+}
+
+/* 告警文本 */
+.text-danger {
+  color: var(--alert-danger);
+}
+
+.text-warning {
+  color: var(--alert-warning);
+}
+
+.text-success {
+  color: var(--alert-success);
+}
+
+.text-info {
+  color: var(--alert-info);
+}
+
+/* 文本对齐 */
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+/* 5. 工业运维专属样式 - 告警/设备状态/智能问答 */
+/* 告警提示-适配实时监控模块的告警弹窗/标签 */
+.alert-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: var(--font-xs);
+  font-weight: 600;
+  color: var(--text-white);
+}
+
+.alert-tag-danger {
+  background-color: var(--alert-danger);
+}
+
+.alert-tag-warning {
+  background-color: var(--alert-warning);
+}
+
+.alert-tag-success {
+  background-color: var(--alert-success);
+}
+
+.alert-tag-info {
+  background-color: var(--alert-info);
+}
+
+/* 设备状态标识-小圆点，适配设备列表 */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+
+/* 智能问答模块-聊天界面样式 */
+.chat-container {
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-main);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.chat-history {
+  flex: 1;
+  padding: var(--spacing-base);
+  overflow-y: auto;
+}
+
+/* 用户消息气泡 */
+.chat-user {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--spacing-base);
+}
+
+.chat-user-bubble {
+  max-width: 70%;
+  padding: var(--spacing-sm) var(--spacing-base);
+  background-color: var(--primary);
+  color: var(--text-white);
+  border-radius: var(--radius-lg) var(--radius-sm) var(--radius-lg) var(--radius-lg);
+}
+
+/* 平台AI消息气泡 */
+.chat-ai {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: var(--spacing-base);
+}
+
+.chat-ai-bubble {
+  max-width: 70%;
+  padding: var(--spacing-sm) var(--spacing-base);
+  background-color: var(--bg-secondary);
+  color: var(--text-main);
+  border-radius: var(--radius-sm) var(--radius-lg) var(--radius-lg) var(--radius-lg);
+}
+
+/* 问答输入框 */
+.chat-input {
+  padding: var(--spacing-sm);
+  border-top: 1px solid var(--border-light);
+}
+
+.chat-input textarea {
+  width: 100%;
+  min-height: 60px;
+  resize: none;
+  padding: var(--spacing-sm);
+  background-color: var(--bg-third);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-base);
+}
+
+/* 6. ECharts图表适配样式 - 解决大屏图表渲染问题 */
+.chart-box {
+  width: 100%;
+  height: 100%;
+  min-height: 300px;
+  border-radius: var(--radius-sm);
+}
+
+/* 大屏图表容器-适配多图表布局 */
+.screen-chart {
+  width: 100%;
+  height: 100%;
+  min-height: 200px;
+  padding: var(--spacing-sm);
+}
+/* 8. 滚动条样式 - 亮色主题美化，统一各浏览器 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-third);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-dark);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-light);
+}

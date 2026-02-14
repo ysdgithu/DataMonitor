@@ -1,5 +1,5 @@
 import './assets/main.css'
-import './assets/element-light-theme.css'
+import './assets/base.css'
 
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
@@ -9,6 +9,7 @@ import 'element-plus/dist/index.css'
 import App from './App.vue'
 import router from './router'
 import { useAuthStore } from './stores/auth'
+import commonComponents from './components/common'
 
 // 打印环境变量配置（开发环境）
 if (import.meta.env.DEV) {
@@ -32,4 +33,8 @@ authStore.initializeAuth()
 
 app.use(router)
 app.use(ElementPlus)
+// 全局注册所有公用组件
+Object.entries(commonComponents).forEach(([name, component]) => {
+  app.component(name, component)
+})
 app.mount('#app')

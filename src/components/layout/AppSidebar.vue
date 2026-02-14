@@ -77,8 +77,8 @@ const menuItems = [
     route: null,
     children: [
       { label: '权限管理', route: '/permission' },
-      { label: '异常规则', route: '/user/exception' },
-      { label: '知识库管理', route: '/user/knowledge' }
+      { label: '异常规则', route: '/exception' },
+      { label: '知识库管理', route: '/knowledge' }
     ]
   },
 ]

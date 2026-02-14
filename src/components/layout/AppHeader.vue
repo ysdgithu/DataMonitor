@@ -1,30 +1,9 @@
 <template>
   <el-header class="app-header" style="color: #303133;">
     <div class="header-left" >
-      <!-- <img src="@/assets/logo.png" alt="Logo" class="logo" /> -->
-      <h1 class="title" >IoT设备监控中心</h1>
-
-      <!-- 导航菜单 -->
-      <!-- <el-menu
-        mode="horizontal"
-        :default-active="activeIndex"
-        class="header-menu"
-      >
-        <el-menu-item index="/">
-          <el-icon><Monitor /></el-icon>
-          <span>监控中心</span>
-        </el-menu-item>
-      </el-menu> -->
+      <div class="title-h1" >IoT设备监控中心</div>
     </div>
     <div class="header-right">
-      <!-- <el-switch
-        v-model="isDark"
-        class="theme-switch"
-        inline-prompt
-        :active-icon="Moon"
-        :inactive-icon="Sunny"
-        @change="toggleTheme"
-      /> -->
       <el-badge :value="3" class="notification">
         <el-icon><Bell /></el-icon>
       </el-badge>

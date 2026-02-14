@@ -6,6 +6,8 @@ import DiagnosisView from '../views/DiagnosisView.vue'
 import HistoryDataView from '../views/HistoryData.vue';
 import ChatQAView from '../views/ChatQA.vue';
 import PermissionView from '../views/Permission.vue';
+import ExceptionView from '../views/Exception.vue';
+import KnowledgeView from '../views/Knowledge.vue';
 import { useAuthStore } from '../stores/auth'
 
 const routes: RouteRecordRaw[] = [
@@ -36,7 +38,7 @@ const routes: RouteRecordRaw[] = [
       title: 'DataMonitor - 实时数据监控平台'
     }
   },
-   {
+  {
     path: '/history',
     name: 'history',
     component: HistoryDataView,
@@ -45,7 +47,7 @@ const routes: RouteRecordRaw[] = [
       title: '历史数据总览'
     }
   },
-   {
+  {
     path: '/chatqa',
     name: 'chatqa',
     component: ChatQAView,
@@ -54,13 +56,31 @@ const routes: RouteRecordRaw[] = [
       title: '智能问答'
     }
   },
-   {
+  {
     path: '/permission',
     name: 'permission',
     component: PermissionView,
     meta: {
       requiresAuth: true,
       title: '权限管理'
+    }
+  },
+  {
+    path: '/exception',
+    name: 'exception',
+    component: ExceptionView,
+    meta: {
+      requiresAuth: true,
+      title: '异常规则'
+    }
+  },
+  {
+    path: '/knowledge',
+    name: 'knowledge',
+    component: KnowledgeView,
+    meta: {
+      requiresAuth: true,
+      title: '知识库管理'
     }
   },
   {

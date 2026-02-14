@@ -202,8 +202,8 @@ const permissions = ref({
 .permission-table {
   width: 100%;
 }
-.permission-table tr {
-  border-bottom: 1px solid #ccc;
+.checkbox-cell {
+  text-align: center;
 }
 .category-item p:first-child {
   color: #7e7e7e;
