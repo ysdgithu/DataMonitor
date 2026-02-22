@@ -4,8 +4,13 @@
     <el-table :data="data" v-loading="loading" stripe highlight-current-row class="data-table">
       <el-table-column v-for="col in columns" :key="col.prop" :prop="col.prop" :label="col.label" :width="col.width">
         <template #default="{ row }">
+          <!-- 自定义渲染 -->
+          <template v-if="col.customRender">
+            <RenderCell :render="col.customRender" :row="row" :value="row[col.prop]" />
+          </template>
+
           <!-- 状态列 -->
-          <StatusTag v-if="col.isStatus" :category="col.statusCategory || 'custom'" :value="row[col.prop]"
+          <StatusTag v-else-if="col.isStatus" :category="col.statusCategory || 'custom'" :value="row[col.prop]"
             size="small" />
 
           <!-- 时间列 -->
@@ -36,9 +41,31 @@
 </template>
 
 <script setup lang="ts">
+import { h, defineComponent } from 'vue'
 import StatusTag from '../statusTag.vue'
 import Pagination from '../Pagination.vue'
 import type { Props } from './types'
+
+// 自定义渲染单元格组件
+const RenderCell = defineComponent({
+  props: {
+    render: {
+      type: Function,
+      required: true
+    },
+    row: {
+      type: Object,
+      required: true
+    },
+    value: {
+      type: [String, Number, Object, Boolean],
+      default: null
+    }
+  },
+  setup(props) {
+    return () => props.render({ row: props.row, value: props.value })
+  }
+})
 
 const props = withDefaults(defineProps<Props>(), {
   loading: false,

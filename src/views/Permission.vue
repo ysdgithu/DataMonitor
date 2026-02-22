@@ -4,67 +4,52 @@
       <div class="background user">
         <h2 class="title">用户权限管理</h2>
         <!-- 权限分配表格 -->
-        <el-table :data="permissionList" style="width: 100%">
-          <el-table-column prop="username" label="用户名" width="180" />
-          <el-table-column prop="role" label="角色" width="180" />
-          <el-table-column label="权限变更">
-            <template #default="scope">
-              <el-select v-model="scope.row.role" size="small" style="width: 120px;"
-                @change="updateUserRole(scope.row)">
-                <el-option label="普通用户" value="1" />
-                <el-option label="管理员" value="0" />
-              </el-select>
-            </template>
-          </el-table-column>
-          <el-table-column prop="role" label="操作" width="180">
-            <template #default="scope">
-              <el-button size="small" type="danger" @click="deleteUser(scope.row)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+        <DataTable :data="permissionList" :columns="columns" />
       </div>
-      <div class="background permission">
-        <h2 class="title">权限范围配置</h2>
-        <!-- 权限范围配置列表 -->
-        <table class="permission-table">
-          <thead>
-            <tr>
-              <th>权限</th>
-              <th>普通用户</th>
-              <th>管理员</th>
-            </tr>
-          </thead>
-          <tbody>
-            <template v-for="category in permissionConfig" :key="category.category">
-              <!-- 分类标题行 -->
-              <tr class="category-title">
-                <td class="title" style="border: 0px;">{{ category.category }}</td>
-                <td></td>
-                <td></td>
-              </tr>
-              <!-- 该分类下的权限项 -->
-              <tr v-for="item in category.items" :key="item.key" class="category-item">
-                <td>
-                  <p>{{ item.name }}</p>
-                  <p>{{ item.desc }}</p>
-                </td>
-                <td></td>
-                <td>
-                  <el-checkbox v-model="permissions.user[item.key]" />
-                  <el-checkbox v-model="permissions.admin[item.key]" />
-                </td>
-              </tr>
-            </template>
-          </tbody>
-
-        </table>
+      <!-- 权限范围配置 - 卡片式 -->
+      <div class="background permission-cards">
+        <h2 class="section-title">权限范围配置</h2>
+        <div class="cards-grid">
+          <div v-for="category in permissionConfig" :key="category.category" class="permission-card">
+            <!-- 卡片头部 -->
+            <div class="card-header">
+              <div class="header-icon">
+                <el-icon><Folder /></el-icon>
+              </div>
+              <span class="header-title">{{ category.category }}</span>
+            </div>
+            <!-- 卡片内容 -->
+            <div class="card-body">
+              <div v-for="item in category.items" :key="item.key" class="permission-item">
+                <div class="item-info">
+                  <p class="item-name">{{ item.name }}</p>
+                  <p class="item-desc">{{ item.desc }}</p>
+                </div>
+                <div class="item-actions">
+                  <label class="checkbox-label">
+                    <el-checkbox v-model="permissions.user[item.key]" />
+                    <span>普通用户</span>
+                  </label>
+                  <label class="checkbox-label">
+                    <el-checkbox v-model="permissions.admin[item.key]" />
+                    <span>管理员</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </main-layout>
 </template>
 <script setup lang="ts">
 import MainLayout from '../components/layout/MainLayout.vue'
-import { ref } from 'vue'
+import DataTable from '../components/common/DataTable/index.vue'
+import type { Column } from '../components/common/DataTable/types'
+import { ElSelect, ElOption } from 'element-plus'
+import { Folder } from '@element-plus/icons-vue'
+import { ref, h } from 'vue'
 // 权限分配表格数据
 // 代号说明：0-管理员，1-普通用户
 const permissionData = [
@@ -85,17 +70,45 @@ const permissionData = [
   }
 ]
 //代号映射表
-const roleMap = {
+const roleMap: Record<number, string> = {
   0: '管理员',
   1: '普通用户'
 }
-//映射处理
+//映射处理 - 保留原始 role 值用于下拉框绑定，同时添加 roleText 用于显示
 const permissionList = permissionData.map(item => {
   return {
     ...item,
-    role: roleMap[item.role]
+    roleText: roleMap[item.role]  // 中文显示用
   }
 })
+
+// 表格列配置
+const columns: Column[] = [
+  { prop: 'username', label: '用户名', width: 180 },
+  { prop: 'roleText', label: '角色', width: 180 },
+  {
+    prop: 'role',
+    label: '权限变更',
+    customRender: ({ row }) => h(ElSelect, {
+      modelValue: String(row.role),
+      size: 'small',
+      style: 'width: 120px',
+      onChange: (val: string) => updateUserRole({ ...row, role: Number(val) })
+    }, [
+      h(ElOption, { label: '普通用户', value: '1' }),
+      h(ElOption, { label: '管理员', value: '0' })
+    ])
+  },
+  {
+    prop: 'actions',
+    label: '操作',
+    width: 180,
+    isActions: true,
+    actions: [
+      { label: '删除', type: 'danger', onClick: (row: any) => deleteUser(row) }
+    ]
+  }
+]
 //修改权限
 const updateUserRole = (row: any) => {
   console.log('修改权限', row)
@@ -196,25 +209,125 @@ const permissions = ref({
   margin: var(--spacing-sm);
 }
 
-/* 权限分配表格样式 */
-.permission-table {
-  width: 100%;
+/* 权限卡片网格 */
+.permission-cards {
+  margin-top: var(--spacing-base);
 }
 
-.checkbox-cell {
-  text-align: center;
-}
-
-.category-item p:first-child {
-  color: var(--text-secondary);
-}
-
-.category-item p:last-child {
-  color: var(--text-disabled);
-}
-
-.table-title {
+.section-title {
+  font-size: var(--font-base);
   font-weight: bold;
+  padding-bottom: var(--spacing-sm);
+  margin-bottom: var(--spacing-base);
+  border-bottom: 1px solid var(--border-base);
+}
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: var(--spacing-base);
+}
+
+/* 权限卡片 */
+.permission-card {
+  background-color: var(--bg-main);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: all 0.3s;
+  box-shadow: var(--shadow-light);
+}
+
+.permission-card:hover {
+  box-shadow: var(--shadow-base);
+  border-color: var(--primary-light);
+}
+
+/* 卡片头部 */
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-base);
+  background: linear-gradient(135deg, var(--primary-light) 0%, var(--bg-secondary) 100%);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.header-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* background: var(--primary); */
+  color: var(--primary);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-lg);
+}
+
+.header-title {
+  font-size: var(--font-base);
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+/* 卡片内容 */
+.card-body {
+  padding: var(--spacing-sm);
+}
+
+.permission-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-sm) var(--spacing-base);
+  border-radius: var(--radius-base);
+  transition: background-color 0.2s;
+}
+
+.permission-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.permission-item:not(:last-child) {
+  border-bottom: 1px solid var(--border-light);
+}
+
+.item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-name {
   font-size: var(--font-sm);
+  font-weight: 500;
+  color: var(--text-main);
+  margin: 0 0 4px 0;
+}
+
+.item-desc {
+  font-size: var(--font-xs);
+  color: var(--text-tertiary);
+  margin: 0;
+}
+
+.item-actions {
+  display: flex;
+  gap: var(--spacing-base);
+  flex-shrink: 0;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.checkbox-label:hover {
+  color: var(--primary);
 }
 </style>

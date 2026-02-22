@@ -5,6 +5,8 @@
 
 import type { StatusCategory } from '../statusTag.vue'
 
+import type { VNode } from 'vue'
+
 /**
  * 列配置 - 简化版
  */
@@ -21,6 +23,9 @@ export interface Column {
 
   isActions?: boolean    // 是否是操作列
   actions?: Action[]     // 操作按钮列表
+
+  // 自定义渲染
+  customRender?: (params: { row: any, value: any }) => VNode | string | null  // 自定义渲染函数
 }
 
 /**

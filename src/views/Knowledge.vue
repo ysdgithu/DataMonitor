@@ -6,22 +6,7 @@
         <el-button type="primary">上传文件</el-button>
       </el-row>
       <el-divider></el-divider>
-      <el-table :data="documentList">
-        <el-table-column prop="name" label="文档名称" width="180" />
-        <el-table-column prop="uploadTime" label="上传时间" width="180" />
-        <el-table-column prop="status" label="状态">
-          <template #default="scope">
-            <el-switch v-model="scope.row.status" />
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
-          <!-- 可以查看，重新上传，删除 -->
-          <template #default>
-            <el-button size="small" type="primary">更新</el-button>
-            <el-button size="small" type="danger">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <DataTable :data="documentList" :columns="columns" />
       <!-- 开始 -->
       <!-- 样式测试区 -->
       <div class="test" style="padding: 20px; height: 500px;">
@@ -49,8 +34,8 @@
         <!-- 表格测试 -->
         <!-- <DataTable :data="taskList" :columns="columns" :loading="loading" :show-pagination="true" :total="total"
           :current-page="page" :page-size="size" @page-change="page = $event" @size-change="size = $event" /> -->
-        <VirtualTable
-          :data="taskList" :columns="columns" :loading="loading" :height="400" ></VirtualTable>
+        <!-- <VirtualTable
+          :data="taskList" :columns="columns" :loading="loading" :height="400" ></VirtualTable> -->
           <!-- 4. 标签 -->
         <div style="margin-bottom: 20px;">
           <h3>标签</h3>
@@ -75,7 +60,8 @@ import MainLayout from '../components/layout/MainLayout.vue'
 import DataTable from '../components/common/DataTable/index.vue'
 import VirtualTable from '../components/common/VirtualTable/index.vue'
 import type { Column } from '../components/common/DataTable/types'
-import { ref } from 'vue'
+import { ElSwitch } from 'element-plus'
+import { ref, h } from 'vue'
 
 // 任务数据类型
 interface Task {
@@ -89,21 +75,56 @@ interface Task {
 }
 
 //维护文档表格列表
-const documentList = [
+const documentList = ref([
   {
     name: '设备手册',
     uploadTime: '2021-01-01',
     status: true
   },
   {
-    name: '设备手册',
-    uploadTime: '2021-01-01',
-    status: true
+    name: '操作指南',
+    uploadTime: '2021-02-15',
+    status: false
   },
   {
-    name: '设备手册',
-    uploadTime: '2021-01-01',
+    name: '故障排查',
+    uploadTime: '2021-03-20',
     status: true
+  }
+])
+
+// 更新文档状态
+const updateDocumentStatus = (row: any, status: boolean) => {
+  row.status = status
+  console.log('更新文档状态:', row.name, status)
+}
+
+// 删除文档
+const deleteDocument = (row: any) => {
+  console.log('删除文档:', row)
+}
+
+// 表格列配置
+const columns: Column[] = [
+  { prop: 'name', label: '文档名称', width: 180 },
+  { prop: 'uploadTime', label: '上传时间', width: 180 },
+  {
+    prop: 'status',
+    label: '状态',
+    customRender: ({ row }) => h(ElSwitch, {
+      modelValue: row.status,
+      onUpdateModelValue: (val: boolean) => updateDocumentStatus(row, val)
+    })
+  },
+  {
+    prop: 'actions',
+    label: '操作',
+    width: 200,
+    isActions: true,
+    actions: [
+      { label: '更新', type: 'primary', onClick: (row: any) => console.log('更新', row) },
+      { label: '删除', type: 'danger', onClick: (row: any) => deleteDocument(row) }
+    ]
   }
 ]
 
@@ -162,7 +183,7 @@ const taskList = ref([
 ])
 
 
-const columns = [
+const columnss = [
   { key: 'id', title: '任务ID', dataKey: 'id', width: 100 },
   { key: 'name', title: '任务名称', dataKey: 'name', width: 180 },
   { key: 'device_id', title: '设备ID', dataKey: 'device_id', width: 120 },

@@ -18,29 +18,7 @@
     </div>
     <!-- 规则总表 -->
     <div class="background exception-table">
-      <el-table :data="exceptionList">
-        <el-table-column prop="name" label="规则名称" width="180">
-          <template #default="scope">
-            <!-- 规则名称 -->
-            <p>{{ scope.row.name }}</p>
-            <!-- 设备名 -->
-            <p>{{ scope.row.device }}</p>
-          </template>
-        </el-table-column>
-        <el-table-column prop="condition" label="规则条件">
-          <template #default="scope">
-            <!-- 规则条件 -->
-            <p>{{ scope.row.condition }}</p>
-            <p>监控参数：{{ scope.row.parameter }} | 触发条件：{{ scope.row.triggerCondition }}</p>
-          </template>
-        </el-table-column>
-        <el-table-column prop="parameter" label="操作">
-          <template #default="scope">
-            <el-button size="small" type="primary">编辑</el-button>
-            <el-button size="small" type="danger">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <DataTable :data="exceptionList" :columns="columns" />
     </div>
 
   </main-layout>
@@ -48,10 +26,12 @@
 
 <script setup lang="ts">
 import MainLayout from '../components/layout/MainLayout.vue'
+import DataTable from '../components/common/DataTable/index.vue'
+import type { Column } from '../components/common/DataTable/types'
 import { Filter, MilkTea, Search } from '@element-plus/icons-vue'
-import { ref } from 'vue'
+import { ref, h } from 'vue'
 // 规则总表数据
-const exceptionList = ref([
+const exceptionList = ref<ExceptionRule[]>([
   {
     name: '温度偏离规则',
     device: 'mixer', //调配罐
@@ -150,6 +130,50 @@ const exceptionList = ref([
     triggerCondition: '栈板余量 < 安全库存阈值'
   }
 ]);
+// 异常规则类型定义
+interface ExceptionRule {
+  name: string
+  device: string
+  condition: string
+  parameter: string
+  conditionType?: string
+  conditionValue?: string
+  duration?: string
+  count?: string
+  triggerCondition: string
+}
+
+// 表格列配置
+const columns: Column[] = [
+  {
+    prop: 'name',
+    label: '规则名称',
+    width: 180,
+    customRender: ({ row }: any) => h('div', [
+      h('p', { style: 'font-weight: 600;' }, row.name),
+      h('p', { style: 'color: var(--text-tertiary); font-size: 12px;' }, row.device)
+    ])
+  },
+  {
+    prop: 'condition',
+    label: '规则条件',
+    customRender: ({ row }: any) => h('div', [
+      h('p', row.condition),
+      h('p', { style: 'color: var(--text-tertiary); font-size: 12px;' }, `监控参数：${row.parameter} | 触发条件：${row.triggerCondition}`)
+    ])
+  },
+  {
+    prop: 'actions',
+    label: '操作',
+    width: 200,
+    isActions: true,
+    actions: [
+      { label: '编辑', type: 'primary', onClick: (row: ExceptionRule) => console.log('编辑', row) },
+      { label: '删除', type: 'danger', onClick: (row: ExceptionRule) => console.log('删除', row) }
+    ]
+  }
+]
+
 // 设备配置项
 const deviceOptions = [
   { label: '全部设备', value: 'mixer', icon: 'MilkTea' },
