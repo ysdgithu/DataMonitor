@@ -81,19 +81,7 @@
       <el-row class="tips">
         数据范围：<span style="font-weight: bold;">2025-09-10 10:00:00 ~ 2025-09-10 10:30:00 </span>
       </el-row>
-      <!-- <el-table :data="tableData" class="task-table">
-  <el-table-column prop="date" label="时间" width="180" />
-  <el-table-column prop="name" label="设备名称" width="180" />
-  <el-table-column prop="type" label="监控参数" width="180" />
-  <el-table-column prop="value" label="监控参数数值" />
-  <el-table-column prop="status" label="数据状态" />
-  <el-table-column label="操作" width="200" fixed="right">
-    <template #default>
-      <el-button type="primary" size="small" >删除</el-button>
-    </template>
-</el-table-column>
-</el-table> -->
-      <TableV2 :columns="columns" :data="tableData" :width="1000" :height="400" fixed class="task-table" />
+      <VirtualTable :columns="columns" :data="tableData" :height="400" class="task-table" />
       <el-row justify="end">
         <span class="font">共100条</span>
         <el-pagination v-model:current-page="currentPage" :page-size="100" layout="prev, pager, next" :total="1000"
@@ -104,10 +92,8 @@
 </template>
 <script setup lang="ts">
 import MainLayout from '../components/layout/MainLayout.vue'
-import StatusTag from '../components/common/statusTag.vue'
-import { h } from 'vue'
+import VirtualTable from '../components/common/VirtualTable/index.vue'
 import { Download, Refresh, Search } from '@element-plus/icons-vue'
-import { TableV2 } from 'element-plus'
 import { ref } from 'vue'
 const tableData = [
   {
@@ -132,31 +118,22 @@ const columns = [
   { key: 'type', title: '监控参数', dataKey: 'type', width: 180 },
   { key: 'value', title: '监控参数数值', dataKey: 'value', width: 180 },
   {
-    key: 'status', title: '数据状态', dataKey: 'status', width: 180,
-    cellRenderer: ({ rowData }: any) => {
-      return h(
-        StatusTag,
-        {
-          category: 'historyData',
-          value: rowData.status,
-        },
-      )
-    }
+    key: 'status', 
+    title: '数据状态', 
+    dataKey: 'status', 
+    width: 180,
+    isStatus: true,
+    statusCategory: 'historyData'
   },
   {
     key: 'actions',
     title: '操作',
     dataKey: 'actions',
     width: 200,
-    cellRenderer: ({ rowIndex }) => {
-      return h(
-        'el-button',
-        {
-          type: 'primary', size: 'small',
-        },
-        '删除'
-      )
-    }
+    isActions: true,
+    actions: [
+      { label: '删除', type: 'primary', onClick: (row: any) => console.log('删除', row) }
+    ]
   }
 ]
 const currentPage = ref(1)

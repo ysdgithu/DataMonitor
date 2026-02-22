@@ -1,0 +1,133 @@
+<template>
+  <div class="data-table-wrapper">
+    <!-- 表格 -->
+    <el-table :data="data" v-loading="loading" stripe highlight-current-row class="data-table">
+      <el-table-column v-for="col in columns" :key="col.prop" :prop="col.prop" :label="col.label" :width="col.width">
+        <template #default="{ row }">
+          <!-- 状态列 -->
+          <StatusTag v-if="col.isStatus" :category="col.statusCategory || 'custom'" :value="row[col.prop]"
+            size="small" />
+
+          <!-- 时间列 -->
+          <span v-else-if="col.isTime">
+            {{ formatTime(row[col.prop]) }}
+          </span>
+
+          <!-- 操作列 -->
+          <div v-else-if="col.isActions" class="actions">
+            <template v-for="action in col.actions" :key="action.label">
+              <el-button v-if="!action.show || action.show(row)" :type="action.type || 'primary'" link size="small"
+                @click="action.onClick(row)">
+                {{ action.label }}
+              </el-button>
+            </template>
+          </div>
+
+          <!-- 普通列 -->
+          <span v-else>{{ row[col.prop] }}</span>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <!-- 分页 -->
+    <Pagination v-if="showPagination" :current-page="currentPage" :page-size="pageSize" :total="total"
+      @page-change="emit('page-change', $event)" @size-change="emit('size-change', $event)" />
+  </div>
+</template>
+
+<script setup lang="ts">
+import StatusTag from '../statusTag.vue'
+import Pagination from '../Pagination.vue'
+import type { Props } from './types'
+
+const props = withDefaults(defineProps<Props>(), {
+  loading: false,
+  showPagination: false,
+  currentPage: 1,
+  pageSize: 10,
+  total: 0
+})
+
+const emit = defineEmits<{
+  'page-change': [page: number]
+  'size-change': [size: number]
+}>()
+
+// 时间格式化
+const formatTime = (timestamp: number) => {
+  if (!timestamp) return '-'
+  const date = new Date(timestamp)
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  const h = String(date.getHours()).padStart(2, '0')
+  const min = String(date.getMinutes()).padStart(2, '0')
+  const s = String(date.getSeconds()).padStart(2, '0')
+  return `${y}-${m}-${d} ${h}:${min}:${s}`
+}
+</script>
+
+<style scoped>
+.data-table-wrapper {
+  width: 100%;
+}
+
+.data-table {
+  width: 100%;
+  background-color: var(--bg-main);
+}
+
+/* 表头样式 - 使用base.css的设计系统 */
+.data-table :deep(.el-table__header) {
+  background-color: var(--bg-secondary);
+}
+
+.data-table :deep(.el-table__header th) {
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-weight: 600;
+  border-color: var(--border-light);
+  font-size: var(--font-sm);
+}
+
+/* 表体样式 */
+.data-table :deep(.el-table__body) {
+  background-color: var(--bg-main);
+}
+
+.data-table :deep(.el-table__body tr) {
+  background-color: var(--bg-main);
+}
+
+.data-table :deep(.el-table__body tr td) {
+  border-color: var(--border-light);
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+}
+
+/* 行悬停效果 */
+.data-table :deep(.el-table__body tr:hover > td) {
+  background-color: var(--primary-light) !important;
+}
+
+
+/* 空状态 */
+.data-table :deep(.el-table__empty-block) {
+  background-color: var(--bg-main);
+}
+
+/* 操作按钮组 */
+.actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+.actions :deep(.el-button--link) {
+  color: var(--primary);
+}
+
+.actions :deep(.el-button--link:hover) {
+  color: var(--primary-hover);
+}
+</style>

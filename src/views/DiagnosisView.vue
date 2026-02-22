@@ -124,39 +124,14 @@
           </div>
         </template>
 
-        <el-table :data="taskList" style="width: 100%" class="task-table">
-          <el-table-column prop="id" label="任务ID" width="100" />
-          <el-table-column prop="name" label="任务名称" min-width="180" />
-          <el-table-column prop="device_id" label="设备ID" width="120" />
-          <el-table-column label="任务状态" width="120">
-            <template #default="{ row }">
-              <StatusTag category="status" :value="row.status" size="small" />
-            </template>
-          </el-table-column>
-          <el-table-column label="优先级" width="100">
-            <template #default="{ row }">
-              <StatusTag category="priority" :value="row.priority" size="small" />
-            </template>
-          </el-table-column>
-          <el-table-column label="创建时间" width="160">
-            <template #default="{ row }">
-              {{ formatTimestamp(row.create_time) }}
-            </template>
-          </el-table-column>
-          <el-table-column label="更新时间" width="160">
-            <template #default="{ row }">
-              {{ formatTimestamp(row.update_time) }}
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="200" fixed="right">
-            <template #default="{ row }">
-              <el-button link type="primary" size="small" @click="detailClick(row.id)">查看</el-button>
-              <el-button link type="warning" size="small" v-if="row.status === 0">暂停</el-button>
-              <el-button link type="success" size="small" v-if="row.status === 4">启动</el-button>
-              <el-button link type="danger" size="small" @click="deleteTask(row.id)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+        <VirtualTable 
+          :data="taskList" 
+          :columns="columns" 
+          :height="400" 
+          :loading="loading" 
+          style="width: 100%" 
+          class="task-table" 
+        />
 
         <!-- 分页 -->
         <div class="pagination-container">
@@ -191,6 +166,7 @@ import MainLayout from '../components/layout/MainLayout.vue'
 import TaskDetailsComponent from './TaskDetails.vue'
 import AddTask from './AddTask.vue'
 import { ElMessage } from 'element-plus'
+import VirtualTable from '../components/common/VirtualTable/index.vue'
 import { DiagnosticApi, type DiagnosisTask, type QueryParams } from '../utils/diagnosticApi'
 import {
   Plus,
@@ -361,6 +337,56 @@ const formatTimestamp = (timestamp: number) => {
   return new Date(timestamp).toLocaleString()
 }
 
+// 表格列配置
+const columns = [
+  { key: 'id', title: '任务ID', dataKey: 'id', width: 100 },
+  { key: 'name', title: '任务名称', dataKey: 'name', width: 180 },
+  { key: 'device_id', title: '设备ID', dataKey: 'device_id', width: 120 },
+  { 
+    key: 'status', 
+    title: '任务状态', 
+    dataKey: 'status', 
+    width: 120,
+    isStatus: true,
+    statusCategory: 'status'
+  },
+  { 
+    key: 'priority', 
+    title: '优先级', 
+    dataKey: 'priority', 
+    width: 100,
+    isStatus: true,
+    statusCategory: 'priority'
+  },
+  { 
+    key: 'create_time', 
+    title: '创建时间', 
+    dataKey: 'create_time', 
+    width: 160,
+    isTime: true
+  },
+  { 
+    key: 'update_time', 
+    title: '更新时间', 
+    dataKey: 'update_time', 
+    width: 160,
+    isTime: true
+  },
+  {
+    key: 'actions',
+    title: '操作',
+    dataKey: 'actions',
+    width: 200,
+    isActions: true,
+    actions: [
+      { label: '查看', type: 'primary', onClick: (row: DiagnosisTask) => detailClick(row.id) },
+      { label: '暂停', type: 'warning', onClick: (row: DiagnosisTask) => console.log('暂停', row), show: (row: DiagnosisTask) => row.status === 0 },
+      { label: '启动', type: 'success', onClick: (row: DiagnosisTask) => console.log('启动', row), show: (row: DiagnosisTask) => row.status === 4 },
+      { label: '删除', type: 'danger', onClick: (row: DiagnosisTask) => deleteTask(row.id) }
+    ]
+  }
+]
+
 // 初始化加载数据
 onMounted(() => {
   getData()
@@ -514,38 +540,6 @@ onMounted(() => {
 
 /* 表格样式 */
 .task-table {
-  background-color: var(--bg-main);
-}
-
-.task-table :deep(.el-table__header-wrapper) {
-  background-color: var(--bg-secondary);
-}
-
-.task-table :deep(.el-table__header th) {
-  background-color: var(--bg-secondary);
-  color: var(--text-secondary);
-  font-weight: 600;
-  border-bottom: 1px solid var(--border-light);
-}
-
-.task-table :deep(.el-table__body tr) {
-  background-color: var(--bg-main);
-  color: var(--text-secondary);
-}
-
-.task-table :deep(.el-table__body tr:hover > td) {
-  background-color: var(--primary-light) !important;
-}
-
-.task-table :deep(.el-table__body tr.el-table__row--striped) {
-  background-color: var(--bg-hover);
-}
-
-.task-table :deep(.el-table__body td) {
-  border-bottom: 1px solid var(--border-light);
-}
-
-.task-table :deep(.el-table__empty-block) {
   background-color: var(--bg-main);
 }
 
