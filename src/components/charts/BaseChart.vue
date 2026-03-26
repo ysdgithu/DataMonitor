@@ -10,7 +10,19 @@
 import { ref, onMounted, watch, onUnmounted } from 'vue'
 import type { EChartsOption } from 'echarts'
 import { Loading } from '@element-plus/icons-vue'
-import { debounce } from 'lodash-es'
+// 简单的防抖函数实现，避免引入lodash-es
+const debounce = (fn: Function, delay: number) => {
+  let timer: ReturnType<typeof setTimeout> | null = null
+  const debounced = (...args: any[]) => {
+    if (timer) clearTimeout(timer)
+    timer = setTimeout(() => fn(...args), delay)
+  }
+  debounced.cancel = () => {
+    if (timer) clearTimeout(timer)
+    timer = null
+  }
+  return debounced
+}
 // 导入按需引入的图表创建函数
 import { createChartInstance } from '../../utils/chartOptions'
 import { type EChartsType } from 'echarts/core'

@@ -4,7 +4,7 @@
 param(
     [Parameter(Mandatory=$false)]
     [ValidateSet("NORMAL", "LOW_FREQUENCY", "MEDIUM_FREQUENCY", "HIGH_FREQUENCY", "EXTREME", "STRESS_TEST")]
-    [string]$Mode = "NORMAL"
+    [string]$Mode = "HIGH_FREQUENCY"
 )
 
 Write-Host "==================================" -ForegroundColor Cyan

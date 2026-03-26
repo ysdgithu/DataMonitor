@@ -1,0 +1,334 @@
+/**
+ * Element Plus 组件样式覆盖
+ * 使 Element Plus 组件符合 base.css 中定义的设计规范
+ */
+
+/* ========== 1. 卡片组件 (el-card) ========== */
+.el-card {
+  background-color: var(--bg-main);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-light);
+  transition: all 0.3s ease;
+}
+
+.el-card:hover {
+  box-shadow: var(--shadow-base);
+  border-color: var(--primary-light);
+}
+
+.el-card__header {
+  padding: var(--spacing-base);
+  border-bottom: 1px solid var(--border-light);
+  font-size: var(--font-lg);
+  font-weight: 600;
+  color: var(--text-main);
+  background-color: transparent;
+}
+
+.el-card__body {
+  padding: var(--spacing-base);
+}
+
+/* ========== 2. 按钮组件 (el-button) ========== */
+.el-button {
+  padding: 6px 16px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-sm);
+  transition: all 0.2s ease;
+}
+
+/* 主按钮 */
+.el-button--primary {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  color: var(--text-white);
+}
+
+.el-button--primary:hover,
+.el-button--primary:focus {
+  background-color: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.el-button--primary:active {
+  background-color: var(--primary-active);
+  border-color: var(--primary-active);
+}
+
+/* 次要按钮 */
+.el-button--default {
+  background-color: var(--bg-main);
+  border-color: var(--border-base);
+  color: var(--text-main);
+}
+
+.el-button--default:hover,
+.el-button--default:focus {
+  background-color: var(--bg-hover);
+  border-color: var(--primary-light);
+  color: var(--primary);
+}
+
+/* 危险按钮 */
+.el-button--danger {
+  background-color: var(--alert-danger);
+  border-color: var(--alert-danger);
+  color: var(--text-white);
+}
+
+.el-button--danger:hover,
+.el-button--danger:focus {
+  background-color: #f76767;
+  border-color: #f76767;
+}
+
+/* 成功按钮 */
+.el-button--success {
+  background-color: var(--alert-success);
+  border-color: var(--alert-success);
+  color: var(--text-white);
+}
+
+.el-button--success:hover,
+.el-button--success:focus {
+  background-color: #36c768;
+  border-color: #36c768;
+}
+
+/* 警告按钮 */
+.el-button--warning {
+  background-color: var(--alert-warning);
+  border-color: var(--alert-warning);
+  color: var(--text-white);
+}
+
+.el-button--warning:hover,
+.el-button--warning:focus {
+  background-color: #ff9a2e;
+  border-color: #ff9a2e);
+}
+
+/* ========== 3. 标签组件 (el-tag) ========== */
+.el-tag {
+  border-radius: 12px;
+  font-size: var(--font-xs);
+  font-weight: 600;
+  padding: 2px 8px;
+  border: none;
+}
+
+.el-tag--danger {
+  background-color: var(--alert-danger);
+  color: var(--text-white);
+}
+
+.el-tag--warning {
+  background-color: var(--alert-warning);
+  color: var(--text-white);
+}
+
+.el-tag--success {
+  background-color: var(--alert-success);
+  color: var(--text-white);
+}
+
+.el-tag--info {
+  background-color: var(--alert-info);
+  color: var(--text-white);
+}
+
+/* ========== 4. 输入框组件 (el-input) ========== */
+.el-input__wrapper {
+  background-color: var(--bg-third);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+  padding: 1px 11px;
+}
+
+.el-input__wrapper:hover {
+  border-color: var(--primary-light);
+}
+
+.el-input__wrapper.is-focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+.el-input__inner {
+  color: var(--text-main);
+  font-size: var(--font-sm);
+}
+
+.el-input__inner::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* ========== 5. 选择器组件 (el-select) ========== */
+.el-select__wrapper {
+  background-color: var(--bg-third);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+
+.el-select__wrapper:hover {
+  border-color: var(--primary-light);
+}
+
+.el-select__wrapper.is-focused {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+/* ========== 6. 表格组件 (el-table) ========== */
+.el-table {
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  font-size: var(--font-sm);
+}
+
+.el-table__header-wrapper {
+  background-color: var(--bg-secondary);
+}
+
+.el-table th.el-table__cell {
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.el-table td.el-table__cell {
+  border-bottom: 1px solid var(--border-light);
+}
+
+.el-table__body tr:hover>td {
+  background-color: var(--bg-hover);
+}
+
+.el-table__empty-text {
+  color: var(--text-tertiary);
+}
+
+/* ========== 7. 分页组件 (el-pagination) ========== */
+.el-pagination {
+  font-size: var(--font-sm);
+}
+
+.el-pagination button {
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-sm);
+}
+
+.el-pagination button:hover {
+  color: var(--primary);
+  border-color: var(--primary-light);
+}
+
+.el-pager li {
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-sm);
+  margin: 0 4px;
+}
+
+.el-pager li:hover {
+  color: var(--primary);
+  border-color: var(--primary-light);
+}
+
+.el-pager li.is-active {
+  background-color: var(--primary);
+  color: var(--text-white);
+  border-color: var(--primary);
+}
+
+/* ========== 8. 对话框组件 (el-dialog) ========== */
+.el-dialog {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-dark);
+}
+
+.el-dialog__header {
+  padding: var(--spacing-base);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.el-dialog__title {
+  font-size: var(--font-lg);
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.el-dialog__body {
+  padding: var(--spacing-base);
+  color: var(--text-main);
+}
+
+.el-dialog__footer {
+  padding: var(--spacing-sm) var(--spacing-base);
+  border-top: 1px solid var(--border-light);
+}
+
+/* ========== 9. 消息提示 (el-message) ========== */
+.el-message {
+  border-radius: var(--radius-base);
+  box-shadow: var(--shadow-base);
+  padding: var(--spacing-sm) var(--spacing-base);
+}
+
+.el-message--success {
+  background-color: var(--alert-success);
+  border-color: var(--alert-success);
+}
+
+.el-message--warning {
+  background-color: var(--alert-warning);
+  border-color: var(--alert-warning);
+}
+
+.el-message--error {
+  background-color: var(--alert-danger);
+  border-color: var(--alert-danger);
+}
+
+.el-message--info {
+  background-color: var(--alert-info);
+  border-color: var(--alert-info);
+}
+
+/* ========== 10. 警告提示 (el-alert) ========== */
+.el-alert {
+  border-radius: var(--radius-base);
+  padding: var(--spacing-sm) var(--spacing-base);
+  font-size: var(--font-sm);
+}
+
+.el-alert--success {
+  background-color: rgba(0, 180, 42, 0.1);
+  border-color: var(--alert-success);
+  color: var(--alert-success);
+}
+
+.el-alert--warning {
+  background-color: rgba(255, 125, 0, 0.1);
+  border-color: var(--alert-warning);
+  color: var(--alert-warning);
+}
+
+.el-alert--error {
+  background-color: rgba(245, 63, 63, 0.1);
+  border-color: var(--alert-danger);
+  color: var(--alert-danger);
+}
+
+.el-alert--info {
+  background-color: rgba(22, 119, 255, 0.1);
+  border-color: var(--alert-info);
+  color: var(--alert-info);
+}

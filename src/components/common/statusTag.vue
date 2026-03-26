@@ -14,12 +14,12 @@ import { computed } from 'vue'
 
 export type StatusTagType = 'success' | 'warning' | 'danger' | 'info' | 'primary' | ''
 export type StatusTagSize = 'small' | 'default' | 'large'
-export type StatusCategory = 'status' | 'priority' | 'device' | 'historyData' | 'custom'
+export type StatusCategory = 'status' | 'priority' | 'device' | 'historyData' | 'indicator' | 'alarm' | 'export' | 'custom'
 
 interface Props {
   /** 原始值（如 '0', '1', '2', '4' 等） */
   value?: string | number
-  /** 分类：status(任务状态) | priority(优先级) | device(设备状态) | historyData(历史数据状态) | custom(自定义) */
+  /** 分类：status(任务状态) | priority(优先级) | device(设备状态) | historyData(历史数据状态) | indicator(指标状态) | alarm(告警状态) | export(导出状态) | custom(自定义) */
   category?: StatusCategory
   /** 自定义类型（当 category='custom' 时使用） */
   type?: StatusTagType
@@ -55,6 +55,25 @@ const historyDataMap: Record<string, { type: StatusTagType; text: string }> = {
   '1': { type: 'warning', text: '过高' },
   '2': { type: 'primary', text: '过低' },
 }
+
+// 指标状态映射配置
+const indicatorMap: Record<string, { type: StatusTagType; text: string }> = {
+  '0': { type: 'success', text: '正常' },
+  '1': { type: 'danger', text: '异常' }
+}
+
+// 告警状态映射配置
+const alarmMap: Record<string, { type: StatusTagType; text: string }> = {
+  '0': { type: 'danger', text: '未处理' },
+  '1': { type: 'success', text: '已处理' }
+}
+
+// 导出状态映射配置
+const exportMap: Record<string, { type: StatusTagType; text: string }> = {
+  'success': { type: 'success', text: '成功' },
+  'failed': { type: 'danger', text: '失败' },
+  'pending': { type: 'warning', text: '处理中' }
+}
 // 设备状态映射配置
 const deviceMap: Record<string, { type: StatusTagType; text: string }> = {
   'online': { type: 'success', text: '在线' },
@@ -87,6 +106,18 @@ const computedType = computed(() => {
     return historyDataMap[key]?.type || 'info'
   }
 
+  if (props.category === 'indicator') {
+    return indicatorMap[key]?.type || 'info'
+  }
+
+  if (props.category === 'alarm') {
+    return alarmMap[key]?.type || 'info'
+  }
+
+  if (props.category === 'export') {
+    return exportMap[key]?.type || 'info'
+  }
+
   return 'info'
 })
 
@@ -111,6 +142,18 @@ const computedText = computed(() => {
   }
   if (props.category === 'historyData') {
     return historyDataMap[key]?.text || key
+  }
+
+  if (props.category === 'indicator') {
+    return indicatorMap[key]?.text || key
+  }
+
+  if (props.category === 'alarm') {
+    return alarmMap[key]?.text || key
+  }
+
+  if (props.category === 'export') {
+    return exportMap[key]?.text || key
   }
 
   return key
