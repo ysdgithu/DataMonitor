@@ -1,7 +1,7 @@
 // 规则引擎主类
 import DatabaseConnection from '../../database/connection';
 import { DataModel } from '../../database/models';
-import { AtomEvaluator } from './atomEvaluator';
+// import { AtomEvaluator } from './atomEvaluator';
 import {
     AlarmRule,
     AlarmEvent,
@@ -27,7 +27,7 @@ interface RuleEngineConfig {
 export class RuleEngine {
     private db: DatabaseConnection;
     private dataModel: DataModel;
-    private evaluator: AtomEvaluator;
+    // private evaluator: AtomEvaluator;
     private config: RuleEngineConfig;
     private intervalId: NodeJS.Timeout | null = null;
     private rules: AlarmRule[] = [];
@@ -39,7 +39,7 @@ export class RuleEngine {
     constructor(config?: Partial<RuleEngineConfig>) {
         this.db = DatabaseConnection.getInstance();
         this.dataModel = new DataModel();
-        this.evaluator = new AtomEvaluator();
+        // this.evaluator = new AtomEvaluator();
         this.config = {
             checkInterval: 5000,       // 默认5秒
             historyBuffer: 600000,     // 默认10分钟历史数据
@@ -260,14 +260,14 @@ export class RuleEngine {
                         timestamp: dataTimestamp  // 使用数据时间戳而非当前时间
                     };
 
-                    // 4. 评估规则
-                    const result = this.evaluator.evaluate(rule.rootAtom, context);
-                    console.log(`[RuleEngine]   评估结果: triggered=${result.triggered}, message=${result.message}`);
+                    // 4. 评估规则（已禁用 AtomEvaluator）
+                    // const result = this.evaluator.evaluate(rule.rootAtom, context);
+                    // console.log(`[RuleEngine]   评估结果: triggered=${result.triggered}, message=${result.message}`);
 
                     // 5. 触发告警
-                    if (result.triggered) {
-                        await this.triggerAlarm(rule, device, result, dataTimestamp);
-                    }
+                    // if (result.triggered) {
+                    //     await this.triggerAlarm(rule, device, result, dataTimestamp);
+                    // }
                 }
 
             } catch (error) {
@@ -369,6 +369,45 @@ export class RuleEngine {
         result: EvaluateResult,
         timestamp: number
     ): Promise<void> {
+        // 提取参数名称和当前值
+        let parameterName = '';
+        let currentValue: number | undefined = undefined;
+        let threshold = '';
+
+        // 从规则的 rootAtom 中提取参数信息
+        if (rule.rootAtom) {
+            const atom = rule.rootAtom;
+            const config = atom.config;
+
+            // 使用类型守卫提取参数名
+            if ('param' in config && typeof config.param === 'string') {
+                // 从 "payload.temp.value" 中提取 "temp"
+                const match = config.param.match(/payload\.(\w+)\.value/);
+                if (match) {
+                    parameterName = match[1];
+                }
+            }
+
+            // 构建阈值字符串
+            if (atom.type === 'threshold_range' && 'min' in config && 'max' in config) {
+                threshold = `${config.min}-${config.max}`;
+            } else if (atom.type === 'threshold' && 'operator' in config && 'value' in config) {
+                threshold = `${config.operator} ${config.value}`;
+            }
+        }
+
+        // 从上下文中提取当前值
+        if (result.context && parameterName) {
+            try {
+                currentValue = result.context[parameterName];
+            } catch (e) {
+                // 忽略提取失败
+            }
+        }
+
+        // 默认告警等级为 medium
+        const severity: 'low' | 'medium' | 'high' | 'critical' = 'medium';
+
         const event: AlarmEvent = {
             ruleId: rule.id,
             ruleName: rule.name,
@@ -376,7 +415,13 @@ export class RuleEngine {
             deviceType: device.deviceType,
             timestamp,
             message: result.message || `规则 ${rule.name} 触发`,
-            details: result.context
+            details: result.context,
+            // 前端展示字段
+            parameterName,
+            currentValue,
+            threshold,
+            severity,
+            triggerTime: timestamp
         };
 
         // 打印告警
@@ -384,6 +429,8 @@ export class RuleEngine {
         console.log(`规则: ${event.ruleName} [ID:${event.ruleId}]`);
         console.log(`设备: ${event.deviceId} (${event.deviceType})`);
         console.log(`时间: ${new Date(event.timestamp).toLocaleString()}`);
+        console.log(`参数: ${parameterName} = ${currentValue} (阈值: ${threshold})`);
+        console.log(`等级: ${severity}`);
         console.log(`信息: ${event.message}`);
         console.log(`详情:`, JSON.stringify(event.details, null, 2));
         console.log('========================================\n');

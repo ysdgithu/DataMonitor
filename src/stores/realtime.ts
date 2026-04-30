@@ -14,6 +14,8 @@ import { useCoreMetricStore } from './CoreMetricData'
 import { useEnvironmentDataStore } from './EnvironmentData'
 import { useDeviceTelemetryDataStore } from './DeviceTelemetryData'
 import { useFactoryDeviceDataStore } from './FactoryDeviceData'
+import { useDeviceDataStore } from './deviceData' // 【新增】设备数据 Store
+import { useAlarmStore } from './alarm' // 【新增】告警 Store
 import { performanceMonitor } from '../utils/performanceMonitor' // 【新增】性能监控
 
 
@@ -22,7 +24,7 @@ import { performanceMonitor } from '../utils/performanceMonitor' // 【新增】
 const BATCH_SIZE = 50 // 批量处理50条数据
 const BATCH_INTERVAL = 16 // 16ms ≈ 60fps
 const MAX_BUFFER_SIZE = 1000 // 【修复】缓冲区最大长度，防止内存溢出
-const CRITICAL_TYPES = ['anomaly_alert', 'critical_alarm'] // 【修复】关键消息类型，立即处理
+const CRITICAL_TYPES = ['anomaly_alert', 'critical_alarm', 'ALARM_EVENT'] // 【修复】关键消息类型，立即处理
 
 export const useRealtimeStore = defineStore('realtime', () => {
   // 监控开关
@@ -189,6 +191,36 @@ export const useRealtimeStore = defineStore('realtime', () => {
     if (groupedMessages['telemetry'] && groupedMessages['telemetry'].length > 0) {
       const deviceStatusStore = useDeviceTelemetryDataStore()
       deviceStatusStore.batchPushDeviceTelemetryData(groupedMessages['telemetry'])
+    }
+
+    // 【新增】处理设备批量更新数据 (DEVICE_BATCH_UPDATE)
+    if (groupedMessages['DEVICE_BATCH_UPDATE'] && groupedMessages['DEVICE_BATCH_UPDATE'].length > 0) {
+      const deviceDataStore = useDeviceDataStore()
+      // 将所有批次的数据合并成一个数组
+      const allDeviceData: any[] = []
+      groupedMessages['DEVICE_BATCH_UPDATE'].forEach(dataArray => {
+        if (Array.isArray(dataArray)) {
+          allDeviceData.push(...dataArray)
+        }
+      })
+      if (allDeviceData.length > 0) {
+        deviceDataStore.batchUpdateDeviceData(allDeviceData)
+      }
+    }
+
+    // 【新增】处理告警事件 (ALARM_EVENT) - 立即处理，不批量
+    if (groupedMessages['ALARM_EVENT'] && groupedMessages['ALARM_EVENT'].length > 0) {
+      const alarmStore = useAlarmStore()
+      let addedCount = 0
+      groupedMessages['ALARM_EVENT'].forEach(alarmData => {
+        if (alarmData) {
+          const added = alarmStore.addAlarmEvent(alarmData)
+          if (added) addedCount++
+        }
+      })
+      if (addedCount > 0) {
+        console.log(`[Realtime] 新增 ${addedCount} 条告警 (去重后)`)
+      }
     }
   }
 

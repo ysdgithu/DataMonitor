@@ -1,29 +1,40 @@
 <template>
   <el-main class="dashboard-main-new">
+    <!-- WebSocket 连接状态指示器 -->
+    <div class="connection-indicator" :class="connectionStatusClass">
+      <span class="indicator-dot"></span>
+      <span class="indicator-text">{{ connectionStatusText }}</span>
+      <span v-if="realtimeStore.retryCount > 0" class="retry-count">(重连: {{ realtimeStore.retryCount }})</span>
+    </div>
+
     <!-- 顶部统计卡片 -->
     <div class="dashboard-stat-header">
       <div class="stat-card">
-        <div class="value status-alarm">告警</div>
+        <div class="value" :class="getStatusClass(productionLineStatus)">{{ productionLineStatusText }}</div>
         <div class="label">生产线整体状态</div>
       </div>
       <div class="stat-card">
-        <div class="value">98.2%</div>
+        <div class="value">{{ deviceOnlineRate }}</div>
         <div class="label">设备在线率</div>
       </div>
       <div class="stat-card">
-        <div class="value status-alarm">12</div>
+        <div class="value status-alarm">{{ totalAnomalyCount }}</div>
         <div class="label">当日异常总数</div>
       </div>
       <div class="stat-card">
-        <div class="value status-normal">4</div>
+        <div class="value status-normal">{{ normalDeviceCount }}</div>
         <div class="label">正常运行设备数</div>
       </div>
     </div>
 
     <!-- 中间设备卡片 -->
     <div class="device-cards">
-      <div v-for="device in deviceList" :key="device.id" class="device-card" @click="handleDeviceClick(device)">
-        <div class="name">{{ device.name }}</div>
+      <div v-for="device in deviceList" :key="device.id" class="device-card"
+        :class="{ 'device-offline': device.status === 'stop' }" @click="handleDeviceClick(device)">
+        <div class="name">
+          {{ device.name }}
+          <span v-if="device.status === 'stop'" class="offline-badge">离线</span>
+        </div>
         <div class="status" :class="getStatusClass(device.status)">
           运行状态：{{ device.statusText }}
         </div>
@@ -72,10 +83,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { ElNotification } from 'element-plus'
-import BaseChart from '../charts/BaseChart.vue'
 import type { EChartsOption } from 'echarts'
+import { useDeviceDataStore } from '../../stores/deviceData'
+import { useRealtimeStore } from '../../stores/realtime'
+import { useAlarmStore } from '../../stores/alarm'
+import { audioNotification } from '../../utils/audioNotification'
+import BaseChart from '../charts/BaseChart.vue'
 
 interface Metric {
   label: string
@@ -97,105 +112,71 @@ interface Alarm {
   deviceId: string
 }
 
-// 假数据：设备列表
-const deviceList: Device[] = [
-  {
-    id: '1001',
-    name: '调配罐',
-    status: 'normal',
-    statusText: '正常',
-    metrics: [
-      { label: '温度(℃)', value: 60.19 },
-      { label: '液位(L)', value: 120 },
-      { label: '搅拌电机电流(A)', value: 13.49 },
-      { label: 'ph值', value: 7.36 },
-      { label: '生产线', value: 1 },
-    ]
-  },
-  {
-    id: '1002',
-    name: '洗瓶机',
-    status: 'alarm',
-    statusText: '告警',
-    metrics: [
-      { label: '温度(℃)', value: 100, isError: true },
-      { label: '压力(MPa)', value: 0.52 },
-      { label: '速度(r/min)', value: 1179 },
-      { label: '运行状态', value: 1 }
-    ]
-  },
-  {
-    id: '1003',
-    name: '灌装机',
-    status: 'normal',
-    statusText: '正常',
-    metrics: [
-      { label: '灌装量(ml)', value: 512 },
-      { label: '温度(℃)', value: 100, isError: true },
-      { label: '压力(MPa)', value: 0.52 },
-      { label: '速度(r/min)', value: 1179 },
-    ]
-  },
-  {
-    id: '1004',
-    name: '封盖机',
-    status: 'stop',
-    statusText: '停机',
-    metrics: [
-      { label: '旋盖扭矩(N・m)', value: 0.05, isError: true },
-      { label: '压力(MPa)', value: 0.52 },
-      { label: '温度(℃)', value: 100, isError: true },
-      { label: '缺盖检测个数(个)', value: '1', isError: true }
-    ]
-  },
-  {
-    id: '1005',
-    name: '贴标机',
-    status: 'normal',
-    statusText: '正常',
-    metrics: [
-      { label: '贴标速度(张/分)', value: 80 },
-      { label: '温度(℃)', value: 28.5 },
-      { label: '标签余量(%)', value: 1.8 }
-    ]
-  }
-]
+// 初始化 Store
+const deviceDataStore = useDeviceDataStore()
+const realtimeStore = useRealtimeStore()
+const alarmStore = useAlarmStore()
 
-// 假数据：告警流水
-const alarmList: Alarm[] = [
-  {
-    content: '洗瓶机 温度超过阈值(100℃)',
-    time: '2026-02-24 14:25',
-    deviceId: '1002'
-  },
-  {
-    content: '封盖机 旋盖扭矩异常(0.05N·m)',
-    time: '2026-02-24 14:10',
-    deviceId: '1004'
-  },
-  {
-    content: '灌装机 温度超过阈值(100℃)',
-    time: '2026-02-24 13:50',
-    deviceId: '1003'
-  },
-  {
-    content: '封盖机 缺盖检测个数异常(1个)',
-    time: '2026-02-24 13:20',
-    deviceId: '1004'
-  }
-]
-
-// 假数据：5个设备24小时温度趋势
-const hours = Array.from({ length: 12 }, (_, i) => `${String(i * 2).padStart(2, '0')}:00`)
-
-const tempData: Record<string, number[]> = {
-  '1001': [58.2, 57.5, 58.8, 59.5, 60.1, 61.3, 62.5, 63.8, 62.1, 61.5, 60.8, 60.19],
-  '1002': [98.5, 99.2, 100.5, 101.8, 102.3, 101.5, 100.2, 99.8, 100.5, 101.2, 100.8, 100],
-  '1003': [97.8, 98.5, 99.2, 100.5, 101.2, 100.8, 99.5, 100.2, 101.5, 100.8, 100.2, 100],
-  '1004': [99.2, 100.5, 101.8, 102.5, 101.2, 100.5, 99.8, 100.5, 101.8, 100.5, 100.2, 100],
-  '1005': [26.5, 25.8, 26.2, 27.5, 28.2, 29.5, 30.2, 29.8, 28.5, 27.8, 28.2, 28.5]
+// 参数标签映射
+const paramLabelMap: Record<string, string> = {
+  temp: '温度',
+  level: '液位',
+  current: '搅拌电机电流',
+  ph: 'pH值',
+  fill_volume: '灌装量',
+  pressure: '压力',
+  speed: '速度'
 }
 
+// 从 Store 获取设备列表并转换格式
+const deviceList = computed<Device[]>(() => {
+  return deviceDataStore.deviceList.map(device => {
+    // 转换状态文本
+    let statusText = '正常'
+    let statusType: 'normal' | 'alarm' | 'stop' = 'normal'
+
+    if (device.status === 0) {
+      statusText = '离线'
+      statusType = 'stop'
+    } else if (device.status === 2) {
+      statusText = '告警'
+      statusType = 'alarm'
+    }
+
+    // 转换监控数据为 metrics 格式
+    const metrics: Metric[] = []
+    Object.entries(device.monitor_data).forEach(([key, item]) => {
+      const label = paramLabelMap[key] || key
+      const unit = item.unit
+      const displayLabel = unit ? `${label}(${unit})` : label
+
+      metrics.push({
+        label: displayLabel,
+        value: typeof item.value === 'number' ? item.value.toFixed(2) : item.value,
+        isError: item.status === 'alarm'
+      })
+    })
+
+    return {
+      id: device.id,
+      name: device.device_name,
+      status: statusType,
+      statusText,
+      metrics
+    }
+  })
+})
+
+// 从告警 Store 获取最近 10 条告警
+const alarmList = computed<Alarm[]>(() => {
+  return alarmStore.getRecentAlarms(10).map(record => ({
+    content: record.content,
+    time: record.time,
+    deviceId: record.deviceId
+  }))
+})
+
+// 设备颜色映射
 const deviceColors: Record<string, string> = {
   '1001': '#5470c6',
   '1002': '#ee6666',
@@ -204,17 +185,59 @@ const deviceColors: Record<string, string> = {
   '1005': '#73c0de'
 }
 
-const trendDate = '2026-02-24'
+const trendDate = computed(() => {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+})
 
+// 温度趋势图配置 (从 Store 获取实时数据)
 const trendChartOptions = computed<EChartsOption>(() => {
-  const series = Object.keys(tempData).map(deviceId => {
-    const device = deviceList.find(d => d.id === deviceId)
+  const tempHistory = deviceDataStore.temperatureHistory
+
+  // 构建时间轴
+  const timeLabels: string[] = []
+  const seriesData: Record<string, number[]> = {}
+
+  // 遍历所有设备的温度历史
+  tempHistory.forEach((history, deviceId) => {
+    if (history.length === 0) return
+
+    // 初始化设备的数据数组
+    seriesData[deviceId] = []
+
+    // 提取数据
+    history.forEach(point => {
+      const time = new Date(point.timestamp).toLocaleTimeString('zh-CN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
+
+      // 收集时间标签(去重)
+      if (!timeLabels.includes(time)) {
+        timeLabels.push(time)
+      }
+
+      seriesData[deviceId].push(point.value)
+    })
+  })
+
+  // 如果没有数据,显示空图表
+  if (timeLabels.length === 0) {
+    timeLabels.push('00:00:00')
+  }
+
+  // 构建图表系列
+  const series = Object.entries(seriesData).map(([deviceId, data]) => {
+    const device = deviceList.value.find(d => d.id === deviceId)
     return {
       name: device ? device.name : deviceId,
       type: 'line' as const,
-      data: tempData[deviceId],
+      data: data,
       smooth: true,
-      itemStyle: { color: deviceColors[deviceId] }
+      itemStyle: { color: deviceColors[deviceId] || '#999' },
+      showSymbol: false, // 不显示数据点
+      lineStyle: { width: 2 }
     }
   })
 
@@ -236,7 +259,7 @@ const trendChartOptions = computed<EChartsOption>(() => {
     xAxis: {
       type: 'category' as const,
       boundaryGap: false,
-      data: hours
+      data: timeLabels
     },
     yAxis: {
       type: 'value' as const,
@@ -245,6 +268,55 @@ const trendChartOptions = computed<EChartsOption>(() => {
     },
     series
   }
+})
+
+// WebSocket 连接状态
+const connectionStatusClass = computed(() => {
+  if (realtimeStore.isConnected) {
+    return 'status-connected'
+  } else if (realtimeStore.retryCount > 0) {
+    return 'status-reconnecting'
+  } else {
+    return 'status-disconnected'
+  }
+})
+
+const connectionStatusText = computed(() => {
+  if (realtimeStore.isConnected) {
+    return '已连接'
+  } else if (realtimeStore.retryCount > 0) {
+    return '重连中'
+  } else {
+    return '未连接'
+  }
+})
+
+// 计算顶部统计数据
+const productionLineStatus = computed(() => {
+  // 有任何设备告警,则生产线状态为告警
+  const hasAlarm = deviceList.value.some(d => d.status === 'alarm')
+  return hasAlarm ? 'alarm' : 'normal'
+})
+
+const productionLineStatusText = computed(() => {
+  return productionLineStatus.value === 'alarm' ? '告警' : '正常'
+})
+
+const deviceOnlineRate = computed(() => {
+  const totalDevices = deviceList.value.length
+  if (totalDevices === 0) return '0%'
+
+  const onlineDevices = deviceList.value.filter(d => d.status !== 'stop').length
+  const rate = (onlineDevices / totalDevices * 100).toFixed(1)
+  return `${rate}%`
+})
+
+const totalAnomalyCount = computed(() => {
+  return alarmStore.todayCount
+})
+
+const normalDeviceCount = computed(() => {
+  return deviceList.value.filter(d => d.status === 'normal').length
 })
 
 const getStatusClass = (status: string) => {
@@ -289,6 +361,73 @@ const gotoAlarmDetail = () => {
     duration: 2000
   })
 }
+
+// 通知限制配置
+const MAX_NOTIFICATIONS = 3 // 最多同时显示3条通知
+let activeNotifications = 0
+
+// 监听告警记录变化,自动弹窗
+watch(() => alarmStore.alarmRecords.length, (newLen, oldLen) => {
+  // 有新告警时
+  if (newLen > oldLen) {
+    const latestAlarm = alarmStore.alarmRecords[0]
+
+    // 播放告警提示音
+    audioNotification.playAlarmSound()
+
+    // 限制通知数量
+    if (activeNotifications < MAX_NOTIFICATIONS) {
+      activeNotifications++
+
+      // ElNotification 弹窗
+      ElNotification({
+        title: '🚨 新告警提醒',
+        message: latestAlarm.content,
+        type: 'error',
+        duration: 5000,
+        onClose: () => {
+          activeNotifications--
+        },
+        onClick: () => {
+          // 点击通知时显示详情弹窗
+          currentAlarm.value = {
+            content: latestAlarm.content,
+            time: latestAlarm.time,
+            deviceId: latestAlarm.deviceId
+          }
+          alarmPopupVisible.value = true
+        }
+      })
+    } else {
+      console.log('[Dashboard] 通知数量已达上限,跳过弹窗')
+    }
+
+    // 同时显示自定义弹窗
+    currentAlarm.value = {
+      content: latestAlarm.content,
+      time: latestAlarm.time,
+      deviceId: latestAlarm.deviceId
+    }
+    alarmPopupVisible.value = true
+
+    // 3秒后自动关闭弹窗
+    setTimeout(() => {
+      alarmPopupVisible.value = false
+    }, 3000)
+  }
+})
+
+// 生命周期: 组件挂载时启动 WebSocket
+onMounted(() => {
+  console.log('[DashboardMain] 组件挂载,启动 WebSocket 监控')
+  realtimeStore.setMonitoring(true)
+})
+
+// 生命周期: 组件卸载时停止 WebSocket
+onUnmounted(() => {
+  console.log('[DashboardMain] 组件卸载,停止 WebSocket 监控')
+  realtimeStore.setMonitoring(false)
+})
 </script>
 
 <style scoped>
@@ -296,6 +435,73 @@ const gotoAlarmDetail = () => {
   padding: 16px;
   background-color: #f0f2f5;
   min-height: 100vh;
+  position: relative;
+}
+
+/* WebSocket 连接状态指示器 */
+.connection-indicator {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-size: 14px;
+  z-index: 1000;
+  transition: all 0.3s;
+}
+
+.indicator-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+.status-connected .indicator-dot {
+  background-color: #52c41a;
+}
+
+.status-connected .indicator-text {
+  color: #52c41a;
+}
+
+.status-disconnected .indicator-dot {
+  background-color: #ff4d4f;
+  animation: none;
+}
+
+.status-disconnected .indicator-text {
+  color: #ff4d4f;
+}
+
+.status-reconnecting .indicator-dot {
+  background-color: #faad14;
+}
+
+.status-reconnecting .indicator-text {
+  color: #faad14;
+}
+
+.retry-count {
+  font-size: 12px;
+  color: #999;
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 /* 顶部统计卡片 */
@@ -359,12 +565,49 @@ const gotoAlarmDetail = () => {
   border-color: #1890ff;
 }
 
+/* 离线设备样式 */
+.device-offline {
+  opacity: 0.6;
+  background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+  border-color: #d9d9d9;
+}
+
+.device-offline:hover {
+  opacity: 0.8;
+  border-color: #ff4d4f;
+}
+
 .device-card .name {
   font-size: 16px;
   font-weight: bold;
   margin-bottom: 12px;
   padding-bottom: 8px;
   border-bottom: 1px solid #eee;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.offline-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #ff4d4f;
+  color: #fff;
+  font-size: 12px;
+  border-radius: 4px;
+  animation: blink 1.5s infinite;
+}
+
+@keyframes blink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .device-card .status {
@@ -482,6 +725,7 @@ const gotoAlarmDetail = () => {
     transform: translateX(100%);
     opacity: 0;
   }
+
   to {
     transform: translateX(0);
     opacity: 1;

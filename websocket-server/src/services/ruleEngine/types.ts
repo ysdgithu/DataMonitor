@@ -94,4 +94,10 @@ export interface AlarmEvent {
     timestamp: number;
     message: string;
     details: any;
+    // 前端展示需要的额外字段
+    parameterName?: string;
+    currentValue?: number;
+    threshold?: string;
+    severity?: 'low' | 'medium' | 'high' | 'critical';
+    triggerTime?: number; // 触发时间(与timestamp相同,为了兼容)
 }

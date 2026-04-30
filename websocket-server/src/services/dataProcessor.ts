@@ -18,7 +18,7 @@ export class DataProcessor {
 
     constructor() {
         this.dataModel = new DataModel();
-        
+
         // 初始化规则引擎
         this.ruleEngine = new RuleEngine({
             checkInterval: 5000,     // 5秒检查一次
@@ -39,10 +39,10 @@ export class DataProcessor {
     // 启动服务
     private async startServices() {
         console.log('[DataProcessor] 启动服务...');
-        
+
         // 启动规则引擎（定时轮询检测）
         await this.ruleEngine.start();
-        
+
         console.log('[DataProcessor] 服务已启动');
     }
 
@@ -109,10 +109,23 @@ export class DataProcessor {
 
     // 处理规则引擎告警
     private handleRuleAlarm(event: AlarmEvent) {
-        // 转发给所有WebSocket客户端
-        this.broadcastToClients({
-            type: 'RULE_ALARM',
-            ...event
+        console.log(`[DataProcessor] 告警触发: ${event.deviceId} ${event.parameterName} = ${event.currentValue} (阈值: ${event.threshold})`);
+
+        // 广播告警事件给所有WebSocket客户端
+        const message = JSON.stringify({
+            type: 'ALARM_EVENT',
+            data: event,
+            timestamp: Date.now()
         });
+
+        for (const ws of this.wsClients) {
+            if (ws.readyState === WebSocket.OPEN) {
+                try {
+                    ws.send(message);
+                } catch (error) {
+                    console.error('[DataProcessor] 告警推送失败:', error);
+                }
+            }
+        }
     }
 }

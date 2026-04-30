@@ -3,13 +3,21 @@
 // 数据格式转换
 import { init, use ,type EChartsCoreOption} from 'echarts/core'
 import { LineChart, BarChart, PieChart, MapChart } from 'echarts/charts'
-import { GridComponent, TooltipComponent, VisualMapComponent } from 'echarts/components'
+import {
+  GridComponent,
+  TooltipComponent,
+  VisualMapComponent,
+  LegendComponent,
+  TitleComponent,
+  DataZoomComponent
+} from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 
 // 仅注册项目中使用的图表和组件
 use([
   LineChart, BarChart, PieChart, MapChart,
-  GridComponent, TooltipComponent, VisualMapComponent,
+  GridComponent, TooltipComponent, VisualMapComponent, LegendComponent,
+  TitleComponent, DataZoomComponent,
   CanvasRenderer
 ])
 
@@ -112,7 +120,7 @@ export const createBarChart = (config: {
   const min = Math.min(...displayData)
   const max = Math.max(...displayData)
   const range = max - min
-  
+
   return {
     tooltip: {
       trigger: 'axis',
