@@ -6,6 +6,7 @@ import UserModel from '../database/userModel';
 import { authMiddleware, requestLogMiddleware, errorHandler } from './middleware';
 import { generateToken, validateUsername, validatePasswordStrength } from '../utils/auth';
 import { buildAIContext, BuildContextParams } from '../services/aiContextBuilder';
+import DatabaseConnection from '../database/connection';
 
 const app = express();
 const PORT = process.env.API_PORT || 3002;
@@ -18,6 +19,7 @@ app.use(requestLogMiddleware);
 // 数据模型实例
 const dataModel = new DataModel();
 const userModel = new UserModel();
+const db = DatabaseConnection.getInstance();
 
 // 健康检查接口
 app.get('/api/health', (req, res) => {
@@ -202,7 +204,7 @@ app.get('/api/core-metrics', authMiddleware, async (req, res) => {
             success: true,
             data,
             total: data.length,
-            params
+            userId: req.user?.id
         });
     } catch (error) {
         console.error('查询核心指标数据失败:', error);
@@ -818,6 +820,124 @@ app.post('/api/trigger-diagnosis', authMiddleware, async (req, res) => {
     }
 });
 
+// ==================== 监控大屏接口 ====================
+// 获取监控大屏数据 - 需要认证
+app.get('/api/dashboard', authMiddleware, async (req, res) => {
+    try {
+        const deviceId = req.query.device_id ? parseInt(req.query.device_id as string) : null;
+
+        if (!deviceId) {
+            res.status(400).json({
+                code: 400,
+                msg: '缺少 device_id 参数',
+                data: null
+            });
+            return;
+        }
+
+        // 从 device_dashboard 表查询设备数据
+        const sql = 'SELECT * FROM device_dashboard WHERE id = ? AND is_deleted = 0';
+        const device = await db.get(sql, [deviceId]);
+
+        if (!device) {
+            res.status(404).json({
+                code: 404,
+                msg: '设备不存在',
+                data: null
+            });
+            return;
+        }
+
+        // 解析 monitor_data JSON 字段
+        let monitorData = {};
+        if (device.monitor_data) {
+            if (typeof device.monitor_data === 'string') {
+                monitorData = JSON.parse(device.monitor_data);
+            } else {
+                monitorData = device.monitor_data;
+            }
+        }
+
+        res.json({
+            code: 200,
+            msg: '操作成功',
+            data: {
+                id: device.id,
+                device_name: device.device_name,
+                device_type: device.device_type,
+                status: device.status,
+                monitor_data: monitorData,
+                last_update: device.last_update
+            }
+        });
+    } catch (error) {
+        console.error('[Dashboard API] 失败:', error);
+        res.status(500).json({
+            code: 500,
+            msg: '服务器内部错误',
+            data: null
+        });
+    }
+});
+
+// ==================== TEST_CODE START ====================
+// POST /api/test/generate-anomaly - 生成异常测试数据
+app.post('/api/test/generate-anomaly', async (req, res) => {
+    try {
+        const deviceId = 1001;
+        const db = DatabaseConnection.getInstance();
+
+        // 1. 获取设备数据
+        const row = await db.get(
+            'SELECT * FROM device_dashboard WHERE id = ?',
+            [deviceId]
+        );
+        if (!row) {
+            res.status(404).json({ code: 404, msg: '设备不存在', data: null });
+            return;
+        }
+
+        const monitorData = typeof row.monitor_data === 'string'
+            ? JSON.parse(row.monitor_data)
+            : row.monitor_data;
+
+        // 2. 制造异常
+        const params = ['temp', 'level', 'current', 'ph'] as const;
+        const targetParam = params[Math.floor(Math.random() * params.length)];
+        const abnormalValues: Record<string, number> = {
+            temp: 85.0,   // 超过最大阈值70
+            level: 120.0, // 超过最大阈值100
+            current: 20.0, // 超过最大阈值15
+            ph: 8.5       // 超过最大阈值8.0
+        };
+        monitorData[targetParam].value = abnormalValues[targetParam];
+        monitorData[targetParam].status = 'alarm';
+
+        // 3. 更新数据库
+        await db.run(
+            'UPDATE device_dashboard SET monitor_data = ?, status = 2, last_update = NOW() WHERE id = ?',
+            [JSON.stringify(monitorData), deviceId]
+        );
+
+        console.log(`[Test API] 生成异常数据: ${targetParam} = ${abnormalValues[targetParam]}`);
+
+        res.json({
+            code: 200,
+            msg: '异常数据已生成',
+            data: {
+                deviceId,
+                abnormalParam: targetParam,
+                abnormalValue: abnormalValues[targetParam],
+                monitorData
+            }
+        });
+    } catch (error) {
+        console.error('[Test API] 失败:', error);
+        res.status(500).json({ code: 500, msg: '服务器内部错误', data: null });
+    }
+});
+// ==================== TEST_CODE END ====================
+
 // 错误处理中间件
 app.use(errorHandler);
 
@@ -851,6 +971,7 @@ function startApiServer() {
         console.log('  PUT /api/diagnosis-tasks/:id - 更新诊断任务 (需要认证)');
         console.log('  DELETE /api/diagnosis-tasks/:id - 删除诊断任务 (需要认证)');
         console.log('  GET /api/diagnosis-tasks-stats - 诊断任务统计 (需要认证)');
+        console.log('  GET /api/dashboard?device_id=1001 - 监控大屏数据 (需要认证)');
     });
 }
 

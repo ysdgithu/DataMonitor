@@ -9,7 +9,8 @@
     "test": "echo \"No tests specified\" && exit 0",
     "init-db": "ts-node src/database/init.ts",
     "create-admin": "ts-node scripts/create-admin-user.ts",
-    "dev": "ts-node src/server.ts"
+    "dev": "ts-node src/server.ts",
+    "standalone": "ts-node src/standalone.ts"
   },
   "dependencies": {
     "@types/bcrypt": "^6.0.0",

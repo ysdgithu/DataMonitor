@@ -6,5 +6,5 @@
 
 <script setup lang="ts">
 import MainLayout from '../components/layout/MainLayout.vue'
-import DashboardMain from '../components/dashboard/DashboardMain.vue'
+import DashboardMain from '../components/dashboard/DashboardMain_new.vue'
 </script>

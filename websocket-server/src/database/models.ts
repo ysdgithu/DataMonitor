@@ -34,6 +34,14 @@ interface FactoryDeviceRecord extends FactoryDevice {
     dataStatus: 'normal' | 'warning' | 'error';
 }
 
+// 设备全量数据接口（新表结构）
+interface DeviceFullData {
+    deviceId: string;
+    deviceType: string;
+    timestamp: number;
+    payload: Record<string, any>;
+}
+
 // 查询参数接口
 interface QueryParams {
     deviceId?: string;
@@ -104,6 +112,23 @@ class DataModel {
     // 插入工厂设备数据
     async insertFactoryDevices(data: FactoryDeviceRecord[]): Promise<void> {
         await this.insertDeviceData('factory_devices', data);
+    }
+
+    // 批量插入设备全量数据（新表结构，支持并发写入）
+    async batchInsertDeviceData(dataList: DeviceFullData[]): Promise<void> {
+        if (dataList.length === 0) return;
+
+        const columns = ['device_id', 'data_type', 'timestamp', 'data_status', 'payload'];
+
+        const rows = dataList.map(data => [
+            data.deviceId,
+            data.deviceType,
+            data.timestamp,
+            'raw',
+            JSON.stringify(data.payload)
+        ]);
+
+        await this.db.batchInsert('device_data', columns, rows);
     }
 
     // 查询核心指标数据
@@ -463,13 +488,41 @@ class DataModel {
         `;
         const tasks = await this.db.all(dataSql, sqlParams);
 
-        return { tasks, total };
+        // 将数据库字段映射为驼峰命名
+        const mappedTasks = tasks.map(task => ({
+            id: task.id,
+            name: task.name,
+            device_id: task.device_id,
+            status: task.status,
+            priority: task.priority,
+            detail: task.detail,
+            assignee: task.assignee,
+            createTime: task.create_time,
+            updateTime: task.update_time
+        }));
+
+        return { tasks: mappedTasks, total };
     }
 
     // 根据ID查询诊断任务详情
     async getDiagnosisTaskById(id: number): Promise<any> {
         const sql = 'SELECT * FROM diagnosis_tasks WHERE id = ?';
-        return await this.db.get(sql, [id]);
+        const task = await this.db.get(sql, [id]);
+
+        if (!task) return null;
+
+        // 将数据库字段映射为驼峰命名
+        return {
+            id: task.id,
+            name: task.name,
+            device_id: task.device_id,
+            status: task.status,
+            priority: task.priority,
+            detail: task.detail,
+            assignee: task.assignee,
+            createTime: task.create_time,
+            updateTime: task.update_time
+        };
     }
 
     // 更新诊断任务
@@ -560,4 +613,4 @@ class DataModel {
     }
 }
 
-export { DataModel, QueryParams, CoreMetricRecord, EnvironmentRecord, TelemetryRecord, DeviceStatusRecord, FactoryDeviceRecord };
+export { DataModel, QueryParams, CoreMetricRecord, EnvironmentRecord, TelemetryRecord, DeviceStatusRecord, FactoryDeviceRecord, DeviceFullData };

@@ -37,6 +37,12 @@ const formatTime = (timestamp: number) => {
 // 创建 cellRenderer
 const createCellRenderer = (col: Column) => {
   return ({ rowData, cellData }: any) => {
+    // 时间列 - 添加调试日志
+    if (col.isTime) {
+      console.log(`[VirtualTable] 时间列 ${col.dataKey}:`, { cellData, rowData })
+      return h('span', formatTime(cellData))
+    }
+
     // 状态列
     if (col.isStatus) {
       return h(StatusTag, {
@@ -44,11 +50,6 @@ const createCellRenderer = (col: Column) => {
         value: cellData,
         size: 'small'
       })
-    }
-
-    // 时间列
-    if (col.isTime) {
-      return h('span', formatTime(cellData))
     }
 
     // 操作列

@@ -62,7 +62,9 @@ function startNormalMode() {
     deviceSimulator.start();
     setInterval(async () => {
         const dataList = deviceSimulator.getLatestData();
-        await dataProcessor.processAndPush(dataList);
+        if (dataList.length > 0) {
+            await dataProcessor.processAndPushBatch(dataList.map(item => item.data));
+        }
     }, 8000);
 }
 

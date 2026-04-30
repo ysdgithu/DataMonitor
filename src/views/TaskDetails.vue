@@ -53,44 +53,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, defineProps } from 'vue'
+import { ref, onMounted, computed, defineProps } from 'vue'
 import { Connection, ChatRound } from '@element-plus/icons-vue'
 import { DiagnosticApi, type DiagnosisTask, type TriggerDiagnosisParams, type AIDiagnosisResponse } from '../utils/diagnosticApi'
 import MarkdownIt from 'markdown-it'
 
 const first = ref(true)
-// 接收任务ID属性
+// 接收任务数据属性
 const props = defineProps<{
-  taskId: number
+  taskData?: DiagnosisTask
 }>()
 
-// 任务详情数据
-const taskDetail = ref<DiagnosisTask>()
+// 任务详情数据（直接使用传入的数据）
+const taskDetail = computed<DiagnosisTask | undefined>(() => props.taskData)
 let aiResult = ref('')
 let aiResultHtml = ref('')
 const loading = ref(true)
 const md = new MarkdownIt()
-// 获取任务详情
-const getTaskDetail = async () => {
-  if (!props.taskId) return
-
-  try {
-    const api = new DiagnosticApi()
-    const res = await api.getDiagnosisDetail(props.taskId)
-    if (res.success) {
-      taskDetail.value = res.data
-    }
-  } catch (error) {
-    console.error('获取任务详情失败:', error)
-  }
-}
-
-// 监听任务ID变化
-watch(() => props.taskId, (newId) => {
-  if (newId) {
-    getTaskDetail()
-  }
-}, { immediate: true })
 
 // 格式化时间戳
 const formatTime = (timestamp?: number) => {
@@ -105,7 +84,7 @@ const askAI = async () => {
   const params: TriggerDiagnosisParams = {
     timestamp: Date.now(),
     deviceId: taskDetail.value?.device_id || '000',
-    diagnosisTaskId: props.taskId
+    diagnosisTaskId: taskDetail.value?.id || 0
   }
   const res: AIDiagnosisResponse = await api.triggerAIDiagnosis(params)
   aiResult.value = convertMD(res.data.diagnosis.diagnosis)
@@ -126,10 +105,9 @@ const convertMD = (data: string) => {
   return md.render(raw)
 }
 
-// 完成当前任务处理 4-0-1
+// 完成当前任务处理
 const updateTask = () => {
-  const api = new DiagnosticApi()
-  const res = api.updateDiagnosisTask(props.taskId, {})
+  console.log('完成任务:', taskDetail.value?.id)
 }
 
 

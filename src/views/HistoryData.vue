@@ -75,14 +75,6 @@
                 <VirtualTable :columns="indicatorColumns" :data="indicatorData" :height="300" :loading="loading" />
               </div>
 
-              <!-- 趋势图 -->
-              <div class="section">
-                <h4 class="section-title">数据趋势图</h4>
-                <div class="chart-container">
-                  <BaseChart :options="trendChartOptions" :loading="loading" />
-                </div>
-              </div>
-
               <!-- 异常告警记录 -->
               <div class="section">
                 <h4 class="section-title">异常告警记录</h4>
@@ -288,67 +280,6 @@ const alarmColumns: DataColumn[] = [
 
 // ========== 告警记录数据（假数据） ==========
 const alarmData = ref<any[]>([])
-
-// ========== 趋势图配置 ==========
-const trendChartOptions = computed<EChartsOption>(() => {
-  const times = indicatorData.value.map(d => d.time)
-  const temperatures = indicatorData.value.map(d => d.temperature)
-  const pressures = indicatorData.value.map(d => d.pressure)
-
-  return {
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'cross' }
-    },
-    legend: {
-      data: ['温度(℃)', '压力(MPa)'],
-      top: 10
-    },
-    grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
-      containLabel: true
-    },
-    xAxis: {
-      type: 'category',
-      boundaryGap: false,
-      data: times
-    },
-    yAxis: [
-      {
-        type: 'value',
-        name: '温度(℃)',
-        position: 'left',
-        axisLine: { show: true, lineStyle: { color: '#5470c6' } }
-      },
-      {
-        type: 'value',
-        name: '压力(MPa)',
-        position: 'right',
-        axisLine: { show: true, lineStyle: { color: '#91cc75' } }
-      }
-    ],
-    series: [
-      {
-        name: '温度(℃)',
-        type: 'line',
-        yAxisIndex: 0,
-        data: temperatures,
-        smooth: true,
-        itemStyle: { color: '#5470c6' }
-      },
-      {
-        name: '压力(MPa)',
-        type: 'line',
-        yAxisIndex: 1,
-        data: pressures,
-        smooth: true,
-        itemStyle: { color: '#91cc75' }
-      }
-    ]
-  }
-})
 
 // ========== 设备运行统计表格配置 ==========
 const deviceRunColumns: VirtualColumn[] = [

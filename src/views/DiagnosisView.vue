@@ -24,7 +24,7 @@
               </div>
               <div class="stat-info">
                 <div class="stat-label">总任务数</div>
-                <div class="stat-value">128</div>
+                <div class="stat-value">{{ stats.total }}</div>
               </div>
             </div>
           </el-card>
@@ -39,7 +39,7 @@
               </div>
               <div class="stat-info">
                 <div class="stat-label">进行中</div>
-                <div class="stat-value">24</div>
+                <div class="stat-value">{{ stats.running }}</div>
               </div>
             </div>
           </el-card>
@@ -54,7 +54,7 @@
               </div>
               <div class="stat-info">
                 <div class="stat-label">已完成</div>
-                <div class="stat-value">89</div>
+                <div class="stat-value">{{ stats.completed }}</div>
               </div>
             </div>
           </el-card>
@@ -69,7 +69,7 @@
               </div>
               <div class="stat-info">
                 <div class="stat-label">失败</div>
-                <div class="stat-value">15</div>
+                <div class="stat-value">{{ stats.failed }}</div>
               </div>
             </div>
           </el-card>
@@ -124,14 +124,8 @@
           </div>
         </template>
 
-        <VirtualTable 
-          :data="taskList" 
-          :columns="columns" 
-          :height="400" 
-          :loading="loading" 
-          style="width: 100%" 
-          class="task-table" 
-        />
+        <VirtualTable :data="taskList" :columns="columns" :height="400" :loading="loading" style="width: 100%"
+          class="task-table" />
 
         <!-- 分页 -->
         <div class="pagination-container">
@@ -143,7 +137,7 @@
     <!-- 历史数据查询面板弹窗 -->
     <el-drawer v-model="showPanel" :modal="false" modal-penetrable :with-header="false" :resizable="true" size="50%">
       <!-- <span>任务详情</span> -->
-      <TaskDetailsComponent :taskId="currentTaskId" :before-close="close" />
+      <TaskDetailsComponent :taskData="currentTask" :before-close="close" />
       <template #footer>
         <div class="drawer-footer">
           <el-button @click="showPanel = false">取消</el-button>
@@ -180,17 +174,25 @@ import {
 // 弹窗
 const showPanel = ref(false)
 const addShow = ref(false)
-const currentTaskId = ref<number>(0)
+const currentTask = ref<DiagnosisTask | null>(null)
 
-const detailClick = (id: number) => {
-  currentTaskId.value = id
+const detailClick = (row: DiagnosisTask) => {
+  currentTask.value = row
   showPanel.value = true
 }
 
 const handleClosePanel = () => {
   showPanel.value = false
-  currentTaskId.value = 0
+  currentTask.value = null
 }
+
+// 统计数据
+const stats = ref({
+  total: 0,
+  running: 0,
+  completed: 0,
+  failed: 0
+})
 
 // 搜索和筛选
 const searchKeyword = ref('')
@@ -205,86 +207,82 @@ const pageSize = ref(20)
 // 查询参数
 const queryParams = ref<QueryParams>({})
 
-// 测试数据
+// 测试数据：Dashboard 异常单阈值告警转诊断任务
 const testTaskData: DiagnosisTask[] = [
   {
     id: 1,
-    name: '设备A异常诊断',
-    device_id: 'DEV-001',
-    status: '0',
-    priority: '2',
-    create_time: 1707900000000,
-    update_time: 1707906000000
+    name: '洗瓶机温度高于上限',
+    device_id: '1002',
+    status: 0,
+    priority: 2,
+    assignee: '系统',
+    detail: '温度达到100℃，超过阈值',
+    createTime: 1771914300000,
+    updateTime: 1771915080000
   },
   {
     id: 2,
-    name: '生产线性能分析',
-    device_id: 'DEV-002',
-    status: '1',
-    priority: '1',
-    create_time: 1707813600000,
-    update_time: 1707897600000
+    name: '封盖机旋盖扭矩低于下限',
+    device_id: '1004',
+    status: 0,
+    priority: 2,
+    assignee: '系统',
+    detail: '旋盖扭矩0.05N·m，低于正常范围',
+    createTime: 1771913400000,
+    updateTime: 1771914120000
   },
   {
     id: 3,
-    name: '传感器数据校准',
-    device_id: 'DEV-003',
-    status: '4',
-    priority: '0',
-    create_time: 1707727200000,
-    update_time: 1707727200000
+    name: '灌装机温度高于上限',
+    device_id: '1003',
+    status: 0,
+    priority: 2,
+    assignee: '系统',
+    detail: '温度达到100℃，超过阈值',
+    createTime: 1771912200000,
+    updateTime: 1771913100000
   },
   {
     id: 4,
-    name: '系统健康度评估',
-    device_id: 'DEV-001',
-    status: '2',
-    priority: '2',
-    create_time: 1707640800000,
-    update_time: 1707903600000
+    name: '封盖机温度高于上限',
+    device_id: '1004',
+    status: 0,
+    priority: 2,
+    assignee: '系统',
+    detail: '温度达到100℃，超过阈值',
+    createTime: 1771911900000,
+    updateTime: 1771912680000
   },
   {
     id: 5,
-    name: '预测性维护分析',
-    device_id: 'DEV-004',
-    status: '0',
-    priority: '1',
-    create_time: 1707554400000,
-    update_time: 1707904200000
-  },
-  {
-    id: 6,
-    name: '工业设备监测',
-    device_id: 'DEV-005',
-    status: '1',
-    priority: '0',
-    create_time: 1707468000000,
-    update_time: 1707901800000
-  },
-  {
-    id: 7,
-    name: '故障根因分析',
-    device_id: 'DEV-002',
-    status: '0',
-    priority: '2',
-    create_time: 1707381600000,
-    update_time: 1707906600000
-  },
-  {
-    id: 8,
-    name: '能源消耗优化',
-    device_id: 'DEV-006',
-    status: '4',
-    priority: '1',
-    create_time: 1707295200000,
-    update_time: 1707295200000
+    name: '封盖机缺盖高于上限',
+    device_id: '1004',
+    status: 0,
+    priority: 2,
+    assignee: '系统',
+    detail: '缺盖检测个数1个，超过阈值0',
+    createTime: 1771910400000,
+    updateTime: 1771911300000
   }
 ]
 
-// const taskList = ref<DiagnosisTask[]>(testTaskData)
-const taskList = testTaskData
+const taskList = ref<DiagnosisTask[]>(testTaskData)
 const total = ref(testTaskData.length)
+const loading = ref(false)
 const api = new DiagnosticApi()
+
+// 获取统计数据
+const getStats = async () => {
+  try {
+    const res = await api.getDiagnosisTaskStats()
+    if (res.success) {
+      stats.value = res.data
+    }
+  } catch (error) {
+    console.error('获取统计数据失败:', error)
+  }
+}
+
 const getData = async () => {
   try {
     queryParams.value = {
@@ -300,8 +298,14 @@ const getData = async () => {
     console.log('[DiagnosisView] 请求参数:', queryParams.value)
     const res = await api.getDiagnosisList(queryParams.value)
     if (res.success) {
-      taskList.value = res.data
+      // 映射后端字段名（下划线）到前端字段名（驼峰）
+      taskList.value = res.data.map((task: any) => ({
+        ...task,
+        createTime: task.create_time || task.createTime,
+        updateTime: task.update_time || task.updateTime
+      }))
       total.value = res.total
+      console.log('[DiagnosisView] 获取到的数据:', taskList.value)
     }
   } catch (error) {
     console.error('获取诊断任务列表失败:', error)
@@ -342,33 +346,33 @@ const columns = [
   { key: 'id', title: '任务ID', dataKey: 'id', width: 100 },
   { key: 'name', title: '任务名称', dataKey: 'name', width: 180 },
   { key: 'device_id', title: '设备ID', dataKey: 'device_id', width: 120 },
-  { 
-    key: 'status', 
-    title: '任务状态', 
-    dataKey: 'status', 
+  {
+    key: 'status',
+    title: '任务状态',
+    dataKey: 'status',
     width: 120,
     isStatus: true,
     statusCategory: 'status'
   },
-  { 
-    key: 'priority', 
-    title: '优先级', 
-    dataKey: 'priority', 
+  {
+    key: 'priority',
+    title: '优先级',
+    dataKey: 'priority',
     width: 100,
     isStatus: true,
     statusCategory: 'priority'
   },
-  { 
-    key: 'create_time', 
-    title: '创建时间', 
-    dataKey: 'create_time', 
+  {
+    key: 'createTime',
+    title: '创建时间',
+    dataKey: 'createTime',
     width: 160,
     isTime: true
   },
-  { 
-    key: 'update_time', 
-    title: '更新时间', 
-    dataKey: 'update_time', 
+  {
+    key: 'updateTime',
+    title: '更新时间',
+    dataKey: 'updateTime',
     width: 160,
     isTime: true
   },
@@ -379,7 +383,7 @@ const columns = [
     width: 200,
     isActions: true,
     actions: [
-      { label: '查看', type: 'primary', onClick: (row: DiagnosisTask) => detailClick(row.id) },
+      { label: '查看', type: 'primary', onClick: (row: DiagnosisTask) => detailClick(row) },
       { label: '暂停', type: 'warning', onClick: (row: DiagnosisTask) => console.log('暂停', row), show: (row: DiagnosisTask) => row.status === 0 },
       { label: '启动', type: 'success', onClick: (row: DiagnosisTask) => console.log('启动', row), show: (row: DiagnosisTask) => row.status === 4 },
       { label: '删除', type: 'danger', onClick: (row: DiagnosisTask) => deleteTask(row.id) }
@@ -389,7 +393,16 @@ const columns = [
 
 // 初始化加载数据
 onMounted(() => {
-  getData()
+  console.log('[DiagnosisView] 测试数据:', testTaskData)
+  console.log('[DiagnosisView] taskList.value:', taskList.value)
+  console.log('[DiagnosisView] 第一条数据的时间:', {
+    createTime: testTaskData[0].createTime,
+    updateTime: testTaskData[0].updateTime,
+    createTimeFormatted: new Date(testTaskData[0].createTime).toLocaleString(),
+    updateTimeFormatted: new Date(testTaskData[0].updateTime).toLocaleString()
+  })
+  getStats()  // 获取统计数据
+  // getData()   // 暂时注释掉，只使用测试数据
 })
 </script>
 
