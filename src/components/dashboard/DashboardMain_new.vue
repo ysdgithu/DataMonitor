@@ -60,8 +60,10 @@
 
     <!-- 告警详情弹窗 -->
     <div v-if="alarmPopupVisible" class="alarm-popup">
-      <div class="popup-title">新告警提醒</div>
-      <div class="popup-content">{{ currentAlarm?.content }}</div>
+      <div class="popup-title">🚨 新告警提醒</div>
+      <div class="popup-content">
+        <div class="popup-summary">{{ currentAlarm?.content }}</div>
+      </div>
       <div class="popup-btns">
         <button class="popup-btn popup-btn-close" @click="closeAlarmPopup">关闭</button>
         <button class="popup-btn popup-btn-primary" @click="gotoAlarmDetail">查看详情</button>
@@ -88,7 +90,8 @@ import { ElNotification } from 'element-plus'
 import type { EChartsOption } from 'echarts'
 import { useDeviceDataStore } from '../../stores/deviceData'
 import { useRealtimeStore } from '../../stores/realtime'
-import { useAlarmStore } from '../../stores/alarm'
+import { useAlarmStore, type AlarmEvent } from '../../stores/alarm'
+import { formatAlarmDetail } from '../../utils/alarmFormatter'
 import { audioNotification } from '../../utils/audioNotification'
 import BaseChart from '../charts/BaseChart.vue'
 
@@ -110,6 +113,7 @@ interface Alarm {
   content: string
   time: string
   deviceId: string
+  alarmEvent: AlarmEvent
 }
 
 // 初始化 Store
@@ -172,7 +176,8 @@ const alarmList = computed<Alarm[]>(() => {
   return alarmStore.getRecentAlarms(10).map(record => ({
     content: record.content,
     time: record.time,
-    deviceId: record.deviceId
+    deviceId: record.deviceId,
+    alarmEvent: record.alarmEvent
   }))
 })
 
@@ -368,16 +373,25 @@ let activeNotifications = 0
 
 // 监听告警记录变化,自动弹窗
 watch(() => alarmStore.alarmRecords.length, (newLen, oldLen) => {
+  console.log(`[Dashboard] 🔔 告警记录长度变化: ${oldLen} -> ${newLen}`)
+
   // 有新告警时
   if (newLen > oldLen) {
     const latestAlarm = alarmStore.alarmRecords[0]
+    console.log('[Dashboard] 🚨 检测到新告警:', latestAlarm)
 
     // 播放告警提示音
-    audioNotification.playAlarmSound()
+    try {
+      audioNotification.playAlarmSound()
+      console.log('[Dashboard] 🔊 播放告警提示音')
+    } catch (e) {
+      console.error('[Dashboard] 播放提示音失败:', e)
+    }
 
     // 限制通知数量
     if (activeNotifications < MAX_NOTIFICATIONS) {
       activeNotifications++
+      console.log(`[Dashboard] 📢 弹出 ElNotification (${activeNotifications}/${MAX_NOTIFICATIONS})`)
 
       // ElNotification 弹窗
       ElNotification({
@@ -393,26 +407,30 @@ watch(() => alarmStore.alarmRecords.length, (newLen, oldLen) => {
           currentAlarm.value = {
             content: latestAlarm.content,
             time: latestAlarm.time,
-            deviceId: latestAlarm.deviceId
+            deviceId: latestAlarm.deviceId,
+            alarmEvent: latestAlarm.alarmEvent
           }
           alarmPopupVisible.value = true
         }
       })
     } else {
-      console.log('[Dashboard] 通知数量已达上限,跳过弹窗')
+      console.log('[Dashboard] ⚠️ 通知数量已达上限,跳过弹窗')
     }
 
     // 同时显示自定义弹窗
     currentAlarm.value = {
       content: latestAlarm.content,
       time: latestAlarm.time,
-      deviceId: latestAlarm.deviceId
+      deviceId: latestAlarm.deviceId,
+      alarmEvent: latestAlarm.alarmEvent
     }
     alarmPopupVisible.value = true
+    console.log('[Dashboard] 💬 显示自定义告警弹窗')
 
     // 3秒后自动关闭弹窗
     setTimeout(() => {
       alarmPopupVisible.value = false
+      console.log('[Dashboard] 关闭自定义告警弹窗')
     }, 3000)
   }
 })
@@ -742,6 +760,29 @@ onUnmounted(() => {
   font-size: 14px;
   color: #666;
   margin-bottom: 12px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.alarm-popup .popup-summary {
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #e0e0e0;
+}
+
+.alarm-popup .popup-detail {
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #555;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  padding: 8px;
+  background: #f8f9fa;
+  border-radius: 4px;
 }
 
 .alarm-popup .popup-btns {

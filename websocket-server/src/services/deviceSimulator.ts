@@ -22,78 +22,117 @@ const DEVICE_CONFIGS: DeviceConfig[] = [
     { deviceId: '1003', deviceType: '灌装机', line: '1' }
 ];
 
-// 数据生成状态管理
+// 数据生成状态管理 - 90秒循环（前30秒正常，30-60秒异常，60-90秒缓冲期确保规则引擎有时间检测）
 class AlarmScenarioGenerator {
     private tickCount: number = 0; // 当前秒数计数器
-    private totalTicks: number = 5; // 总共5秒（全异常）
+    private totalTicks: number = 90; // 总共90秒一个循环
 
-    // 调配罐 1001 数据生成 - 全异常
+    // 判断当前是否在异常阶段
+    private isAbnormalPhase(): boolean {
+        return this.tickCount >= 30 && this.tickCount < 60; // 30-60秒为异常阶段
+    }
+
+    // 调配罐 1001 数据生成
     generateBlenderPayload(): Record<string, any> {
-        const tick = this.tickCount;
-        
-        // 温度：全部异常（前3秒过低<63，后2秒过高>67）
+        const isAbnormal = this.isAbnormalPhase();
+
         let tempValue: number;
-        if (tick < 3) {
-            tempValue = 60 + Math.random() * 2; // 60-62℃，过低异常
+        let levelValue: number;
+        let currentValue: number;
+        let phValue: number;
+
+        if (isAbnormal) {
+            // 异常阶段（30-60秒）：仅温度异常
+            const abnormalTick = this.tickCount - 30; // 0-29
+
+            // 温度：前15秒过低，后15秒过高
+            if (abnormalTick < 15) {
+                tempValue = 60 + Math.random() * 2; // 60-62℃，过低异常
+            } else {
+                tempValue = 68 + Math.random() * 2; // 68-70℃，过高异常
+            }
+
+            // 其他指标保持正常
+            levelValue = 95 + Math.random() * 10; // 95-105L，正常范围
+            currentValue = 18 + Math.random() * 4; // 18-22A，正常范围
+            phValue = 7.0 + (Math.random() - 0.5) * 0.2; // 6.9-7.1，正常范围
         } else {
-            tempValue = 68 + Math.random() * 2; // 68-70℃，过高异常
+            // 正常阶段（0-30秒）
+            tempValue = 64 + Math.random() * 2; // 64-66℃，正常范围 [63-67]
+            levelValue = 95 + Math.random() * 10; // 95-105L，正常范围
+            currentValue = 18 + Math.random() * 4; // 18-22A，正常范围
+            phValue = 7.0 + (Math.random() - 0.5) * 0.2; // 6.9-7.1，正常范围
         }
 
-        // 液位：固定80L（进料泵故障场景）
-        const levelValue = 80;
-        // 电流：0A（泵故障）
-        const currentValue = 0;
-        
         return {
             temp: {
                 value: Math.round(tempValue * 100) / 100,
                 unit: '℃'
             },
             level: {
-                value: levelValue,
+                value: Math.round(levelValue * 100) / 100,
                 unit: 'L'
             },
             current: {
-                value: currentValue,
+                value: Math.round(currentValue * 100) / 100,
                 unit: 'A'
             },
             ph: {
-                value: Math.round((6.0 + Math.random() * 0.5) * 100) / 100, // 偏低
+                value: Math.round(phValue * 100) / 100,
                 unit: ''
             }
         };
     }
 
-    // 灌装机 1003 数据生成 - 全异常
+    // 灌装机 1003 数据生成
     generateFillerPayload(): Record<string, any> {
-        const tick = this.tickCount;
-        
-        // 灌装量：全部异常（前3秒过低<495，后2秒过高>505）
+        const isAbnormal = this.isAbnormalPhase();
+
         let fillVolume: number;
-        if (tick < 3) {
-            fillVolume = 390 + Math.floor(Math.random() * 10); // 390-400ml，过低异常
+        let speedValue: number;
+        let pressureValue: number;
+        let tempValue: number;
+
+        if (isAbnormal) {
+            // 异常阶段（30-60秒）：灌装量异常（对应规则2）
+            const abnormalTick = this.tickCount - 30; // 0-29
+
+            // 灌装量：超出 495-505ml 范围
+            // 前15秒：偏低（390-400ml）
+            // 后15秒：偏高（590-600ml）
+            if (abnormalTick < 15) {
+                fillVolume = 390 + Math.floor(Math.random() * 10); // 390-400ml，远低于下限
+            } else {
+                fillVolume = 590 + Math.floor(Math.random() * 10); // 590-600ml，远高于上限
+            }
+
+            // 其他指标保持正常
+            speedValue = 50 + Math.random() * 10; // 50-60瓶/分，正常范围
+            pressureValue = 0.5 + Math.random() * 0.1; // 0.5-0.6 MPa，正常范围
+            tempValue = 20 + Math.random() * 5; // 20-25℃，正常范围
         } else {
-            fillVolume = 590 + Math.floor(Math.random() * 10); // 590-600ml，过高异常
+            // 正常阶段（0-30秒）
+            fillVolume = 495 + Math.floor(Math.random() * 10); // 495-505ml，正常范围
+            speedValue = 50 + Math.random() * 10; // 50-60瓶/分，正常范围
+            pressureValue = 0.5 + Math.random() * 0.1; // 0.5-0.6 MPa，正常范围
+            tempValue = 20 + Math.random() * 5; // 20-25℃，正常范围
         }
 
-        // 速度：固定40，低于阈值48
-        const speedValue = 40;
-        
         return {
             fill_volume: {
-                value: fillVolume,
+                value: Math.round(fillVolume * 100) / 100,
                 unit: 'ml'
             },
             pressure: {
-                value: Math.round((0.3 + Math.random() * 0.2) * 100) / 100, // 偏低压力
+                value: Math.round(pressureValue * 100) / 100,
                 unit: 'MPa'
             },
             speed: {
-                value: speedValue,
+                value: Math.round(speedValue * 100) / 100,
                 unit: '瓶/分'
             },
             temp: {
-                value: Math.round((30 + Math.random() * 5) * 100) / 100, // 偏高温度
+                value: Math.round(tempValue * 100) / 100,
                 unit: '℃'
             }
         };
@@ -125,6 +164,11 @@ class AlarmScenarioGenerator {
         return `${this.tickCount + 1}/${this.totalTicks}`;
     }
 
+    // 获取当前tick数
+    getCurrentTick(): number {
+        return this.tickCount;
+    }
+
     // 是否已完成
     isComplete(): boolean {
         return this.tickCount >= this.totalTicks;
@@ -150,10 +194,10 @@ export class DeviceSimulator {
     // 生成单台设备数据
     private generateSingleDevice(config: DeviceConfig, timestamp: number): DeviceData {
         const payload = this.scenarioGenerator.getPayload(config.deviceType);
-        
+
         // 添加产线信息
         payload.line = config.line;
-        
+
         return {
             deviceId: config.deviceId,
             deviceType: config.deviceType,
@@ -165,12 +209,12 @@ export class DeviceSimulator {
     // 并发生成所有设备数据
     private async generateAllDevicesData(): Promise<DeviceData[]> {
         const timestamp = Date.now();
-        
+
         // 2台设备并发生成数据
-        const dataPromises = DEVICE_CONFIGS.map(config => 
+        const dataPromises = DEVICE_CONFIGS.map(config =>
             Promise.resolve(this.generateSingleDevice(config, timestamp))
         );
-        
+
         return Promise.all(dataPromises);
     }
 
@@ -186,19 +230,23 @@ export class DeviceSimulator {
         if (this.running) return;
         this.running = true;
 
-        console.log('[DeviceSimulator] 启动告警场景数据生成器...');
+        console.log('[DeviceSimulator] 启动数据生成器...');
         console.log(`[DeviceSimulator] 监控设备数: ${DEVICE_CONFIGS.length}`);
         console.log(`[DeviceSimulator] 采集周期: 1000ms (1秒)`);
-        console.log(`[DeviceSimulator] 运行时长: 5秒（全异常数据）`);
+        console.log(`[DeviceSimulator] 运行模式: 循环运行（60秒一轮）`);
         console.log('');
-        console.log('=== 告警场景说明 ===');
-        console.log('调配罐1001: 全部异常数据');
-        console.log('  - 温度异常: 前3秒60-62℃(过低), 后2秒68-70℃(过高)');
-        console.log('  - 进料泵故障: 液位固定80L, 电流=0A');
+        console.log('=== 数据生成规则 ===');
+        console.log('循环周期: 60秒');
+        console.log('  - 0-30秒: 正常数据');
+        console.log('  - 30-60秒: 异常数据');
         console.log('');
-        console.log('灌装机1003: 全部异常数据');
-        console.log('  - 灌装量异常: 前3秒390-400ml(过低), 后2秒590-600ml(过高)');
-        console.log('  - 速度过低: 固定40瓶/分 (<48阈值)');
+        console.log('调配罐1001:');
+        console.log('  正常: 温度64-66℃, 液位95-105L, 电流18-22A, pH 6.9-7.1');
+        console.log('  异常: 仅温度异常 60-62℃(前15s)/68-70℃(后15s)');
+        console.log('');
+        console.log('灌装机1003:');
+        console.log('  正常: 灌装量495-505ml, 速度50-60瓶/分, 压力0.5-0.6MPa, 温度20-25℃');
+        console.log('  异常: 仅灌装量异常 390-400ml(前15s)/590-600ml(后15s) → 触发规则2');
         console.log('===================');
         console.log('');
 
@@ -212,30 +260,24 @@ export class DeviceSimulator {
         this.intervalId = setInterval(() => {
             this.collectAndPush();
         }, 1000);
-
-        // 5秒后自动停止
-        setTimeout(() => {
-            if (this.running) {
-                console.log('\n[DeviceSimulator] 5秒运行完成，自动停止');
-                this.stop();
-            }
-        }, 5500);
     }
 
     // 采集并推送数据
     private async collectAndPush() {
         try {
-            // 检查是否已完成所有tick
+            // 检查是否已完成所有tick，如果完成则重置继续循环
             if (this.scenarioGenerator.isComplete()) {
-                this.stop();
-                return;
+                console.log('\n[DeviceSimulator] 一轮场景完成，重置并继续...\n');
+                this.scenarioGenerator.reset();
             }
 
             const progress = this.scenarioGenerator.getProgress();
-            
+            const currentTick = this.scenarioGenerator.getCurrentTick();
+            const phase = currentTick < 30 ? '正常' : '异常';
+
             // 1. 并发生成所有设备数据（同一时间点）
             const allData = await this.generateAllDevicesData();
-            
+
             // 2. 更新本地缓存
             this.updateLocalCache(allData);
 
@@ -247,8 +289,8 @@ export class DeviceSimulator {
             // 打印进度
             const blender = allData.find(d => d.deviceId === '1001');
             const filler = allData.find(d => d.deviceId === '1003');
-            
-            console.log(`[${progress}] 调配罐1001: temp=${blender?.payload.temp.value}℃ level=${blender?.payload.level.value}L current=${blender?.payload.current.value}A | 灌装机1003: fill=${filler?.payload.fill_volume.value}ml speed=${filler?.payload.speed.value}瓶/分`);
+
+            console.log(`[${progress}][${phase}] 调配罐: temp=${blender?.payload.temp.value}℃ level=${blender?.payload.level.value}L current=${blender?.payload.current.value}A | 灌装机: fill=${filler?.payload.fill_volume.value}ml speed=${filler?.payload.speed.value}瓶/分`);
 
             // 4. 推进到下一秒
             this.scenarioGenerator.nextTick();
@@ -271,14 +313,14 @@ export class DeviceSimulator {
     // 获取最新数据（按设备ID）
     public getLatestData(): { type: string; data: any }[] {
         const result: { type: string; data: any }[] = [];
-        
+
         for (const [deviceId, data] of this.latestData) {
             result.push({
                 type: 'device_data',
                 data
             });
         }
-        
+
         return result;
     }
 

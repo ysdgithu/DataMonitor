@@ -147,14 +147,20 @@ export class AtomEvaluator {
     }
 
     /**
-     * 时序持续评估（原子2）
-     * 检查条件是否持续满足指定时间
+     * 时序持续评估（原子2）- 优化版
+     *
+     * 新逻辑：
+     * 1. 在时间窗口内收集所有异常数据点
+     * 2. 检查异常次数是否达标（minCount）
+     * 3. 检查首尾时间跨度是否 ≤ duration（允许中间有正常数据）
+     *
+     * 优点：更宽松，更符合实际监控场景
      */
     private evaluateDuration(config: DurationConfig, context: EvaluateContext): EvaluateResult {
         const { baseAtom, duration, minCount } = config;
         const { historyData, timestamp } = context;
 
-        console.log(`    [Duration] 检查开始: timestamp=${new Date(timestamp).toLocaleTimeString()}, duration=${duration}ms, minCount=${minCount}`);
+        console.log(`    [Duration] 检查开始: timestamp=${new Date(timestamp).toLocaleTimeString()}, duration=${duration}ms, minCount=${minCount || 0}`);
         console.log(`    [Duration] 历史数据共 ${historyData.length} 条`);
 
         if (historyData.length === 0) {
@@ -172,22 +178,18 @@ export class AtomEvaluator {
         const windowData = historyData.filter(d => d.timestamp >= windowStart && d.timestamp <= timestamp);
         console.log(`    [Duration] 窗口内数据: ${windowData.length} 条`);
 
-        if (minCount && windowData.length < minCount) {
-            console.log(`    [Duration] ❌ 数据量不足，需要 ${minCount} 条，实际 ${windowData.length} 条`);
+        if (windowData.length === 0) {
+            console.log(`    [Duration] ❌ 时间窗口内无数据`);
             return {
                 triggered: false,
-                message: `数据量不足，需要 ${minCount} 条，实际 ${windowData.length} 条`
+                message: '时间窗口内无数据'
             };
         }
 
-        // 从最新数据开始，往前找连续满足条件的数据（逆序遍历）
-        let continuousCount = 0;
-        let firstTriggeredTime: number | null = null;  // 最早满足条件的时间
-        let lastTriggeredTime: number | null = null;   // 最新满足条件的时间
+        // 【新逻辑】遍历窗口内所有数据，收集满足条件的异常点
+        const anomalyPoints: Array<{ timestamp: number; data: any; result: EvaluateResult }> = [];
 
-        // 逆序遍历（从最新数据开始）
-        for (let i = windowData.length - 1; i >= 0; i--) {
-            const data = windowData[i];
+        for (const data of windowData) {
             const evalContext: EvaluateContext = {
                 ...context,
                 currentData: data
@@ -196,37 +198,71 @@ export class AtomEvaluator {
             const result = this.evaluate(baseAtom, evalContext);
 
             if (result.triggered) {
-                continuousCount++;
-                // 第一次赋值时，这是最新的数据
-                if (lastTriggeredTime === null) {
-                    lastTriggeredTime = data.timestamp;
-                }
-                // 持续往前遍历，不断更新最早时间
-                firstTriggeredTime = data.timestamp;
-            } else {
-                // 不连续则中断
-                break;
+                anomalyPoints.push({
+                    timestamp: data.timestamp,
+                    data,
+                    result  // 【新增】保存评估结果，包含参数值信息
+                });
             }
         }
 
-        // 检查是否满足持续条件
-        const timeSpan = firstTriggeredTime && lastTriggeredTime ? lastTriggeredTime - firstTriggeredTime : 0;
-        const triggered = continuousCount >= (minCount || 0) && timeSpan >= duration;
+        const anomalyCount = anomalyPoints.length;
+        console.log(`    [Duration] 窗口内异常点: ${anomalyCount} 个 (总数据: ${windowData.length} 条)`);
 
-        console.log(`    [Duration] 结果: continuousCount=${continuousCount}, timeSpan=${timeSpan}ms, triggered=${triggered}`);
+        // 如果没有异常点，直接返回
+        if (anomalyCount === 0) {
+            console.log(`    [Duration] ❌ 窗口内无异常点`);
+            return {
+                triggered: false,
+                message: '窗口内无异常点'
+            };
+        }
+
+        // 如果设置了 minCount，检查是否达标
+        if (minCount && anomalyCount < minCount) {
+            console.log(`    [Duration] ❌ 异常次数不足，需要 ${minCount} 次，实际 ${anomalyCount} 次`);
+            return {
+                triggered: false,
+                message: `异常次数不足，需要 ${minCount} 次，实际 ${anomalyCount} 次`
+            };
+        }
+
+        // 【新增】计算首尾异常点的时间跨度
+        const firstAnomalyTime = anomalyPoints[0].timestamp;
+        const lastAnomalyTime = anomalyPoints[anomalyCount - 1].timestamp;
+        const timeSpan = lastAnomalyTime - firstAnomalyTime;
+
+        console.log(`    [Duration] 首尾时间跨度: ${(timeSpan / 1000).toFixed(1)}s (首次: ${new Date(firstAnomalyTime).toLocaleTimeString()}, 末次: ${new Date(lastAnomalyTime).toLocaleTimeString()})`);
+        console.log(`    [Duration] 时间窗口: ${(duration / 1000).toFixed(1)}s`);
+
+        // 【关键判断】首尾时间跨度 ≤ duration（允许跨度小于duration，说明异常密集）
+        const timeSpanValid = timeSpan <= duration;
+
+        // 触发条件：异常次数达标 && 时间跨度有效
+        const triggered = anomalyCount >= (minCount || 1) && timeSpanValid;
+
+        console.log(`    [Duration] 结果: anomalyCount=${anomalyCount} (需要≥${minCount || 1}), timeSpan=${(timeSpan / 1000).toFixed(1)}s (需要≤${(duration / 1000).toFixed(1)}s), triggered=${triggered}`);
+
+        // 【新增】提取最新异常点的上下文信息（用于前端显示）
+        const latestAnomalyContext = anomalyPoints.length > 0
+            ? anomalyPoints[anomalyPoints.length - 1].result.context
+            : {};
 
         return {
             triggered,
             context: {
                 duration,
-                continuousCount,
+                anomalyCount,
                 windowDataCount: windowData.length,
-                firstTriggeredTime,
-                lastTriggeredTime
+                timeSpan,
+                firstAnomalyTime,
+                lastAnomalyTime,
+                // 【新增】传递最新异常点的参数值信息
+                ...latestAnomalyContext
             },
             message: triggered
-                ? `条件持续 ${duration}ms 满足，连续 ${continuousCount} 条数据`
-                : `条件未持续满足，仅连续 ${continuousCount} 条数据，时间跨度 ${timeSpan}ms`
+                ? `在${(duration / 1000).toFixed(1)}s窗口内检测到${anomalyCount}次异常 (首尾跨度${(timeSpan / 1000).toFixed(1)}s)`
+                : `异常不满足条件: ${anomalyCount}次异常 (需要≥${minCount || 1}次), 首尾跨度${(timeSpan / 1000).toFixed(1)}s (需要≤${(duration / 1000).toFixed(1)}s)`
         };
     }
 

@@ -67,13 +67,15 @@ export const useAlarmStore = defineStore('alarm', () => {
    * 添加告警事件
    */
   function addAlarmEvent(event: AlarmEvent) {
+    console.log('[AlarmStore] 🔔 收到告警事件:', event);
+
     // 告警去重检查
     const dedupKey = `${event.deviceId}-${event.parameterName}`
     const now = Date.now()
     const lastTime = lastAlarmTime.get(dedupKey)
 
     if (lastTime && (now - lastTime) < DEDUP_INTERVAL) {
-      console.log(`[AlarmStore] 告警去重: ${dedupKey}, 距上次 ${Math.round((now - lastTime) / 1000)}秒`)
+      console.log(`[AlarmStore] ⚠️ 告警去重: ${dedupKey}, 距上次 ${Math.round((now - lastTime) / 1000)}秒`)
       return false // 返回 false 表示告警被去重
     }
 
@@ -83,8 +85,16 @@ export const useAlarmStore = defineStore('alarm', () => {
     const deviceName = DEVICE_NAME_MAP[event.deviceId] || event.deviceType
     const paramName = PARAM_NAME_MAP[event.parameterName] || event.parameterName
 
-    // 构建告警内容
-    const content = `${deviceName} ${paramName}异常: ${event.currentValue} (阈值: ${event.threshold})`
+    // 构建告警内容（简短版，用于列表和弹窗预览）
+    let content = `${deviceName} ${paramName}异常: ${event.currentValue}`
+    if (event.threshold) {
+      content += ` (阈值: ${event.threshold})`
+    }
+    if (event.message) {
+      content += ` | ${event.message}`
+    }
+
+    console.log('[AlarmStore] 📝 构建告警内容:', content);
 
     // 格式化时间
     const time = new Date(event.triggerTime).toLocaleString('zh-CN', {
@@ -110,12 +120,14 @@ export const useAlarmStore = defineStore('alarm', () => {
     // 添加到列表头部 (最新的在前)
     alarmRecords.value.unshift(record)
 
+    console.log('[AlarmStore] ✅ 告警已添加, 当前列表长度:', alarmRecords.value.length);
+    console.log('[AlarmStore] 📊 最新告警记录:', record);
+
     // 限制最大数量
     if (alarmRecords.value.length > MAX_RECORDS) {
       alarmRecords.value = alarmRecords.value.slice(0, MAX_RECORDS)
     }
 
-    console.log('[AlarmStore] 新增告警:', record)
     return true // 返回 true 表示告警已添加
   }
 

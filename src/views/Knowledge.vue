@@ -166,7 +166,7 @@ const taskList = ref([
     id: 4,
     name: '任务4',
     device_id: '004',
-    status: 3,
+    status: 0,
     priority: 0,
     create_time: 1705294200000,
     update_time: 1705308000000
@@ -175,7 +175,7 @@ const taskList = ref([
     id: 5,
     name: '任务5',
     device_id: '005',
-    status: 4,
+    status: 1,
     priority: 1,
     create_time: 1705294200000,
     update_time: 1705308000000

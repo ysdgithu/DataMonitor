@@ -149,8 +149,6 @@ export class DiagnosticApi {
             running: number;
             completed: number;
             failed: number;
-            paused: number;
-            pending: number;
         }
     }> {
         return await request.get('/diagnosis-tasks-stats')

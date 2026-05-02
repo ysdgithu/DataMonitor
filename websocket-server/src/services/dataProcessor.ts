@@ -84,15 +84,31 @@ export class DataProcessor {
             await this.dataModel.batchInsertDeviceData(deviceDataList);
         } catch (error) {
             console.error('[DataProcessor] 批量写入数据库失败:', error);
+            return; // 写入失败则不继续
         }
 
-        // 2. 批量推送给所有WebSocket客户端
+        // 2. 实时触发规则评估（事件驱动）
+        for (const deviceData of deviceDataList) {
+            try {
+                await this.ruleEngine.evaluateDeviceRealtime(
+                    deviceData.deviceId,
+                    deviceData.timestamp
+                );
+            } catch (error) {
+                console.error(`[DataProcessor] 规则评估失败，设备 ${deviceData.deviceId}:`, error);
+            }
+        }
+
+        // 3. 批量推送给所有WebSocket客户端
         const message = JSON.stringify({
             type: 'DEVICE_BATCH_UPDATE',
             data: deviceDataList,
             timestamp,
             count: deviceDataList.length
         });
+
+        const clientCount = this.wsClients.size;
+        console.log(`[DataProcessor] 推送数据到 ${clientCount} 个客户端, 数据量: ${deviceDataList.length}`);
 
         for (const ws of this.wsClients) {
             if (ws.readyState === WebSocket.OPEN) {
@@ -103,29 +119,38 @@ export class DataProcessor {
                 }
             }
         }
-
-        // 3. 规则引擎定时自动检测异常（在RuleEngine内部定时执行）
     }
 
     // 处理规则引擎告警
     private handleRuleAlarm(event: AlarmEvent) {
-        console.log(`[DataProcessor] 告警触发: ${event.deviceId} ${event.parameterName} = ${event.currentValue} (阈值: ${event.threshold})`);
+        console.log(`\n📢 [DataProcessor] 收到告警事件:`);
+        console.log(`   设备: ${event.deviceId} (${event.deviceType})`);
+        console.log(`   参数: ${event.parameterName} = ${event.currentValue}`);
+        console.log(`   阈值: ${event.threshold}`);
+        console.log(`   规则: ${event.ruleName}`);
+        console.log(`   等级: ${event.severity}`);
 
         // 广播告警事件给所有WebSocket客户端
-        const message = JSON.stringify({
+        const message = {
             type: 'ALARM_EVENT',
             data: event,
             timestamp: Date.now()
-        });
+        };
+
+        const messageStr = JSON.stringify(message);
+        let successCount = 0;
 
         for (const ws of this.wsClients) {
             if (ws.readyState === WebSocket.OPEN) {
                 try {
-                    ws.send(message);
+                    ws.send(messageStr);
+                    successCount++;
                 } catch (error) {
                     console.error('[DataProcessor] 告警推送失败:', error);
                 }
             }
         }
+
+        console.log(`   ✅ 已推送给 ${successCount}/${this.wsClients.size} 个客户端\n`);
     }
 }

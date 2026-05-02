@@ -1,7 +1,7 @@
 // 规则引擎主类
 import DatabaseConnection from '../../database/connection';
 import { DataModel } from '../../database/models';
-// import { AtomEvaluator } from './atomEvaluator';
+import { AtomEvaluator } from './atomEvaluator';
 import {
     AlarmRule,
     AlarmEvent,
@@ -27,7 +27,7 @@ interface RuleEngineConfig {
 export class RuleEngine {
     private db: DatabaseConnection;
     private dataModel: DataModel;
-    // private evaluator: AtomEvaluator;
+    private evaluator: AtomEvaluator;
     private config: RuleEngineConfig;
     private intervalId: NodeJS.Timeout | null = null;
     private rules: AlarmRule[] = [];
@@ -36,10 +36,14 @@ export class RuleEngine {
     // 告警回调函数
     private onAlarmCallback?: (event: AlarmEvent) => void;
 
+    // 【新增】诊断任务去重缓存 - 记录最后创建时间
+    private taskCreationCache: Map<string, number> = new Map();
+    private readonly TASK_DEDUP_INTERVAL = 60000; // 60秒内同一规则+设备不重复创建任务
+
     constructor(config?: Partial<RuleEngineConfig>) {
         this.db = DatabaseConnection.getInstance();
         this.dataModel = new DataModel();
-        // this.evaluator = new AtomEvaluator();
+        this.evaluator = new AtomEvaluator();
         this.config = {
             checkInterval: 5000,       // 默认5秒
             historyBuffer: 600000,     // 默认10分钟历史数据
@@ -55,30 +59,20 @@ export class RuleEngine {
     }
 
     /**
-     * 启动规则引擎
+     * 启动规则引擎（事件驱动模式）
      */
     async start(): Promise<void> {
         if (this.isRunning) return;
 
-        console.log('[RuleEngine] 启动规则引擎...');
-        console.log(`[RuleEngine] 检查间隔: ${this.config.checkInterval}ms`);
+        console.log('[RuleEngine] 启动规则引擎（事件驱动模式）...');
         console.log(`[RuleEngine] 历史缓冲: ${this.config.historyBuffer}ms`);
 
         // 1. 加载规则
         await this.loadRules();
 
-        // 2. 启动定时器
         this.isRunning = true;
-        this.intervalId = setInterval(() => {
-            this.executeCheck().catch(err => {
-                console.error('[RuleEngine] 检查执行失败:', err);
-            });
-        }, this.config.checkInterval);
 
-        // 立即执行一次
-        await this.executeCheck();
-
-        console.log('[RuleEngine] 规则引擎已启动');
+        console.log('[RuleEngine] 规则引擎已启动（等待数据事件触发）');
     }
 
     /**
@@ -214,6 +208,79 @@ export class RuleEngine {
         };
     }
 
+
+    /**
+     * 实时评估单个设备（事件驱动）
+     * @param deviceId 设备ID
+     * @param timestamp 数据时间戳
+     */
+    public async evaluateDeviceRealtime(deviceId: string, timestamp: number): Promise<void> {
+        if (!this.isRunning) return;
+        if (this.rules.length === 0) return;
+
+        // 查找该设备相关的所有规则
+        const relatedRules = this.rules.filter(rule => {
+            if (!rule.enabled) return false;
+            // 如果规则指定了设备ID，必须匹配
+            if (rule.deviceId && rule.deviceId !== deviceId) return false;
+            // 如果规则只指定了设备类型，需要查询设备类型（这里简化处理，假设都匹配）
+            return true;
+        });
+
+        if (relatedRules.length === 0) return;
+
+        for (const rule of relatedRules) {
+            try {
+                // 获取设备类型
+                const deviceType = await this.getDeviceType(deviceId);
+                if (!deviceType) continue;
+
+                // 如果规则指定了设备类型，检查是否匹配
+                if (rule.deviceType && rule.deviceType !== deviceType) continue;
+
+                // 拉取历史数据
+                const historyData = await this.pullHistory(deviceId, this.config.historyBuffer);
+                if (historyData.length === 0) continue;
+
+                // 构建评估上下文
+                const currentData = historyData[historyData.length - 1];
+                const context: EvaluateContext = {
+                    deviceId,
+                    deviceType,
+                    currentData,
+                    historyData,
+                    timestamp
+                };
+
+                // 评估规则
+                const result = this.evaluator.evaluate(rule.rootAtom, context);
+
+                // 触发告警
+                if (result.triggered) {
+                    console.log(`[RuleEngine] 🔔 实时检测到告警: 规则[${rule.id}] ${rule.name}, 设备${deviceId}`);
+                    await this.triggerAlarm(rule, { deviceId, deviceType }, result, timestamp);
+                }
+
+            } catch (error) {
+                console.error(`[RuleEngine] 实时评估失败，规则 ${rule.id}, 设备 ${deviceId}:`, error);
+            }
+        }
+    }
+
+    /**
+     * 获取设备类型
+     */
+    private async getDeviceType(deviceId: string): Promise<string | null> {
+        try {
+            const sql = `SELECT data_type FROM device_data WHERE device_id = ? ORDER BY timestamp DESC LIMIT 1`;
+            const row = await this.db.get(sql, [deviceId]);
+            return row ? row.data_type : null;
+        } catch (error) {
+            console.error(`[RuleEngine] 获取设备类型失败:`, error);
+            return null;
+        }
+    }
+
     /**
      * 执行一次检查
      * 流程：读规则 → 拉历史 → 套原子 → 判异常
@@ -260,14 +327,14 @@ export class RuleEngine {
                         timestamp: dataTimestamp  // 使用数据时间戳而非当前时间
                     };
 
-                    // 4. 评估规则（已禁用 AtomEvaluator）
-                    // const result = this.evaluator.evaluate(rule.rootAtom, context);
-                    // console.log(`[RuleEngine]   评估结果: triggered=${result.triggered}, message=${result.message}`);
+                    // 4. 评估规则
+                    const result = this.evaluator.evaluate(rule.rootAtom, context);
+                    console.log(`[RuleEngine]   评估结果: triggered=${result.triggered}, message=${result.message}`);
 
                     // 5. 触发告警
-                    // if (result.triggered) {
-                    //     await this.triggerAlarm(rule, device, result, dataTimestamp);
-                    // }
+                    if (result.triggered) {
+                        await this.triggerAlarm(rule, device, result, dataTimestamp);
+                    }
                 }
 
             } catch (error) {
@@ -376,8 +443,14 @@ export class RuleEngine {
 
         // 从规则的 rootAtom 中提取参数信息
         if (rule.rootAtom) {
-            const atom = rule.rootAtom;
-            const config = atom.config;
+            let atom = rule.rootAtom;
+            let config = atom.config;
+
+            // 【修复】如果是 duration 原子，需要提取 baseAtom
+            if (atom.type === 'duration' && 'baseAtom' in config) {
+                atom = config.baseAtom as RuleAtom;
+                config = atom.config;
+            }
 
             // 使用类型守卫提取参数名
             if ('param' in config && typeof config.param === 'string') {
@@ -396,12 +469,25 @@ export class RuleEngine {
             }
         }
 
-        // 从上下文中提取当前值
-        if (result.context && parameterName) {
+        // 【修复】从上下文中提取当前值
+        if (result.context) {
             try {
-                currentValue = result.context[parameterName];
+                // 优先从 value 字段提取（threshold/threshold_range 原子返回的）
+                if (typeof result.context.value === 'number') {
+                    currentValue = result.context.value;
+                }
+                // 如果没有 value，尝试通过参数名提取
+                else if (parameterName && typeof result.context[parameterName] === 'number') {
+                    currentValue = result.context[parameterName];
+                }
+                // 尝试 paramValue 字段
+                else if (typeof result.context.paramValue === 'number') {
+                    currentValue = result.context.paramValue;
+                }
+
+                console.log(`[RuleEngine] 提取参数值: ${parameterName} = ${currentValue}`);
             } catch (e) {
-                // 忽略提取失败
+                console.warn('[RuleEngine] 提取参数值失败:', e);
             }
         }
 
@@ -449,10 +535,20 @@ export class RuleEngine {
     }
 
     /**
-     * 创建诊断任务
+     * 创建诊断任务（带去重机制）
      */
     private async createDiagnosisTask(event: AlarmEvent, rule: AlarmRule): Promise<void> {
         const now = Date.now();
+
+        // 【去重检查】同一规则+设备在60秒内不重复创建任务
+        const dedupKey = `${event.ruleId}-${event.deviceId}`;
+        const lastCreateTime = this.taskCreationCache.get(dedupKey);
+
+        if (lastCreateTime && (now - lastCreateTime) < this.TASK_DEDUP_INTERVAL) {
+            const timeSinceLastCreate = Math.round((now - lastCreateTime) / 1000);
+            console.log(`[RuleEngine] ⏭️  诊断任务去重: ${dedupKey} (距上次创建 ${timeSinceLastCreate}s < 60s)`);
+            return; // 跳过重复创建
+        }
 
         // 生成任务名称
         const taskName = `${event.ruleName}`;
@@ -480,7 +576,10 @@ export class RuleEngine {
             now
         ]);
 
-        console.log(`[RuleEngine] 已创建诊断任务: ${taskName}`);
+        // 【更新去重缓存】
+        this.taskCreationCache.set(dedupKey, now);
+
+        console.log(`[RuleEngine] ✅ 已创建诊断任务: ${taskName} (设备: ${event.deviceId})`);
     }
 
     /**

@@ -58,7 +58,7 @@ export class DiagnosisTaskService {
         priority: this.calculatePriority(alarmDetails),
         assignee: 'AI自动诊断',
         detail: taskDetail,
-        status: 4 // 状态: 4=待执行（等待AI分析）
+        status: 0 // 状态: 0=进行中（默认）
       });
 
       console.log(`[DiagnosisTask] 已创建诊断任务，ID: ${taskId}`);
@@ -164,9 +164,9 @@ export class DiagnosisTaskService {
    */
   private calculatePriority(alarmDetails: AlarmDetail[]): number {
     // 异常数量越多，优先级越高
-    if (alarmDetails.length >= 3) return 1; // 高优先级
-    if (alarmDetails.length >= 2) return 2; // 中优先级
-    return 3; // 低优先级
+    if (alarmDetails.length >= 3) return 2; // 高优先级
+    if (alarmDetails.length >= 2) return 1; // 中优先级
+    return 0; // 低优先级
   }
 
   /**

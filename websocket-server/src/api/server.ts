@@ -484,6 +484,9 @@ app.get('/api/diagnosis-tasks', authMiddleware, async (req, res) => {
         const deviceId = req.query.deviceId as string;
         const assignee = req.query.assignee as string;
         const priority = req.query.priority ? parseInt(req.query.priority as string) : undefined;
+        const name = req.query.name as string;
+        const startTime = req.query.startTime ? parseInt(req.query.startTime as string) : undefined;
+        const endTime = req.query.endTime ? parseInt(req.query.endTime as string) : undefined;
 
         const result = await dataModel.queryDiagnosisTasks({
             page,
@@ -491,7 +494,10 @@ app.get('/api/diagnosis-tasks', authMiddleware, async (req, res) => {
             status,
             deviceId,
             assignee,
-            priority
+            priority,
+            name,
+            startTime,
+            endTime
         });
 
         res.json({
@@ -574,11 +580,11 @@ app.post('/api/diagnosis-tasks', authMiddleware, async (req, res) => {
         }
 
         // 验证状态范围（如果提供）
-        if (status !== undefined && (status < 0 || status > 4)) {
+        if (status !== undefined && (status < 0 || status > 2)) {
             res.status(400).json({
                 success: false,
                 error: '参数错误',
-                message: '状态必须是 0-4 之间的数字'
+                message: '状态必须是 0-2 之间的数字'
             });
             return;
         }
@@ -644,7 +650,7 @@ app.put('/api/diagnosis-tasks/:id', authMiddleware, async (req, res) => {
         }
 
         // 验证状态范围（如果提供）
-        if (status !== undefined && (status < 0 || status > 4)) {
+        if (status !== undefined && (status < 0 || status > 2)) {
             res.status(400).json({
                 success: false,
                 error: '参数错误',

@@ -33,9 +33,28 @@ wss.on('connection', (ws: WebSocket) => {
     console.log('New client connected');
     dataProcessor.addClient(ws);
 
+    // 处理客户端消息（心跳等）
+    ws.on('message', (message: WebSocket.Data) => {
+        try {
+            const data = JSON.parse(message.toString());
+
+            // 处理心跳 ping 消息
+            if (data.type === 'ping') {
+                // 回复 pong
+                ws.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
+            }
+        } catch (error) {
+            console.error('处理客户端消息失败:', error);
+        }
+    });
+
     ws.on('close', () => {
         console.log('Client disconnected');
         dataProcessor.removeClient(ws);
+    });
+
+    ws.on('error', (error) => {
+        console.error('WebSocket client error:', error);
     });
 });
 

@@ -13,7 +13,7 @@
       | priority | number | 是 | 优先级 (0-低, 1-中, 2-高) |
       | assignee | string | 是 | 任务负责人 |
       | detail | string | 否 | 任务详情 |
-      | status | number | 否 | 任务状态，默认4(待执行) | -->
+      | status | number | 否 | 任务状态，默认0(进行中) | -->
       <el-form :model="form" label-width="auto" style="max-width: 600px">
     <el-form-item label="任务名称">
       <el-input v-model="form.name" />
@@ -58,10 +58,10 @@ const api=new DiagnosticApi()
 const form= reactive({
      name: '',
      deviceId: '',
-     priority: 0,
+     priority: 1,
      assignee: '',
      detail: '',
-     status: 4
+     status: 0
 })
 
 const onSubmit = async () => {

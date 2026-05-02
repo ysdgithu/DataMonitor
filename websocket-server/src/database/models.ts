@@ -406,7 +406,7 @@ class DataModel {
         const params = [
             task.name,
             task.deviceId,
-            task.status ?? 0, // 默认状态为待执行
+            task.status ?? 0, // 默认状态为进行中
             task.priority,
             task.detail || '',
             task.assignee,
@@ -588,17 +588,13 @@ class DataModel {
         running: number;
         completed: number;
         failed: number;
-        paused: number;
-        pending: number;
     }> {
         const sql = `
             SELECT
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as running,
                 SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as completed,
-                SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as failed,
-                SUM(CASE WHEN status = 3 THEN 1 ELSE 0 END) as paused,
-                SUM(CASE WHEN status = 4 THEN 1 ELSE 0 END) as pending
+                SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as failed
             FROM diagnosis_tasks
         `;
         const result = await this.db.get(sql, []);
@@ -606,9 +602,7 @@ class DataModel {
             total: result?.total || 0,
             running: result?.running || 0,
             completed: result?.completed || 0,
-            failed: result?.failed || 0,
-            paused: result?.paused || 0,
-            pending: result?.pending || 0
+            failed: result?.failed || 0
         };
     }
 }

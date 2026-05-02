@@ -83,29 +83,26 @@
             <el-input v-model="searchKeyword" placeholder="搜索任务名称" prefix-icon="Search" clearable />
           </el-col>
           <el-col :span="4">
-            <el-select v-model="filterStatus" placeholder="任务状态" clearable @change="getData()">
-              <el-option label="全部" value=-1 />
-              <el-option label="待执行" value=4 />
-              <el-option label="进行中" value=0 />
-              <el-option label="已完成" value=1 />
-              <el-option label="失败" value=2 />
+            <el-select v-model="filterStatus" placeholder="任务状态" clearable>
+              <el-option label="进行中" :value="0" />
+              <el-option label="已完成" :value="1" />
+              <el-option label="失败" :value="2" />
             </el-select>
           </el-col>
           <el-col :span="4">
-            <el-select v-model="filterPriority" placeholder="优先级" clearable @change="getData()">
-              <el-option label="全部" value=-1 />
-              <el-option label="高" value=2 />
-              <el-option label="中" value=1 />
-              <el-option label="低" value=0 />
+            <el-select v-model="filterPriority" placeholder="优先级" clearable>
+              <el-option label="高" :value="2" />
+              <el-option label="中" :value="1" />
+              <el-option label="低" :value="0" />
             </el-select>
           </el-col>
           <el-col :span="6">
             <el-date-picker v-model="dateRange" type="daterange" range-separator="至" start-placeholder="开始日期"
-              end-placeholder="结束日期" size="default" />
+              end-placeholder="结束日期" size="default" value-format="x" />
           </el-col>
           <el-col :span="4">
-            <el-button type="primary" @click="getData()">查询</el-button>
-            <el-button>重置</el-button>
+            <el-button type="primary" @click="handleSearch" icon="Search">查询</el-button>
+            <el-button @click="handleReset" icon="Refresh">重置</el-button>
           </el-col>
         </el-row>
       </el-card>
@@ -130,7 +127,8 @@
         <!-- 分页 -->
         <div class="pagination-container">
           <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]"
-            :total="total" layout="total, sizes, prev, pager, next, jumper" background />
+            :total="total" layout="total, sizes, prev, pager, next, jumper" background
+            @current-change="handlePageChange" @size-change="handlePageSizeChange" />
         </div>
       </el-card>
     </div>
@@ -196,78 +194,19 @@ const stats = ref({
 
 // 搜索和筛选
 const searchKeyword = ref('')
-const filterStatus = ref(undefined)
-const filterPriority = ref(undefined)
-const dateRange = ref<[Date, Date]>()
+const filterStatus = ref<number | undefined>(undefined)
+const filterPriority = ref<number | undefined>(undefined)
+const dateRange = ref<[Date, Date] | null>(null)
+
 // 分页
 const currentPage = ref(1)
 const pageSize = ref(20)
-//const total = ref(128)
 
 // 查询参数
 const queryParams = ref<QueryParams>({})
 
-// 测试数据：Dashboard 异常单阈值告警转诊断任务
-const testTaskData: DiagnosisTask[] = [
-  {
-    id: 1,
-    name: '洗瓶机温度高于上限',
-    device_id: '1002',
-    status: 0,
-    priority: 2,
-    assignee: '系统',
-    detail: '温度达到100℃，超过阈值',
-    createTime: 1771914300000,
-    updateTime: 1771915080000
-  },
-  {
-    id: 2,
-    name: '封盖机旋盖扭矩低于下限',
-    device_id: '1004',
-    status: 0,
-    priority: 2,
-    assignee: '系统',
-    detail: '旋盖扭矩0.05N·m，低于正常范围',
-    createTime: 1771913400000,
-    updateTime: 1771914120000
-  },
-  {
-    id: 3,
-    name: '灌装机温度高于上限',
-    device_id: '1003',
-    status: 0,
-    priority: 2,
-    assignee: '系统',
-    detail: '温度达到100℃，超过阈值',
-    createTime: 1771912200000,
-    updateTime: 1771913100000
-  },
-  {
-    id: 4,
-    name: '封盖机温度高于上限',
-    device_id: '1004',
-    status: 0,
-    priority: 2,
-    assignee: '系统',
-    detail: '温度达到100℃，超过阈值',
-    createTime: 1771911900000,
-    updateTime: 1771912680000
-  },
-  {
-    id: 5,
-    name: '封盖机缺盖高于上限',
-    device_id: '1004',
-    status: 0,
-    priority: 2,
-    assignee: '系统',
-    detail: '缺盖检测个数1个，超过阈值0',
-    createTime: 1771910400000,
-    updateTime: 1771911300000
-  }
-]
-
-const taskList = ref<DiagnosisTask[]>(testTaskData)
-const total = ref(testTaskData.length)
+const taskList = ref<DiagnosisTask[]>([])
+const total = ref(0)
 const loading = ref(false)
 const api = new DiagnosticApi()
 
@@ -285,18 +224,23 @@ const getStats = async () => {
 
 const getData = async () => {
   try {
+    loading.value = true
+
+    // 构建查询参数
     queryParams.value = {
       page: currentPage.value,
       pageSize: pageSize.value,
-      status: filterStatus.value == -1 ? undefined : filterStatus.value,
-      priority: filterPriority.value == -1 ? undefined : filterPriority.value,
-      name: searchKeyword.value,
-      startTime: dateRange.value ? dateRange.value[0].getTime() : undefined,
-      endTime: dateRange.value ? dateRange.value[1].getTime() : undefined
-
+      status: filterStatus.value === undefined ? undefined : filterStatus.value,
+      priority: filterPriority.value === undefined ? undefined : filterPriority.value,
+      name: searchKeyword.value || undefined,
+      startTime: dateRange.value ? Number(dateRange.value[0]) : undefined,
+      endTime: dateRange.value ? Number(dateRange.value[1]) : undefined
     }
-    console.log('[DiagnosisView] 请求参数:', queryParams.value)
+
+    console.log('[DiagnosisView] 📋 请求参数:', queryParams.value)
+
     const res = await api.getDiagnosisList(queryParams.value)
+
     if (res.success) {
       // 映射后端字段名（下划线）到前端字段名（驼峰）
       taskList.value = res.data.map((task: any) => ({
@@ -305,10 +249,15 @@ const getData = async () => {
         updateTime: task.update_time || task.updateTime
       }))
       total.value = res.total
-      console.log('[DiagnosisView] 获取到的数据:', taskList.value)
+      console.log('[DiagnosisView] ✅ 获取到 ' + taskList.value.length + ' 条数据 (总计 ' + total.value + ' 条)')
+    } else {
+      ElMessage.error('获取诊断任务列表失败')
     }
   } catch (error) {
-    console.error('获取诊断任务列表失败:', error)
+    console.error('[DiagnosisView] ❌ 获取诊断任务列表失败:', error)
+    ElMessage.error('获取诊断任务列表失败')
+  } finally {
+    loading.value = false
   }
 }
 
@@ -332,6 +281,39 @@ const deleteTask = async (id: number) => {
   } else {
     ElMessage.error('删除失败')
   }
+}
+
+// 【新增】搜索功能
+const handleSearch = () => {
+  console.log('[DiagnosisView] 🔍 执行搜索')
+  currentPage.value = 1 // 重置页码
+  getData()
+}
+
+// 【新增】重置搜索条件
+const handleReset = () => {
+  console.log('[DiagnosisView] 🔄 重置搜索条件')
+  searchKeyword.value = ''
+  filterStatus.value = undefined
+  filterPriority.value = undefined
+  dateRange.value = null
+  currentPage.value = 1
+  getData()
+}
+
+// 【新增】分页变化
+const handlePageChange = (page: number) => {
+  console.log('[DiagnosisView] 📄 切换到第 ' + page + ' 页')
+  currentPage.value = page
+  getData()
+}
+
+// 【新增】页大小变化
+const handlePageSizeChange = (size: number) => {
+  console.log('[DiagnosisView] 📄 修改页大小为 ' + size)
+  pageSize.value = size
+  currentPage.value = 1
+  getData()
 }
 
 
@@ -385,7 +367,7 @@ const columns = [
     actions: [
       { label: '查看', type: 'primary', onClick: (row: DiagnosisTask) => detailClick(row) },
       { label: '暂停', type: 'warning', onClick: (row: DiagnosisTask) => console.log('暂停', row), show: (row: DiagnosisTask) => row.status === 0 },
-      { label: '启动', type: 'success', onClick: (row: DiagnosisTask) => console.log('启动', row), show: (row: DiagnosisTask) => row.status === 4 },
+      { label: '重试', type: 'success', onClick: (row: DiagnosisTask) => console.log('重试', row), show: (row: DiagnosisTask) => row.status === 2 },
       { label: '删除', type: 'danger', onClick: (row: DiagnosisTask) => deleteTask(row.id) }
     ]
   }
@@ -393,16 +375,8 @@ const columns = [
 
 // 初始化加载数据
 onMounted(() => {
-  console.log('[DiagnosisView] 测试数据:', testTaskData)
-  console.log('[DiagnosisView] taskList.value:', taskList.value)
-  console.log('[DiagnosisView] 第一条数据的时间:', {
-    createTime: testTaskData[0].createTime,
-    updateTime: testTaskData[0].updateTime,
-    createTimeFormatted: new Date(testTaskData[0].createTime).toLocaleString(),
-    updateTimeFormatted: new Date(testTaskData[0].updateTime).toLocaleString()
-  })
   getStats()  // 获取统计数据
-  // getData()   // 暂时注释掉，只使用测试数据
+  getData()   // 获取诊断任务列表
 })
 </script>
 

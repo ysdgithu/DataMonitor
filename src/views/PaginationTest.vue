@@ -63,7 +63,7 @@ const tableData = ref([
   { id: 1, name: '任务A', status: '0', createTime: Date.now() },
   { id: 2, name: '任务B', status: '1', createTime: Date.now() },
   { id: 3, name: '任务C', status: '2', createTime: Date.now() },
-  { id: 4, name: '任务D', status: '4', createTime: Date.now() },
+  { id: 4, name: '任务D', status: '1', createTime: Date.now() },
   { id: 5, name: '任务E', status: '0', createTime: Date.now() },
 ])
 

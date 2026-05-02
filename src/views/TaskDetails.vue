@@ -17,9 +17,16 @@
         <!-- 处理人+任务详情+设备+创建时间 -->
         <el-col class="info-section">
           <p class="info-item"><span class="label">处理人：</span>{{ taskDetail?.assignee }}</p>
-          <p class="info-item"><span class="label">任务描述：</span>{{ taskDetail?.detail }}</p>
           <p class="info-item"><span class="label">设备：</span>{{ taskDetail?.device_id }}</p>
           <p class="info-item"><span class="label">创建时间：</span>{{ formatTime(taskDetail?.createTime) }}</p>
+          <!-- 任务描述：优先解析 JSON 详情，否则直接显示原文 -->
+          <div class="info-item detail-block">
+            <span class="label">任务描述：</span>
+            <div class="detail-content">
+              <pre class="detail-summary">{{ parsedDetail.summary }}</pre>
+              <pre v-if="parsedDetail.detailData" class="detail-formatted">{{ formatDetailData(parsedDetail.detailData) }}</pre>
+            </div>
+          </div>
         </el-col>
         <el-divider />
         <!-- ai 分析部分 -->
@@ -56,6 +63,7 @@
 import { ref, onMounted, computed, defineProps } from 'vue'
 import { Connection, ChatRound } from '@element-plus/icons-vue'
 import { DiagnosticApi, type DiagnosisTask, type TriggerDiagnosisParams, type AIDiagnosisResponse } from '../utils/diagnosticApi'
+import { parseTaskDetail, formatDetailData } from '../utils/alarmFormatter'
 import MarkdownIt from 'markdown-it'
 
 const first = ref(true)
@@ -66,6 +74,11 @@ const props = defineProps<{
 
 // 任务详情数据（直接使用传入的数据）
 const taskDetail = computed<DiagnosisTask | undefined>(() => props.taskData)
+
+// 解析任务描述中的 JSON 详情
+const parsedDetail = computed(() => {
+  return parseTaskDetail(taskDetail.value?.detail || '')
+})
 let aiResult = ref('')
 let aiResultHtml = ref('')
 const loading = ref(true)
@@ -115,22 +128,20 @@ const updateTask = () => {
 // 状态映射
 const getStatusType = (status?: number) => {
   const map: Record<number, string> = {
-    4: 'info',
     0: 'warning',
     1: 'success',
     2: 'danger'
   }
-  return map[status || 4] || 'info'
+  return map[status || 0] || 'info'
 }
 
 const getStatusText = (status?: number) => {
   const map: Record<number, string> = {
-    4: '待执行',
     0: '进行中',
     1: '已完成',
     2: '失败'
   }
-  return map[status || 4] || '未知'
+  return map[status || 0] || '未知'
 }
 
 // 优先级映射
@@ -181,6 +192,43 @@ onMounted(() => {
   color: var(--text-tertiary);
   display: inline-block;
   width: 80px;
+  flex-shrink: 0;
+}
+
+.detail-block {
+  display: flex;
+  align-items: flex-start;
+}
+
+.detail-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.detail-summary {
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-main);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0 0 8px 0;
+  padding: 0;
+  background: transparent;
+}
+
+.detail-formatted {
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #555;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  padding: 12px;
+  background: #f5f7fa;
+  border-radius: 6px;
+  border-left: 3px solid var(--primary);
 }
 
 .ai-analysis-section {

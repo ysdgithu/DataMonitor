@@ -272,6 +272,18 @@ export const useRealtimeStore = defineStore('realtime', () => {
       return;
     }
 
+    // 【修复】处理规则引擎告警事件
+    if (type === 'ALARM_EVENT') {
+      const alarmStore = useAlarmStore();
+      const added = alarmStore.addAlarmEvent(data);
+      if (added) {
+        console.log('[Realtime] ✅ 告警已添加到 alarmStore:', data);
+      } else {
+        console.log('[Realtime] ⚠️ 告警被去重:', data);
+      }
+      return;
+    }
+
     // 根据消息类型处理数据
     switch (type) {
       case 'core_metrics':
