@@ -44,36 +44,30 @@ export class HistoryApi {
         return await request.get('/health') as any;
     }
 
-    // 查询核心指标数据
-    async getCoreMetrics(params: QueryParams = {}): Promise<ApiResponse<any[]>> {
-        // request 拦截器已经返回了 response.data
-        return await request.get('/core-metrics', { params }) as any;
-    }
-
-    // 查询环境数据
-    async getEnvironmentData(params: QueryParams = {}): Promise<ApiResponse<any[]>> {
-        // request 拦截器已经返回了 response.data
-        return await request.get('/environment', { params }) as any;
-    }
-
-    // 查询设备类型数据
-    async getDeviceStatus(params: QueryParams = {}): Promise<ApiResponse<DeviceTypeData[]>> {
+    // 查询设备状态数据（含设备列表）
+    async getDeviceStatus(params: QueryParams = {}): Promise<ApiResponse<any>> {
         console.log('[getDeviceStatus] 请求参数:', params);
-        // request 拦截器已经返回了 response.data，所以这里直接得到后端的响应体
         const response = await request.get('/device-status', { params }) as any;
         console.log('[getDeviceStatus] 响应:', response);
         return response;
     }
 
-    // 查询通信数据
-    async getTelemetryData(params: QueryParams = {}): Promise<ApiResponse<any[]>> {
-        // request 拦截器已经返回了 response.data
-        return await request.get('/telemetry', { params }) as any;
+    // 获取设备列表
+    async getDeviceList(): Promise<Array<{ deviceId: string; deviceType: string }>> {
+        const response = await this.getDeviceStatus();
+        if (response.success && response.devices) {
+            return response.devices;
+        }
+        return [];
+    }
+
+    // 查询设备历史数据
+    async getDeviceHistory(params: QueryParams = {}): Promise<ApiResponse<any[]>> {
+        return await request.get('/device-history', { params }) as any;
     }
 
     // 获取统计数据
     async getStatistics(dataType: string, hours: number = 24): Promise<ApiResponse<any[]>> {
-        // request 拦截器已经返回了 response.data
         return await request.get(`/statistics/${dataType}`, {
             params: { hours }
         }) as any;
@@ -81,89 +75,27 @@ export class HistoryApi {
 
     // 获取数据概览
     async getOverview(): Promise<ApiResponse<any>> {
-        // request 拦截器已经返回了 response.data
         return await request.get('/overview') as any;
     }
 
-    // 获取指定时间范围的核心指标趋势
-    async getCoreMetricsTrend(category: string, hours: number = 24): Promise<any[]> {
-        const endTime = Date.now();
-        const startTime = endTime - (hours * 60 * 60 * 1000);
-
-        const response = await this.getCoreMetrics({
-            category,
-            startTime,
-            endTime,
-            limit: 100
-        });
-
-        if (response.success) {
-            return response.data.map(item => ({
-                timestamp: item.timestamp,
-                value: item.value,
-                status: item.data_status,
-                time: new Date(item.timestamp).toLocaleTimeString()
-            }));
-        }
-        return [];
-    }
-
-    // 获取环境数据趋势
-    async getEnvironmentTrend(type: string = 'temperature', hours: number = 24): Promise<any[]> {
-        const endTime = Date.now();
-        const startTime = endTime - (hours * 60 * 60 * 1000);
-
-        const response = await this.getEnvironmentData({
-            dataType: type,
-            startTime,
-            endTime,
-            limit: 100
-        });
-
-        if (response.success) {
-            return response.data.map(item => ({
-                timestamp: item.timestamp,
-                value: item.value,
-                status: item.data_status,
-                time: new Date(item.timestamp).toLocaleTimeString(),
-                unit: item.unit
-            }));
-        }
-        return [];
-    }
-
-    // 获取设备类型统计（设备类型分布）
-    // 注意：getDeviceStatus 返回的是设备类型统计数据，不是设备状态数据
-    // 如果需要获取设备状态统计，应该使用 getFactoryDevices 接口
-    async getDeviceTypeStats(): Promise<DeviceTypeData[]> {
-        const response = await this.getDeviceStatus();
-        if (response.success) {
-            return response.data;
-        }
-        return [];
-    }
-
-    // 获取通信数据趋势
-    async getTelemetryTrend(dataType: string = 'upload_frequency', hours: number = 24): Promise<any[]> {
-        const endTime = Date.now();
-        const startTime = endTime - (hours * 60 * 60 * 1000);
-
-        const response = await this.getTelemetryData({
-            dataType,
-            startTime,
-            endTime,
-            limit: 100
-        });
-
-        if (response.success) {
-            return response.data.map(item => ({
-                timestamp: item.timestamp,
-                value: item.value,
-                status: item.data_status,
-                time: new Date(item.timestamp).toLocaleTimeString()
-            }));
-        }
-        return [];
+    // 查询诊断任务列表（告警记录）
+    async getDiagnosisTasks(params: {
+        page?: number;
+        pageSize?: number;
+        status?: number;
+        deviceId?: string;
+        startTime?: number;
+        endTime?: number;
+    } = {}): Promise<{ success: boolean; data: any[]; total?: number }> {
+        const queryParams: any = {
+            page: params.page || 1,
+            pageSize: params.pageSize || 100
+        };
+        if (params.status !== undefined) queryParams.status = params.status;
+        if (params.deviceId) queryParams.deviceId = params.deviceId;
+        if (params.startTime) queryParams.startTime = params.startTime;
+        if (params.endTime) queryParams.endTime = params.endTime;
+        return await request.get('/diagnosis-tasks', { params: queryParams }) as any;
     }
 
     // 检查API连接状态

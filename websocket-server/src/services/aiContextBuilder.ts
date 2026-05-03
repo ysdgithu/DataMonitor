@@ -184,7 +184,7 @@ export class AIContextBuilder {
     // 获取设备基本信息
     private async getDeviceInfo(deviceId: string, timestamp: number): Promise<any> {
         // 查询最近的工厂设备数据，获取设备信息
-        const devices = await this.dataModel.queryFactoryDevices({
+        const devices = await this.dataModel.queryDeviceHistory({
             deviceId,
             startTime: timestamp - 60 * 60 * 1000, // 查询1小时内的数据
             limit: 1
@@ -213,7 +213,7 @@ export class AIContextBuilder {
     
     // 获取核心指标数据（按类别分组，只返回摘要）
     private async getCoreMetrics(deviceId: string, startTime: number, endTime: number): Promise<any> {
-        const allMetrics = await this.dataModel.queryCoreMetrics({
+        const allMetrics = await this.dataModel.queryDeviceHistory({
             deviceId,
             startTime,
             endTime
@@ -283,7 +283,7 @@ export class AIContextBuilder {
     
     // 获取环境数据（只返回摘要）
     private async getEnvironmentData(deviceId: string, startTime: number, endTime: number): Promise<any> {
-        const data = await this.dataModel.queryEnvironmentData({
+        const data = await this.dataModel.queryDeviceHistory({
             deviceId,
             startTime,
             endTime
@@ -302,7 +302,7 @@ export class AIContextBuilder {
 
     // 获取通信数据（只返回摘要）
     private async getTelemetryData(deviceId: string, startTime: number, endTime: number): Promise<any> {
-        const data = await this.dataModel.queryTelemetryData({
+        const data = await this.dataModel.queryDeviceHistory({
             deviceId,
             startTime,
             endTime
@@ -321,7 +321,7 @@ export class AIContextBuilder {
 
     // 获取工厂设备数据（只返回摘要）
     private async getFactoryDeviceData(deviceId: string, startTime: number, endTime: number): Promise<any> {
-        const data = await this.dataModel.queryFactoryDevices({
+        const data = await this.dataModel.queryDeviceHistory({
             deviceId,
             startTime,
             endTime

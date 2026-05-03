@@ -176,78 +176,49 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
-// 查询核心指标数据 - 需要认证
-app.get('/api/core-metrics', authMiddleware, async (req, res) => {
+// 查询设备历史数据 - 需要认证
+app.get('/api/device-history', authMiddleware, async (req, res) => {
     try {
         const params: QueryParams = {
             deviceId: req.query.deviceId as string,
-            category: req.query.category as string,
+            dataType: req.query.deviceType as string,
             startTime: req.query.startTime ? parseInt(req.query.startTime as string) : undefined,
             endTime: req.query.endTime ? parseInt(req.query.endTime as string) : undefined,
             limit: req.query.limit ? parseInt(req.query.limit as string) : 100,
             offset: req.query.offset ? parseInt(req.query.offset as string) : 0
         };
 
-        const rawData = await dataModel.queryCoreMetrics(params);
-        // 解析payload字段中的JSON数据
-        const data = rawData.map(item => {
-            if (typeof item.payload === 'string') {
-                try {
-                    return JSON.parse(item.payload);
-                } catch (e) {
-                    return item;
-                }
-            }
-            return item;
-        });
+        // 查询总数
+        let countSql = 'SELECT COUNT(*) as total FROM device_data WHERE 1=1';
+        const countParams: any[] = [];
+        if (params.deviceId) {
+            countSql += ' AND device_id = ?';
+            countParams.push(params.deviceId);
+        }
+        if (params.dataType) {
+            countSql += ' AND data_type = ?';
+            countParams.push(params.dataType);
+        }
+        if (params.startTime) {
+            countSql += ' AND timestamp >= ?';
+            countParams.push(params.startTime);
+        }
+        if (params.endTime) {
+            countSql += ' AND timestamp <= ?';
+            countParams.push(params.endTime);
+        }
+        const countResult = await db.get(countSql, countParams);
+        const total = countResult?.total || 0;
+
+        const data = await dataModel.queryDeviceHistory(params);
         res.json({
             success: true,
             data,
-            total: data.length,
-            userId: req.user?.id
-        });
-    } catch (error) {
-        console.error('查询核心指标数据失败:', error);
-        res.status(500).json({
-            success: false,
-            error: '查询失败',
-            message: error instanceof Error ? error.message : '未知错误'
-        });
-    }
-});
-
-// 查询环境数据 - 需要认证
-app.get('/api/environment', authMiddleware, async (req, res) => {
-    try {
-        const params: QueryParams = {
-            deviceId: req.query.deviceId as string,
-            dataType: req.query.type as string,
-            startTime: req.query.startTime ? parseInt(req.query.startTime as string) : undefined,
-            endTime: req.query.endTime ? parseInt(req.query.endTime as string) : undefined,
-            limit: req.query.limit ? parseInt(req.query.limit as string) : 100,
-            offset: req.query.offset ? parseInt(req.query.offset as string) : 0
-        };
-
-        const rawData = await dataModel.queryEnvironmentData(params);
-        // 解析payload字段中的JSON数据
-        const data = rawData.map(item => {
-            if (typeof item.payload === 'string') {
-                try {
-                    return JSON.parse(item.payload);
-                } catch (e) {
-                    return item;
-                }
-            }
-            return item;
-        });
-        res.json({
-            success: true,
-            data,
-            total: data.length,
+            total,
             params
         });
     } catch (error) {
-        console.error('查询环境数据失败:', error);
+        console.error('查询设备历史数据失败:', error);
         res.status(500).json({
             success: false,
             error: '查询失败',
@@ -256,22 +227,21 @@ app.get('/api/environment', authMiddleware, async (req, res) => {
     }
 });
 
-// 查询设备状态数据 - 按设备类型统计 - 需要认证
+// 查询设备状态数据 - 按设备类型统计 + 设备列表 - 需要认证
 app.get('/api/device-status', authMiddleware, async (req, res) => {
     try {
         const deviceTypeFilter = req.query.deviceType ? parseInt(req.query.deviceType as string) : undefined;
 
-        // 查询工厂设备数据 - 获取每个设备的最新记录
+        // 查询所有设备最新记录
         const params: QueryParams = {
-            limit: 10000  // 获取足够多的记录以覆盖所有设备
+            limit: 10000
         };
 
-        const factoryDevices = await dataModel.queryFactoryDevices(params);
+        const allDevices = await dataModel.queryDeviceHistory(params);
 
         // 按设备ID去重，只保留最新的记录
         const uniqueDevices: { [key: string]: any } = {};
-        factoryDevices.forEach((device: any) => {
-            // 如果这个设备ID还没有记录，或者当前记录更新，则更新
+        allDevices.forEach((device: any) => {
             if (!uniqueDevices[device.deviceId] || device.timestamp > uniqueDevices[device.deviceId].timestamp) {
                 uniqueDevices[device.deviceId] = device;
             }
@@ -282,13 +252,10 @@ app.get('/api/device-status', authMiddleware, async (req, res) => {
 
         // 按设备类型统计
         const typeStats: { [key: number]: { count: number; deviceIds: Set<string> } } = {};
-
-        // 初始化所有设备类型（0-9）
         for (let i = 0; i < 10; i++) {
             typeStats[i] = { count: 0, deviceIds: new Set<string>() };
         }
 
-        // 按类型分类统计（使用去重后的设备）
         uniqueDeviceArray.forEach((device: any) => {
             const typeCode = device.typeCode !== undefined ? device.typeCode : 0;
             if (typeStats[typeCode]) {
@@ -301,7 +268,6 @@ app.get('/api/device-status', authMiddleware, async (req, res) => {
         let result: any[] = [];
 
         if (deviceTypeFilter !== undefined) {
-            // 如果指定了设备类型过滤，只返回该类型的统计信息
             if (typeStats[deviceTypeFilter]) {
                 result = [{
                     deviceType: deviceTypeFilter,
@@ -310,62 +276,25 @@ app.get('/api/device-status', authMiddleware, async (req, res) => {
                 }];
             }
         } else {
-            // 返回所有设备类型的统计信息
             result = Object.entries(typeStats)
                 .map(([typeCode, data]) => ({
                     deviceType: parseInt(typeCode),
                     count: data.count,
                     deviceIds: Array.from(data.deviceIds)
                 }))
-                .filter(item => item.count > 0); // 只返回有设备的类型
+                .filter(item => item.count > 0);
         }
+
+        // 获取设备列表
+        const devices = await dataModel.getDeviceList();
 
         res.json({
             success: true,
-            data: result
+            data: result,
+            devices
         });
     } catch (error) {
         console.error('查询设备状态数据失败:', error);
-        res.status(500).json({
-            success: false,
-            error: '查询失败',
-            message: error instanceof Error ? error.message : '未知错误'
-        });
-    }
-});
-
-// 查询通信数据 - 需要认证
-app.get('/api/telemetry', authMiddleware, async (req, res) => {
-    try {
-        const params: QueryParams = {
-            deviceId: req.query.deviceId as string,
-            dataType: req.query.dataType as string,
-            startTime: req.query.startTime ? parseInt(req.query.startTime as string) : undefined,
-            endTime: req.query.endTime ? parseInt(req.query.endTime as string) : undefined,
-            limit: req.query.limit ? parseInt(req.query.limit as string) : 100,
-            offset: req.query.offset ? parseInt(req.query.offset as string) : 0
-        };
-
-        const rawData = await dataModel.queryTelemetryData(params);
-        // 解析payload字段中的JSON数据
-        const data = rawData.map(item => {
-            if (typeof item.payload === 'string') {
-                try {
-                    return JSON.parse(item.payload);
-                } catch (e) {
-                    return item;
-                }
-            }
-            return item;
-        });
-        res.json({
-            success: true,
-            data,
-            total: data.length,
-            params
-        });
-    } catch (error) {
-        console.error('查询通信数据失败:', error);
         res.status(500).json({
             success: false,
             error: '查询失败',
@@ -397,69 +326,30 @@ app.get('/api/statistics/:dataType', authMiddleware, async (req, res) => {
     }
 });
 
-// 查询工厂设备数据 - 需要认证
-app.get('/api/factory-devices', authMiddleware, async (req, res) => {
-    try {
-        const params: QueryParams = {
-            deviceId: req.query.deviceId as string,
-            status: req.query.status as string,
-            startTime: req.query.startTime ? parseInt(req.query.startTime as string) : undefined,
-            endTime: req.query.endTime ? parseInt(req.query.endTime as string) : undefined,
-            limit: req.query.limit ? parseInt(req.query.limit as string) : 100,
-            offset: req.query.offset ? parseInt(req.query.offset as string) : undefined
-        };
-
-        const rawData = await dataModel.queryFactoryDevices(params);
-        // 解析payload字段中的JSON数据
-        const data = rawData.map(item => {
-            if (typeof item.payload === 'string') {
-                try {
-                    return JSON.parse(item.payload);
-                } catch (e) {
-                    return item;
-                }
-            }
-            return item;
-        });
-        res.json({
-            success: true,
-            data,
-            total: data.length,
-            params
-        });
-    } catch (error) {
-        console.error('查询工厂设备数据失败:', error);
-        res.status(500).json({
-            success: false,
-            error: '查询失败',
-            message: error instanceof Error ? error.message : '未知错误'
-        });
-    }
-});
-
 // 获取最近数据概览 - 需要认证
 app.get('/api/overview', authMiddleware, async (req, res) => {
     try {
         const now = Date.now();
         const oneHourAgo = now - (60 * 60 * 1000);
 
-        // 并行查询各类数据的最新记录
-        const [coreMetrics, environment, deviceStatus, telemetry, factoryDevices] = await Promise.all([
-            dataModel.queryCoreMetrics({ startTime: oneHourAgo, limit: 10 }),
-            dataModel.queryEnvironmentData({ startTime: oneHourAgo, limit: 10 }),
-            dataModel.queryDeviceStatus({ startTime: oneHourAgo, limit: 10 }),
-            dataModel.queryTelemetryData({ startTime: oneHourAgo, limit: 10 }),
-            dataModel.queryFactoryDevices({ startTime: oneHourAgo, limit: 10 })
-        ]);
+        // 查询最近1小时的设备数据，按设备去重保留最新记录
+        const recentData = await dataModel.queryDeviceHistory({ startTime: oneHourAgo, limit: 100 });
+
+        // 按设备ID去重，只保留最新记录
+        const uniqueDeviceMap: { [key: string]: any } = {};
+        recentData.forEach((item: any) => {
+            if (!uniqueDeviceMap[item.deviceId] || item.timestamp > uniqueDeviceMap[item.deviceId].timestamp) {
+                uniqueDeviceMap[item.deviceId] = item;
+            }
+        });
+
+        const latestDevices = Object.values(uniqueDeviceMap);
 
         res.json({
             success: true,
             data: {
-                coreMetrics,
-                environment,
-                deviceStatus,
-                telemetry,
-                factoryDevices
+                latestDevices,
+                totalDevices: latestDevices.length
             },
             timestamp: now
         });
@@ -964,11 +854,8 @@ function startApiServer() {
         console.log('  GET /health - 健康检查');
         console.log('  POST /api/login - 用户登录 (获取 JWT token)');
         console.log('  POST /api/register - 用户注册');
-        console.log('  GET /api/core-metrics - 核心指标数据 (需要认证)');
-        console.log('  GET /api/environment - 环境数据 (需要认证)');
-        console.log('  GET /api/device-status - 设备状态数据 (需要认证)');
-        console.log('  GET /api/telemetry - 通信数据 (需要认证)');
-        console.log('  GET /api/factory-devices - 工厂设备数据 (需要认证)');
+        console.log('  GET /api/device-history - 设备历史数据查询 (需要认证)');
+        console.log('  GET /api/device-status - 设备状态统计与列表 (需要认证)');
         console.log('  GET /api/statistics/:dataType - 统计数据 (需要认证)');
         console.log('  GET /api/overview - 数据概览 (需要认证)');
         console.log('  GET /api/diagnosis-tasks - 诊断任务列表 (需要认证)');

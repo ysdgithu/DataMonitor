@@ -45,7 +45,7 @@
               <el-row :gutter="20" style="margin-top: 15px;">
                 <el-col :span="24">
                   <div class="filter-actions">
-                    <el-button type="primary" :loading="loading" :disabled="!queryForm.deviceId" @click="handleQuery">
+                    <el-button type="primary" :loading="loading" @click="handleQuery">
                       <el-icon>
                         <Search />
                       </el-icon>
@@ -72,19 +72,23 @@
                     数据范围：<span class="range-text">{{ dataRangeText }}</span>
                   </div>
                 </div>
-                <VirtualTable :columns="indicatorColumns" :data="indicatorData" :height="300" :loading="loading" />
+                <DataTable
+                  :columns="indicatorColumns"
+                  :data="indicatorData"
+                  :loading="loading"
+                  :show-pagination="true"
+                  :current-page="currentPage"
+                  :page-size="pageSize"
+                  :total="total"
+                  @page-change="handlePageChange"
+                />
               </div>
 
-              <!-- 异常告警记录 -->
-              <div class="section">
-                <h4 class="section-title">异常告警记录</h4>
-                <DataTable :columns="alarmColumns" :data="alarmData" :loading="loading" style="max-height: 300px" />
-              </div>
             </div>
 
             <!-- 空状态 -->
             <div v-else class="empty-state">
-              <CommonEmpty description="请选择设备和时间范围后点击查询" />
+              <CommonEmpty description="请选择时间范围后点击查询" />
             </div>
           </div>
         </el-tab-pane>
@@ -185,14 +189,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import MainLayout from '../components/layout/MainLayout.vue'
-import VirtualTable from '../components/common/VirtualTable/index.vue'
 import DataTable from '../components/common/DataTable/index.vue'
 import BaseChart from '../components/charts/BaseChart.vue'
 import CommonEmpty from '../components/common/Empty/index.vue'
 import { Search, Refresh, Download } from '@element-plus/icons-vue'
 import type { EChartsOption } from 'echarts'
+import { historyApi } from '../utils/historyApi'
+import type { Column as DataColumn } from '../components/common/DataTable/types'
+import { ElMessage } from 'element-plus'
 
 // ========== 基础状态 ==========
 const activeTab = ref('history')
@@ -201,13 +207,13 @@ const reportLoading = ref(false)
 const hasQueried = ref(false)
 const hasGeneratedReport = ref(false)
 
-// ========== 设备选项（假数据） ==========
-const deviceOptions = [
-  { label: '设备A-调配罐', value: 'deviceA' },
-  { label: '设备B-灌装机', value: 'deviceB' },
-  { label: '设备C-封盖机', value: 'deviceC' },
-  { label: '设备D-贴标机', value: 'deviceD' },
-]
+// ========== 分页状态 ==========
+const currentPage = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
+
+// ========== 设备选项（从后端获取） ==========
+const deviceOptions = ref<Array<{ label: string; value: string }>>([])
 
 // ========== 历史查询表单 ==========
 const queryForm = reactive({
@@ -225,64 +231,21 @@ const reportForm = reactive({
 
 // ========== 数据范围显示文本 ==========
 const dataRangeText = computed(() => {
-  if (queryForm.timeRange === 'today') {
-    const today = new Date().toISOString().split('T')[0]
-    return `${today} 00:00:00 ~ ${today} 23:59:59`
-  }
-  return '2026-02-24 00:00:00 ~ 2026-02-24 23:59:59'
+  const { startTime, endTime } = calculateTimeRange(queryForm.timeRange, queryForm.customRange)
+  const format = (t: number) => new Date(t).toLocaleString('zh-CN', { hour12: false })
+  return `${format(startTime)} ~ ${format(endTime)}`
 })
 
-// ========== 指标历史数据表格配置 ==========
-import type { Column as VirtualColumn } from '../components/common/VirtualTable/types'
-import type { Column as DataColumn } from '../components/common/DataTable/types'
+// ========== 动态表格列 ==========
+const indicatorColumns = ref<DataColumn[]>([])
 
-const indicatorColumns: VirtualColumn[] = [
-  { key: 'time', title: '采集时间', dataKey: 'time', width: 180 },
-  { key: 'temperature', title: '温度(℃)', dataKey: 'temperature', width: 120 },
-  { key: 'pressure', title: '压力(MPa)', dataKey: 'pressure', width: 120 },
-  { key: 'speed', title: '转速(rpm)', dataKey: 'speed', width: 120 },
-  {
-    key: 'status',
-    title: '状态',
-    dataKey: 'status',
-    width: 100,
-    isStatus: true,
-    statusCategory: 'indicator'
-  },
-  {
-    key: 'actions',
-    title: '操作',
-    dataKey: 'actions',
-    width: 120,
-    isActions: true,
-    actions: [
-      { label: '查看详情', type: 'primary', onClick: (row: any) => console.log('查看详情', row) }
-    ]
-  }
-]
-
-// ========== 指标历史数据（假数据） ==========
+// ========== 指标历史数据 ==========
 const indicatorData = ref<any[]>([])
 
-// ========== 告警记录表格配置 ==========
-const alarmColumns: DataColumn[] = [
-  { prop: 'alarmTime', label: '告警时间', width: 180 },
-  { prop: 'alarmType', label: '告警类型', width: 120 },
-  { prop: 'description', label: '告警描述', width: 250 },
-  {
-    prop: 'status',
-    label: '处理状态',
-    width: 100,
-    isStatus: true,
-    statusCategory: 'alarm'
-  }
-]
 
-// ========== 告警记录数据（假数据） ==========
-const alarmData = ref<any[]>([])
 
 // ========== 设备运行统计表格配置 ==========
-const deviceRunColumns: VirtualColumn[] = [
+const deviceRunColumns: any[] = [
   { key: 'deviceName', title: '设备名称', dataKey: 'deviceName', width: 150 },
   { key: 'runTime', title: '运行时长(h)', dataKey: 'runTime', width: 120 },
   { key: 'onlineRate', title: '在线率(%)', dataKey: 'onlineRate', width: 120 },
@@ -290,18 +253,18 @@ const deviceRunColumns: VirtualColumn[] = [
   { key: 'mtbf', title: 'MTBF(h)', dataKey: 'mtbf', width: 120 }
 ]
 
-// ========== 设备运行统计数据（假数据） ==========
+// ========== 设备运行统计数据 ==========
 const deviceRunData = ref<any[]>([])
 
 // ========== 告警统计表格配置 ==========
-const alarmStatColumns: VirtualColumn[] = [
+const alarmStatColumns: any[] = [
   { key: 'deviceName', title: '设备名称', dataKey: 'deviceName', width: 150 },
   { key: 'alarmType', title: '异常类型', dataKey: 'alarmType', width: 150 },
   { key: 'count', title: '告警次数', dataKey: 'count', width: 120 },
   { key: 'percentage', title: '占比(%)', dataKey: 'percentage', width: 120 }
 ]
 
-// ========== 告警统计数据（假数据） ==========
+// ========== 告警统计数据 ==========
 const alarmStatData = ref<any[]>([])
 
 // ========== 告警饼图配置 ==========
@@ -352,63 +315,152 @@ const exportHistoryColumns: DataColumn[] = [
   { prop: 'status', label: '状态', width: 100, isStatus: true, statusCategory: 'export' }
 ]
 
-// ========== 导出历史数据（假数据） ==========
+// ========== 导出历史数据 ==========
 const exportHistoryData = ref<any[]>([])
+
+// ========== 时间范围计算 ==========
+function calculateTimeRange(timeRange: string, customRange: string[]) {
+  const now = new Date()
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
+  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
+
+  let startTime = todayStart.getTime()
+  let endTime = todayEnd.getTime()
+
+  switch (timeRange) {
+    case 'today':
+      startTime = todayStart.getTime()
+      endTime = todayEnd.getTime()
+      break
+    case '7days':
+      startTime = todayStart.getTime() - 7 * 24 * 60 * 60 * 1000
+      endTime = todayEnd.getTime()
+      break
+    case '30days':
+      startTime = todayStart.getTime() - 30 * 24 * 60 * 60 * 1000
+      endTime = todayEnd.getTime()
+      break
+    case 'custom':
+      if (customRange && customRange.length === 2) {
+        const s = new Date(customRange[0])
+        const e = new Date(customRange[1])
+        startTime = new Date(s.getFullYear(), s.getMonth(), s.getDate(), 0, 0, 0).getTime()
+        endTime = new Date(e.getFullYear(), e.getMonth(), e.getDate(), 23, 59, 59).getTime()
+      }
+      break
+  }
+
+  return { startTime, endTime }
+}
+
+// ========== 格式化指标key为中文标题 ==========
+function formatMetricKey(key: string): string {
+  const map: Record<string, string> = {
+    temp: '温度(℃)',
+    level: '液位(L)',
+    current: '电流(A)',
+    ph: 'pH值',
+    fill_volume: '灌装量(ml)',
+    pressure: '压力(MPa)',
+    speed: '速度(瓶/分)',
+  }
+  return map[key] || key
+}
+
+// ========== 加载设备列表 ==========
+async function loadDeviceOptions() {
+  try {
+    const devices = await historyApi.getDeviceList()
+    deviceOptions.value = devices.map(d => ({
+      label: `${d.deviceId}-${d.deviceType}`,
+      value: d.deviceId
+    }))
+  } catch (error) {
+    console.error('加载设备列表失败:', error)
+  }
+}
 
 // ========== 查询处理 ==========
 const handleQuery = async () => {
-  if (!queryForm.deviceId) {
-    return
-  }
-
   loading.value = true
 
-  // 模拟API延迟
-  await new Promise(resolve => setTimeout(resolve, 500))
+  try {
+    const { startTime, endTime } = calculateTimeRange(queryForm.timeRange, queryForm.customRange)
 
-  // 生成假数据
-  generateMockIndicatorData()
-  generateMockAlarmData()
-
-  hasQueried.value = true
-  loading.value = false
-}
-
-// ========== 生成指标假数据 ==========
-const generateMockIndicatorData = () => {
-  const data = []
-  const baseTime = new Date()
-  baseTime.setHours(9, 0, 0, 0)
-
-  for (let i = 0; i < 20; i++) {
-    const time = new Date(baseTime.getTime() + i * 30 * 60 * 1000)
-    data.push({
-      time: time.toLocaleString('zh-CN', { hour12: false }),
-      temperature: (35 + Math.random() * 5).toFixed(1),
-      pressure: (1.0 + Math.random() * 0.5).toFixed(2),
-      speed: Math.floor(1400 + Math.random() * 200),
-      status: Math.random() > 0.8 ? '1' : '0'
+    // 查询历史数据（分页）
+    const historyRes = await historyApi.getDeviceHistory({
+      deviceId: queryForm.deviceId || undefined,
+      startTime,
+      endTime,
+      limit: pageSize.value,
+      offset: (currentPage.value - 1) * pageSize.value
     })
+
+    if (historyRes.success && historyRes.data) {
+      total.value = historyRes.total || 0
+
+      // 提取动态列（排除非指标字段）
+      const excludedKeys = new Set(['id', 'device_id', 'data_type', 'timestamp', 'data_status', 'payload', 'created_at', 'line'])
+      const allKeys = new Set<string>()
+
+      historyRes.data.forEach((item: any) => {
+        Object.keys(item).forEach(key => {
+          if (!excludedKeys.has(key) && item[key]?.value !== undefined) {
+            allKeys.add(key)
+          }
+        })
+      })
+
+      // 构建动态列：固定列 + 动态指标列（DataColumn 格式）
+      const fixedColumns: DataColumn[] = [
+        { prop: 'time', label: '采集时间', width: 180 },
+        { prop: 'deviceId', label: '设备ID', width: 100 },
+        { prop: 'deviceType', label: '设备类型', width: 120 },
+      ]
+
+      const dynamicColumns = Array.from(allKeys).map(key => ({
+        prop: key,
+        label: formatMetricKey(key),
+        width: 120
+      }))
+
+      indicatorColumns.value = [...fixedColumns, ...dynamicColumns]
+
+      // 预处理数据：把指标对象格式化为字符串
+      indicatorData.value = historyRes.data.map((item: any) => {
+        const row: any = {
+          time: new Date(item.timestamp).toLocaleString('zh-CN', { hour12: false }),
+          deviceId: item.device_id,
+          deviceType: item.data_type,
+        }
+        allKeys.forEach(key => {
+          if (item[key]?.value !== undefined) {
+            row[key] = `${item[key].value}${item[key].unit || ''}`
+          } else {
+            row[key] = '-'
+          }
+        })
+        return row
+      })
+    } else {
+      indicatorData.value = []
+      indicatorColumns.value = []
+      total.value = 0
+    }
+
+    hasQueried.value = true
+  } catch (error) {
+    console.error('查询失败:', error)
+    ElMessage.error('查询失败')
+  } finally {
+    loading.value = false
   }
-  indicatorData.value = data
 }
 
-// ========== 生成告警假数据 ==========
-const generateMockAlarmData = () => {
-  alarmData.value = [
-    {
-      alarmTime: '2026-02-24 10:15:30',
-      alarmType: '温度过高',
-      description: `${queryForm.deviceId}温度超过阈值(36℃)`,
-      status: '0'
-    },
-    {
-      alarmTime: '2026-02-24 14:22:18',
-      alarmType: '压力异常',
-      description: `${queryForm.deviceId}压力超出正常范围`,
-      status: '1'
-    }
-  ]
+// ========== 分页切换 ==========
+const handlePageChange = (page: number) => {
+  currentPage.value = page
+  handleQuery()
 }
 
 // ========== 重置处理 ==========
@@ -416,9 +468,11 @@ const handleReset = () => {
   queryForm.deviceId = ''
   queryForm.timeRange = 'today'
   queryForm.customRange = []
+  currentPage.value = 1
+  total.value = 0
   hasQueried.value = false
   indicatorData.value = []
-  alarmData.value = []
+  indicatorColumns.value = []
 }
 
 // ========== 生成报表处理 ==========
@@ -488,6 +542,12 @@ const handleExport = () => {
 // ========== 监听报表类型切换 ==========
 watch(reportType, () => {
   hasGeneratedReport.value = false
+})
+
+// ========== 页面挂载时加载设备列表并默认查询 ==========
+onMounted(async () => {
+  await loadDeviceOptions()
+  await handleQuery()
 })
 </script>
 
