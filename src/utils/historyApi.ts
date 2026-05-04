@@ -98,6 +98,43 @@ export class HistoryApi {
         return await request.get('/diagnosis-tasks', { params: queryParams }) as any;
     }
 
+    // ========== 报表相关接口 ==========
+
+    // 生成报表数据（返回JSON用于预览）
+    async generateReport(params: {
+        reportType: 'device-run' | 'alarm-stat';
+        timeRange: string;
+        customRange?: string[];
+        deviceId?: number;
+    }): Promise<any> {
+        const payload = {
+            reportType: params.reportType,
+            timeRange: params.timeRange,
+            customRange: params.customRange || [],
+            deviceId: params.deviceId || undefined
+        };
+        return await request.post('/report/generate', payload) as any;
+    }
+
+    // 导出报表为Excel文件
+    async exportReport(params: {
+        reportType: 'device-run' | 'alarm-stat';
+        timeRange: string;
+        customRange?: string[];
+        deviceId?: number;
+    }): Promise<Blob> {
+        const payload = {
+            reportType: params.reportType,
+            timeRange: params.timeRange,
+            customRange: params.customRange || [],
+            deviceId: params.deviceId || undefined
+        };
+        // 使用 responseType: 'blob' 来获取二进制文件
+        return await request.post('/report/export', payload, {
+            responseType: 'blob'
+        }) as any;
+    }
+
     // 检查API连接状态
     async checkConnection(): Promise<boolean> {
         try {

@@ -72,16 +72,8 @@
                     数据范围：<span class="range-text">{{ dataRangeText }}</span>
                   </div>
                 </div>
-                <DataTable
-                  :columns="indicatorColumns"
-                  :data="indicatorData"
-                  :loading="loading"
-                  :show-pagination="true"
-                  :current-page="currentPage"
-                  :page-size="pageSize"
-                  :total="total"
-                  @page-change="handlePageChange"
-                />
+                <DataTable :columns="indicatorColumns" :data="indicatorData" :loading="loading" :show-pagination="true"
+                  :current-page="currentPage" :page-size="pageSize" :total="total" @page-change="handlePageChange" />
               </div>
 
             </div>
@@ -479,64 +471,74 @@ const handleReset = () => {
 const handleGenerateReport = async () => {
   reportLoading.value = true
 
-  // 模拟API延迟
-  await new Promise(resolve => setTimeout(resolve, 500))
+  try {
+    const res = await historyApi.generateReport({
+      reportType: reportType.value as 'device-run' | 'alarm-stat',
+      timeRange: reportForm.timeRange,
+      customRange: reportForm.customRange.length > 0 ? reportForm.customRange : undefined,
+      deviceId: undefined
+    })
 
-  if (reportType.value === 'device-run') {
-    generateMockDeviceRunData()
-  } else {
-    generateMockAlarmStatData()
+    if (res.success && res.data) {
+      if (reportType.value === 'device-run') {
+        deviceRunData.value = res.data.details || []
+      } else {
+        alarmStatData.value = res.data.details || []
+      }
+      hasGeneratedReport.value = true
+      ElMessage.success('报表生成成功')
+    } else {
+      ElMessage.error(res.message || '报表生成失败')
+    }
+  } catch (error: any) {
+    console.error('生成报表失败:', error)
+    ElMessage.error(error.message || '生成报表失败')
+  } finally {
+    reportLoading.value = false
   }
-
-  hasGeneratedReport.value = true
-  reportLoading.value = false
 }
 
-// ========== 生成设备运行假数据 ==========
-const generateMockDeviceRunData = () => {
-  deviceRunData.value = [
-    { deviceName: '设备A-调配罐', runTime: '120', onlineRate: '99.8', alarmCount: 5, mtbf: '480' },
-    { deviceName: '设备B-灌装机', runTime: '115', onlineRate: '99.5', alarmCount: 8, mtbf: '360' },
-    { deviceName: '设备C-封盖机', runTime: '118', onlineRate: '99.7', alarmCount: 3, mtbf: '520' },
-    { deviceName: '设备D-贴标机', runTime: '122', onlineRate: '99.9', alarmCount: 2, mtbf: '600' }
-  ]
-}
 
-// ========== 生成告警统计假数据 ==========
-const generateMockAlarmStatData = () => {
-  alarmStatData.value = [
-    { deviceName: '设备A-调配罐', alarmType: '温度过高', count: 3, percentage: '37.5' },
-    { deviceName: '设备A-调配罐', alarmType: '压力异常', count: 2, percentage: '25.0' },
-    { deviceName: '设备B-灌装机', alarmType: '温度过高', count: 2, percentage: '25.0' },
-    { deviceName: '设备B-灌装机', alarmType: '其他', count: 1, percentage: '12.5' }
-  ]
-}
 
 // ========== 导出处理 ==========
-const handleExport = () => {
-  // 模拟导出
-  const now = new Date().toLocaleString('zh-CN')
-  const typeName = reportType.value === 'device-run' ? '设备运行统计报表' : '异常告警统计报表'
+const handleExport = async () => {
+  try {
+    const reportTypeLabel = reportType.value === 'device-run' ? '设备运行统计报表' : '异常告警统计报表'
+    const dateStr = new Date().toISOString().split('T')[0]
 
-  exportHistoryData.value.unshift({
-    exportTime: now,
-    reportType: typeName,
-    status: 'success'
-  })
+    // 调用后端导出接口
+    const blob = await historyApi.exportReport({
+      reportType: reportType.value as 'device-run' | 'alarm-stat',
+      timeRange: reportForm.timeRange,
+      customRange: reportForm.customRange.length > 0 ? reportForm.customRange : undefined,
+      deviceId: undefined
+    })
 
-  // 限制历史记录数量
-  if (exportHistoryData.value.length > 5) {
-    exportHistoryData.value = exportHistoryData.value.slice(0, 5)
+    // 创建下载链接
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${reportTypeLabel}_${dateStr}.xlsx`
+    link.click()
+    URL.revokeObjectURL(url)
+
+    // 记录导出历史
+    const now = new Date().toLocaleString('zh-CN')
+    exportHistoryData.value.unshift({
+      exportTime: now,
+      reportType: reportTypeLabel,
+      status: 'success'
+    })
+
+    if (exportHistoryData.value.length > 5) {
+      exportHistoryData.value = exportHistoryData.value.slice(0, 5)
+    }
+
+    ElMessage.success('报表导出成功')
+  } catch (error: any) {
+    console.error('导出报表失败:', error)
+    ElMessage.error(error.message || '导出报表失败')
   }
-
-  // 模拟文件下载
-  const blob = new Blob(['报表数据示例'], { type: 'application/vnd.ms-excel' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `${typeName}_${new Date().toISOString().split('T')[0]}.xls`
-  link.click()
-  URL.revokeObjectURL(url)
 }
 
 // ========== 监听报表类型切换 ==========

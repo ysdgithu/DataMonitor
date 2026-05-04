@@ -7,6 +7,7 @@ import { authMiddleware, requestLogMiddleware, errorHandler } from './middleware
 import { generateToken, validateUsername, validatePasswordStrength } from '../utils/auth';
 import { buildAIContext, BuildContextParams } from '../services/aiContextBuilder';
 import DatabaseConnection from '../database/connection';
+import reportRoutes from './routes/report';
 
 const app = express();
 const PORT = process.env.API_PORT || 3002;
@@ -20,6 +21,9 @@ app.use(requestLogMiddleware);
 const dataModel = new DataModel();
 const userModel = new UserModel();
 const db = DatabaseConnection.getInstance();
+
+// 注册路由
+app.use('/api/report', reportRoutes);
 
 // 健康检查接口
 app.get('/api/health', (req, res) => {
