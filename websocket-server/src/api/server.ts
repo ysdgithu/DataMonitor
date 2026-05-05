@@ -8,6 +8,7 @@ import { generateToken, validateUsername, validatePasswordStrength } from '../ut
 import { buildAIContext, BuildContextParams } from '../services/aiContextBuilder';
 import DatabaseConnection from '../database/connection';
 import reportRoutes from './routes/report';
+import aiAnalysisRoutes from './routes/ai-analysis';
 
 const app = express();
 const PORT = process.env.API_PORT || 3002;
@@ -24,6 +25,7 @@ const db = DatabaseConnection.getInstance();
 
 // 注册路由
 app.use('/api/report', reportRoutes);
+app.use('/api/ai-analysis', aiAnalysisRoutes);
 
 // 健康检查接口
 app.get('/api/health', (req, res) => {

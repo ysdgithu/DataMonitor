@@ -99,6 +99,12 @@
       "maxFiles": 5
     }
   },
+  "ragflow": {
+    "baseURL": "http://localhost:9380",
+    "apiKey": "ragflow-4KoiygPBHJII-w2F0h5OudSJPMJV9XITcUPMCpi_KLk",
+    "chatId": "35ec891e358611f180d46988dbe8f3ea",
+    "sessionId": "4c6072a68d914d3ead5eae32b41edb76"
+  },
   "monitoring": {
     "healthCheck": {
       "enabled": true,

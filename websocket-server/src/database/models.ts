@@ -390,6 +390,7 @@ class DataModel {
             status: task.status,
             priority: task.priority,
             detail: task.detail,
+            ai: task.ai,
             assignee: task.assignee,
             createTime: task.create_time,
             updateTime: task.update_time
@@ -413,6 +414,7 @@ class DataModel {
             status: task.status,
             priority: task.priority,
             detail: task.detail,
+            ai: task.ai,
             assignee: task.assignee,
             createTime: task.create_time,
             updateTime: task.update_time
@@ -426,6 +428,7 @@ class DataModel {
         status?: number;
         priority?: number;
         detail?: string;
+        ai?: string;
         assignee?: string;
     }): Promise<void> {
         const updateFields: string[] = [];
@@ -450,6 +453,10 @@ class DataModel {
         if (updates.detail !== undefined) {
             updateFields.push('detail = ?');
             params.push(updates.detail);
+        }
+        if (updates.ai !== undefined) {
+            updateFields.push('ai = ?');
+            params.push(updates.ai);
         }
         if (updates.assignee !== undefined) {
             updateFields.push('assignee = ?');

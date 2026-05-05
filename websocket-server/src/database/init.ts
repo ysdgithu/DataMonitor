@@ -99,6 +99,7 @@ async function initDatabase() {
                 priority TINYINT NOT NULL DEFAULT 0 ,
                 detail TEXT ,
                 assignee VARCHAR(50) NOT NULL ,
+                ai TEXT,
                 create_time BIGINT NOT NULL,
                 update_time BIGINT NOT NULL,
                 INDEX idx_device_id (device_id),

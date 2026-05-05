@@ -1,4 +1,5 @@
 import request from './request'
+import { TokenManager } from './tokenManager'
 
 export interface DiagnosisTask {
     id: number;
@@ -7,6 +8,7 @@ export interface DiagnosisTask {
     status: number;
     priority: number;
     detail?: string;
+    ai?: string;
     assignee: string;
     createTime: number;
     updateTime: number;
@@ -158,6 +160,107 @@ export class DiagnosticApi {
     async triggerAIDiagnosis(params: TriggerDiagnosisParams): Promise<AIDiagnosisResponse> {
         console.log('[前端] 触发 AI 诊断:', params)
         return await request.post('/trigger-diagnosis', params)
+    }
+
+    /**
+     * 流式 AI 分析接口（RAGFlow）
+     * @param taskId 诊断任务 ID
+     * @param callbacks 回调函数
+     */
+    async streamAIAnalysis(
+        taskId: number,
+        callbacks: {
+            onMessage: (content: string) => void;
+            onError?: (error: string) => void;
+            onDone?: () => void;
+        }
+    ): Promise<void> {
+        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002/api'
+        const token = TokenManager.getAccessToken()
+
+        const response = await fetch(`${API_BASE_URL}/ai-analysis`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({ taskId })
+        })
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            throw new Error(errorData.message || `请求失败: ${response.status}`)
+        }
+
+        if (!response.body) {
+            throw new Error('响应体为空')
+        }
+
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder('utf-8')
+        let buffer = ''
+
+        try {
+            while (true) {
+                const { done, value } = await reader.read()
+                if (done) break
+
+                buffer += decoder.decode(value, { stream: true })
+                const lines = buffer.split('\n')
+                buffer = lines.pop() || ''
+
+                for (const line of lines) {
+                    const trimmed = line.trim()
+                    if (!trimmed.startsWith('data:')) continue
+
+                    const jsonStr = trimmed.slice(5).trim()
+                    if (jsonStr === '[DONE]') {
+                        callbacks.onDone?.()
+                        return
+                    }
+
+                    try {
+                        const parsed = JSON.parse(jsonStr)
+                        if (parsed.content !== undefined) {
+                            callbacks.onMessage(parsed.content)
+                        }
+                        if (parsed.error) {
+                            callbacks.onError?.(parsed.error)
+                        }
+                    } catch (e) {
+                        // 忽略解析失败的行
+                    }
+                }
+            }
+
+            // 处理缓冲区剩余内容
+            if (buffer.trim()) {
+                const trimmed = buffer.trim()
+                if (trimmed.startsWith('data:')) {
+                    const jsonStr = trimmed.slice(5).trim()
+                    if (jsonStr === '[DONE]') {
+                        callbacks.onDone?.()
+                    } else {
+                        try {
+                            const parsed = JSON.parse(jsonStr)
+                            if (parsed.content !== undefined) {
+                                callbacks.onMessage(parsed.content)
+                            }
+                        } catch (e) {
+                            // 忽略
+                        }
+                    }
+                }
+            }
+
+            callbacks.onDone?.()
+        } catch (err: any) {
+            console.error('[streamAIAnalysis] 流读取失败:', err)
+            callbacks.onError?.(err.message || '流式响应中断')
+            throw err
+        } finally {
+            reader.releaseLock()
+        }
     }
 }
 

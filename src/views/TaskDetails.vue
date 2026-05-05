@@ -47,10 +47,7 @@
                 <span>AI 分析结果</span>
               </div>
             </template>
-            <div class="ai-result-content">
-              <div v-if="first"></div>
-              <div v-loading="loading" v-html="aiResultHtml" v-else></div>
-            </div>
+            <div class="ai-result-content" v-loading="loading" v-html="aiResultHtml"></div>
           </el-card>
         </div>
       </el-main>
@@ -60,9 +57,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, defineProps } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { Connection, ChatRound } from '@element-plus/icons-vue'
-import { DiagnosticApi, type DiagnosisTask, type TriggerDiagnosisParams, type AIDiagnosisResponse } from '../utils/diagnosticApi'
+import { DiagnosticApi, type DiagnosisTask } from '../utils/diagnosticApi'
 import { parseTaskDetail, formatDetailData } from '../utils/alarmFormatter'
 import MarkdownIt from 'markdown-it'
 
@@ -75,9 +72,23 @@ const props = defineProps<{
 // 任务详情数据（直接使用传入的数据）
 const taskDetail = computed<DiagnosisTask | undefined>(() => props.taskData)
 
-// 解析任务描述中的 JSON 详情
+/** 后端自动诊断完成后会把整段报告写在 detail 里（含以下标记），不会写入 ai 列 */
+const isAutomatedAiReportDetail = (detail: string) => {
+  const t = detail.trim()
+  return t.startsWith('【AI诊断报告】') || t.startsWith('【基础诊断报告】')
+}
+
+// 解析任务描述：若 detail 仅为自动诊断全文且无独立 ai 列，避免与下方「AI 分析结果」重复展示
 const parsedDetail = computed(() => {
-  return parseTaskDetail(taskDetail.value?.detail || '')
+  const raw = taskDetail.value?.detail || ''
+  const hasRagflowAi = !!(taskDetail.value?.ai && String(taskDetail.value.ai).trim())
+  if (!hasRagflowAi && isAutomatedAiReportDetail(raw)) {
+    return {
+      summary: '系统自动诊断已完成，完整报告见下方「AI 分析结果」。',
+      detailData: undefined
+    }
+  }
+  return parseTaskDetail(raw)
 })
 let aiResult = ref('')
 let aiResultHtml = ref('')
@@ -90,19 +101,62 @@ const formatTime = (timestamp?: number) => {
   return new Date(timestamp).toLocaleString()
 }
 
-// askAI
+// 初始化时：RAGFlow 结果在 ai 列；自动诊断流水线写在 detail 且带报告标记
+const initAIResult = () => {
+  const fromAiCol = (taskDetail.value?.ai && String(taskDetail.value.ai).trim()) || ''
+  const detail = taskDetail.value?.detail || ''
+  const fromDetail =
+    !fromAiCol && isAutomatedAiReportDetail(detail) ? detail.trim() : ''
+  const savedAi = fromAiCol || fromDetail
+  if (savedAi) {
+    first.value = false
+    aiResult.value = savedAi
+    aiResultHtml.value = convertMD(savedAi)
+    loading.value = false
+    return
+  }
+
+  first.value = false
+  aiResult.value = ''
+  aiResultHtml.value = '<p style="color: #999;">暂无 AI 分析结果，点击「AI 一键分析」生成。</p>'
+  loading.value = false
+}
+
+// askAI - 流式调用 RAGFlow AI 分析
 const askAI = async () => {
   first.value = false
+  loading.value = true
+  aiResult.value = ''
+  aiResultHtml.value = ''
+
   const api = new DiagnosticApi()
-  const params: TriggerDiagnosisParams = {
-    timestamp: Date.now(),
-    deviceId: taskDetail.value?.device_id || '000',
-    diagnosisTaskId: taskDetail.value?.id || 0
+  const taskId = taskDetail.value?.id
+
+  if (!taskId) {
+    aiResultHtml.value = '<p style="color: red;">任务 ID 无效</p>'
+    loading.value = false
+    return
   }
-  const res: AIDiagnosisResponse = await api.triggerAIDiagnosis(params)
-  aiResult.value = convertMD(res.data.diagnosis.diagnosis)
-  aiResultHtml.value = aiResult.value
-  loading.value = false
+
+  try {
+    await api.streamAIAnalysis(taskId, {
+      onMessage: (content) => {
+        aiResult.value += content
+        aiResultHtml.value = convertMD(aiResult.value)
+        loading.value = false
+      },
+      onError: (error) => {
+        aiResultHtml.value = `<p style="color: red;">AI 分析出错: ${error}</p>`
+        loading.value = false
+      },
+      onDone: () => {
+        loading.value = false
+      }
+    })
+  } catch (err: any) {
+    aiResultHtml.value = `<p style="color: red;">AI 分析失败: ${err.message}</p>`
+    loading.value = false
+  }
 }
 // md格式转换
 const convertMD = (data: string) => {
@@ -162,8 +216,19 @@ const getPriorityText = (priority?: number) => {
   }
   return map[priority || 0] || '未知'
 }
+// 监听 taskData 变化：切换任务时重置 AI 分析状态
+watch(() => props.taskData, (newTask, oldTask) => {
+  if (newTask?.id !== oldTask?.id) {
+    first.value = true
+    aiResult.value = ''
+    aiResultHtml.value = ''
+    loading.value = true
+    initAIResult()
+  }
+}, { immediate: true })
+
 onMounted(() => {
-  //askAI()
+  initAIResult()
 })
 
 </script>

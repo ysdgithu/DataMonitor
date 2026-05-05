@@ -133,9 +133,8 @@
       </el-card>
     </div>
     <!-- 历史数据查询面板弹窗 -->
-    <el-drawer v-model="showPanel" :modal="false" modal-penetrable :with-header="false" :resizable="true" size="50%">
-      <!-- <span>任务详情</span> -->
-      <TaskDetailsComponent :taskData="currentTask" :before-close="close" />
+    <el-drawer v-model="showPanel" :modal="false" :with-header="false" size="50%">
+      <TaskDetailsComponent v-if="currentTask" :taskData="currentTask" />
       <template #footer>
         <div class="drawer-footer">
           <el-button @click="showPanel = false">取消</el-button>
@@ -174,9 +173,23 @@ const showPanel = ref(false)
 const addShow = ref(false)
 const currentTask = ref<DiagnosisTask | null>(null)
 
-const detailClick = (row: DiagnosisTask) => {
-  currentTask.value = row
+const detailClick = async (row: DiagnosisTask) => {
   showPanel.value = true
+  currentTask.value = row
+
+  try {
+    const res = await api.getDiagnosisDetail(row.id)
+    if (res.success && res.data) {
+      currentTask.value = {
+        ...row,
+        ...res.data,
+        createTime: res.data.createTime || (res.data as any).create_time || row.createTime,
+        updateTime: res.data.updateTime || (res.data as any).update_time || row.updateTime
+      }
+    }
+  } catch (error) {
+    console.error('[DiagnosisView] 获取任务详情失败:', error)
+  }
 }
 
 const handleClosePanel = () => {
