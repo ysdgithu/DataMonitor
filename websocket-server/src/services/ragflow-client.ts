@@ -6,8 +6,9 @@ import * as path from 'path';
 interface RagflowConfig {
     baseURL: string;
     apiKey: string;
-    chatId: string;
-    sessionId: string;
+    analysisChatId: string;
+    analysisSessionId: string;
+    qaChatId: string;
 }
 
 function loadConfig(): RagflowConfig {
@@ -38,15 +39,24 @@ class RagflowClient {
      * @param res Express Response 对象
      * @param options 可选配置，onChunk 用于收集完整内容
      */
-    async streamChat(question: string, res: Response, options?: { onChunk?: (chunk: string) => void }): Promise<void> {
-        const url = `/api/v1/chats/${this.config.chatId}/completions`;
+    async streamChat(
+        question: string,
+        res: Response,
+        options?: { onChunk?: (chunk: string) => void; sessionId?: string }
+    ): Promise<void> {
+        const url = `/api/v1/chats/${this.config.qaChatId}/completions`;
+        const sessionId = options?.sessionId;
 
         try {
-            const response = await this.client.post(url, {
-                session_id: this.config.sessionId,
+            const requestBody: Record<string, any> = {
                 question,
                 stream: true
-            }, {
+            };
+            if (sessionId) {
+                requestBody.session_id = sessionId;
+            }
+
+            const response = await this.client.post(url, requestBody, {
                 responseType: 'stream'
             });
 
@@ -81,9 +91,10 @@ class RagflowClient {
                             const parsed = JSON.parse(jsonStr);
                             // RAGFlow 格式: { code: 0, data: { answer: '...' } }
                             const answer = parsed?.data?.answer;
+                            const sessionIdFromResponse = parsed?.data?.session_id;
                             if (answer !== undefined && answer !== null) {
                                 // 将提取出的纯文本 answer 重新包装为 SSE 格式返回给前端
-                                const payload = JSON.stringify({ content: answer });
+                                const payload = JSON.stringify({ content: answer, sessionId: sessionIdFromResponse });
                                 res.write(`data: ${payload}\n\n`);
                                 // 回调收集完整内容（用于后端存储）
                                 options?.onChunk?.(answer);
@@ -129,10 +140,9 @@ class RagflowClient {
      * @param question 用户问题
      */
     async chat(question: string): Promise<string> {
-        const url = `/api/v1/chats/${this.config.chatId}/completions`;
+        const url = `/api/v1/chats/${this.config.qaChatId}/completions`;
 
         const response = await this.client.post(url, {
-            session_id: this.config.sessionId,
             question,
             stream: false
         });

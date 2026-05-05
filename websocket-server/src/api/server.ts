@@ -9,6 +9,7 @@ import { buildAIContext, BuildContextParams } from '../services/aiContextBuilder
 import DatabaseConnection from '../database/connection';
 import reportRoutes from './routes/report';
 import aiAnalysisRoutes from './routes/ai-analysis';
+import qaChatRoutes from './routes/qa-chat';
 
 const app = express();
 const PORT = process.env.API_PORT || 3002;
@@ -26,6 +27,7 @@ const db = DatabaseConnection.getInstance();
 // 注册路由
 app.use('/api/report', reportRoutes);
 app.use('/api/ai-analysis', aiAnalysisRoutes);
+app.use('/api/qa/chat', qaChatRoutes);
 
 // 健康检查接口
 app.get('/api/health', (req, res) => {
@@ -870,6 +872,7 @@ function startApiServer() {
         console.log('  PUT /api/diagnosis-tasks/:id - 更新诊断任务 (需要认证)');
         console.log('  DELETE /api/diagnosis-tasks/:id - 删除诊断任务 (需要认证)');
         console.log('  GET /api/diagnosis-tasks-stats - 诊断任务统计 (需要认证)');
+        console.log('  POST /api/qa/chat - AI 智能问答 (需要认证, SSE)');
         console.log('  GET /api/dashboard?device_id=1001 - 监控大屏数据 (需要认证)');
     });
 }

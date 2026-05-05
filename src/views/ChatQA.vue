@@ -13,7 +13,7 @@
             <div class="date-group">
               <p class="date-label">{{ date === 'today' ? '今天' : date === 'yesterday' ? '昨天' : '更早' }}</p>
               <ul class="history-list">
-                <li v-for="item in historyList.filter(h => h.date === date)" :key="item.id" class="history-item">
+                <li v-for="item in getHistoryByDate(date)" :key="item.id" class="history-item">
                   <p class="history-question">{{ item.question }}</p>
                   <p class="history-time">{{ item.time }}</p>
                 </li>
@@ -122,14 +122,17 @@
   </main-layout>
 </template>
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue'
 import MainLayout from '../components/layout/MainLayout.vue'
 import { Position, Search, Refresh, CopyDocument } from '@element-plus/icons-vue'
+import { TokenManager } from '../utils/tokenManager'
 
 // 初始态对话态切换
 const viweState = ref(true)
+const loading = ref(false)
+const sessionId = ref<string>('')
 
-// 历史记录数据 - 工厂设备运维场景
+// 历史记录数据 - 先保留本地占位，后续再接历史会话接口
 const historyList = ref([
   { id: 1, question: '3号生产线温度异常如何处理？', time: '14:23', date: 'today' },
   { id: 2, question: '压缩机振动频率超标原因分析', time: '11:45', date: 'today' },
@@ -138,7 +141,7 @@ const historyList = ref([
   { id: 5, question: '生产线停机应急预案流程', time: '14:22', date: 'yesterday' },
   { id: 6, question: '设备故障代码E102含义', time: '10:15', date: 'yesterday' },
   { id: 7, question: '如何导出本月设备运行报表？', time: '15:40', date: 'earlier' },
-  { id: 8, question: '冷却系统压力下降处理方法', time: '09:30', date: 'earlier' },
+  { id: 8, question: '冷却系统压力下降处理方法', time: '09:30', date: 'earlier' }
 ])
 
 // 推荐问题列表 - 常见运维问题
@@ -155,65 +158,160 @@ interface Message {
   type: 'user' | 'ai'
   content: string
   time: string
-  searchKeywords?: string[]  // AI搜索的关键词
-  references?: { name: string, url: string }[]  // 参考来源
+  searchKeywords?: string[]
+  references?: { name: string, url: string }[]
 }
 
-const messageList = ref<Message[]>([
-  {
-    id: 1,
-    type: 'user',
-    content: '3号生产线温度异常如何处理？',
-    time: '14:23'
-  },
-  {
-    id: 2,
-    type: 'ai',
-    content: '根据设备运维手册，当生产线温度超过正常范围时，建议按以下步骤处理：\n\n1. 立即检查冷却系统是否正常运行\n2. 查看温度传感器读数是否准确\n3. 检查设备负载是否过高\n4. 如温度持续上升，建议降低运行速度或暂停生产\n5. 联系维护人员进行深度检查\n\n正常工作温度范围：60-75℃，超过80℃需立即处理。',
-    time: '14:23',
-    searchKeywords: ['生产线温度异常', '设备运维手册', '冷却系统'],
-    references: [
-      { name: '设备运维操作手册 v2.3', url: '#' },
-      { name: '温度异常处理SOP流程', url: '#' },
-      { name: '历史故障案例库-温度告警', url: '#' }
-    ]
-  }
-])
+const messageList = ref<Message[]>([])
 
-// 用户输入
 const userQValue = ref('')
 
-// 处理用户提问
-const handleUserQuestion = () => {
-  if (!userQValue.value.trim()) return
+const qaApiBase = import.meta.env.VITE_API_URL || 'http://localhost:3002/api'
 
-  // 添加用户消息
+const currentTime = () => new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+
+const pushUserMessage = (content: string) => {
   const userMsg: Message = {
     id: Date.now(),
     type: 'user',
-    content: userQValue.value,
-    time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    content,
+    time: currentTime()
   }
   messageList.value.push(userMsg)
-
-  // 模拟AI回复（实际应调用后端接口）
-  setTimeout(() => {
-    const aiMsg: Message = {
-      id: Date.now() + 1,
-      type: 'ai',
-      content: '正在为您分析问题，请稍候...',
-      time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-      searchKeywords: ['设备诊断', '运维知识库'],
-      references: [
-        { name: '相关技术文档', url: '#' }
-      ]
-    }
-    messageList.value.push(aiMsg)
-  }, 500)
-
-  // 切换到对话状态
   viweState.value = false
+  return userMsg
+}
+
+const pushAiMessage = () => {
+  const aiMsg: Message = {
+    id: Date.now() + 1,
+    type: 'ai',
+    content: '正在为您分析，请稍候...',
+    time: currentTime(),
+    searchKeywords: ['RAGFlow', '智能问答']
+  }
+  messageList.value.push(aiMsg)
+  return aiMsg
+}
+
+const updateAiMessage = (id: number, patch: Partial<Message>) => {
+  const idx = messageList.value.findIndex(item => item.id === id)
+  if (idx !== -1) {
+    messageList.value[idx] = {
+      ...messageList.value[idx],
+      ...patch
+    }
+  }
+}
+
+const streamQuestion = async (question: string) => {
+  const token = TokenManager.getAccessToken()
+  const aiMsg = pushAiMessage()
+  loading.value = true
+
+  const response = await fetch(`${qaApiBase}/qa/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify({
+      question,
+      sessionId: sessionId.value || undefined
+    })
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.message || `请求失败: ${response.status}`)
+  }
+
+  if (!response.body) throw new Error('响应体为空')
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder('utf-8')
+  let buffer = ''
+  let answer = ''
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed.startsWith('data:')) continue
+
+        const jsonStr = trimmed.slice(5).trim()
+        if (jsonStr === '[DONE]') {
+          loading.value = false
+          return
+        }
+
+        try {
+          const parsed = JSON.parse(jsonStr)
+          if (parsed.sessionId) {
+            sessionId.value = parsed.sessionId
+          }
+          if (parsed.content !== undefined) {
+            answer += parsed.content
+            updateAiMessage(aiMsg.id, { content: answer })
+          }
+          if (parsed.error) {
+            throw new Error(parsed.error)
+          }
+        } catch (_) {
+          // 忽略非 JSON 行
+        }
+      }
+    }
+
+    if (buffer.trim().startsWith('data:')) {
+      const jsonStr = buffer.trim().slice(5).trim()
+      if (jsonStr !== '[DONE]') {
+        try {
+          const parsed = JSON.parse(jsonStr)
+          if (parsed.sessionId) sessionId.value = parsed.sessionId
+          if (parsed.content !== undefined) {
+            answer += parsed.content
+            updateAiMessage(aiMsg.id, { content: answer })
+          }
+        } catch (_) {
+          // ignore
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock()
+    loading.value = false
+    if (!answer) {
+      updateAiMessage(aiMsg.id, { content: '暂未获取到回答，请稍后重试。' })
+    }
+  }
+}
+
+// 处理用户提问
+const handleUserQuestion = async () => {
+  const question = userQValue.value.trim()
+  if (!question || loading.value) return
+
+  pushUserMessage(question)
   userQValue.value = ''
+
+  try {
+    await streamQuestion(question)
+  } catch (error: any) {
+    messageList.value.push({
+      id: Date.now() + 2,
+      type: 'ai',
+      content: `问答失败：${error.message || '未知错误'}`,
+      time: currentTime()
+    })
+  }
 }
 
 // 点击推荐问题
@@ -225,20 +323,33 @@ const handleSuggestedQuestion = (question: string) => {
 // 复制回答
 const handleCopy = (content: string) => {
   navigator.clipboard.writeText(content)
-  console.log('已复制到剪贴板')
 }
 
 // 重新生成回答
 const handleRegenerate = (messageId: number) => {
-  console.log('重新生成回答:', messageId)
+  const targetIndex = messageList.value.findIndex(m => m.id === messageId && m.type === 'ai')
+  if (targetIndex === -1) return
+  const prevUser = [...messageList.value.slice(0, targetIndex)].reverse().find(m => m.type === 'user')
+  if (!prevUser) return
+  messageList.value.splice(targetIndex, 1)
+  void streamQuestion(prevUser.content)
 }
 
 // 下拉刷新历史记录
 const handleScroll = (e: any) => {
   if (e.target.scrollTop === 0) {
     console.log('触发刷新历史记录')
-    // 实际应调用接口获取更多历史数据
   }
+}
+
+const groupedHistory = computed(() => ({
+  today: historyList.value.filter(h => h.date === 'today'),
+  yesterday: historyList.value.filter(h => h.date === 'yesterday'),
+  earlier: historyList.value.filter(h => h.date === 'earlier')
+}))
+
+const getHistoryByDate = (date: string) => {
+  return groupedHistory.value[date as keyof typeof groupedHistory.value] || []
 }
 </script>
 <style scoped>
