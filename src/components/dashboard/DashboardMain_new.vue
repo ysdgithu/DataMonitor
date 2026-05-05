@@ -1,66 +1,117 @@
 <template>
-  <el-main class="dashboard-main-new">
-    <!-- WebSocket 连接状态指示器 -->
-    <div class="connection-indicator" :class="connectionStatusClass">
-      <span class="indicator-dot"></span>
-      <span class="indicator-text">{{ connectionStatusText }}</span>
-      <span v-if="realtimeStore.retryCount > 0" class="retry-count">(重连: {{ realtimeStore.retryCount }})</span>
-    </div>
-
-    <!-- 顶部统计卡片 -->
-    <div class="dashboard-stat-header">
-      <div class="stat-card">
-        <div class="value" :class="getStatusClass(productionLineStatus)">{{ productionLineStatusText }}</div>
-        <div class="label">生产线整体状态</div>
-      </div>
-      <div class="stat-card">
-        <div class="value">{{ deviceOnlineRate }}</div>
-        <div class="label">设备在线率</div>
-      </div>
-      <div class="stat-card">
-        <div class="value status-alarm">{{ totalAnomalyCount }}</div>
-        <div class="label">当日异常总数</div>
-      </div>
-      <div class="stat-card">
-        <div class="value status-normal">{{ normalDeviceCount }}</div>
-        <div class="label">正常运行设备数</div>
-      </div>
-    </div>
-
-    <!-- 中间设备卡片 -->
-    <div class="device-cards">
-      <div v-for="device in deviceList" :key="device.id" class="device-card"
-        :class="{ 'device-offline': device.status === 'stop' }" @click="handleDeviceClick(device)">
-        <div class="name">
-          {{ device.name }}
-          <span v-if="device.status === 'stop'" class="offline-badge">离线</span>
+  <div class="dashboard-main-new">
+    <div class="dashboard-shell">
+      <header class="hero-panel">
+        <div class="hero-copy">
+          <div class="eyebrow">实时监控中心</div>
+          <h1>DataMonitor</h1>
+          <p>
+            让设备状态、趋势波动、告警事件在同一屏幕上按优先级展开，先看到风险，再看到细节。
+          </p>
         </div>
-        <div class="status" :class="getStatusClass(device.status)">
-          运行状态：{{ device.statusText }}
+
+        <div class="hero-status">
+          <div class="connection-indicator" :class="connectionStatusClass">
+            <span class="indicator-dot"></span>
+            <span class="indicator-text">{{ connectionStatusText }}</span>
+            <span v-if="realtimeStore.retryCount > 0" class="retry-count">重连 {{ realtimeStore.retryCount }}</span>
+          </div>
+
+          <div class="hero-metrics">
+            <div class="metric-pill metric-pill-primary">
+              <span class="metric-label">生产线状态</span>
+              <span class="metric-value" :class="getStatusClass(productionLineStatus)">{{ productionLineStatusText }}</span>
+            </div>
+            <div class="metric-pill metric-pill-small">
+              <span class="metric-label">在线率</span>
+              <span class="metric-value">{{ deviceOnlineRate }}</span>
+            </div>
+            <div class="metric-pill metric-pill-small">
+              <span class="metric-label">今日异常</span>
+              <span class="metric-value status-alarm">{{ totalAnomalyCount }}</span>
+            </div>
+            <div class="metric-pill metric-pill-small">
+              <span class="metric-label">正常设备</span>
+              <span class="metric-value status-normal">{{ normalDeviceCount }}</span>
+            </div>
+          </div>
         </div>
-        <div v-for="(metric, idx) in device.metrics" :key="idx" class="metric">
-          <span>{{ metric.label }}</span>
-          <span class="metric-value" :class="{ error: metric.isError }">
-            {{ metric.value }}
-          </span>
+      </header>
+
+      <section class="section-block">
+        <div class="section-header">
+          <div>
+            <div class="section-kicker">设备总览</div>
+            <h2>设备运行态势</h2>
+          </div>
+          <div class="section-note">点击设备查看状态提示</div>
         </div>
-      </div>
+
+        <div class="device-cards">
+          <div
+            v-for="device in deviceList"
+            :key="device.id"
+            class="device-card"
+            :class="{ 'device-offline': device.status === 'stop' }"
+            @click="handleDeviceClick(device)"
+          >
+            <div class="device-card__top">
+              <div class="name">{{ device.name }}</div>
+              <span v-if="device.status === 'stop'" class="offline-badge">离线</span>
+            </div>
+            <div class="status" :class="getStatusClass(device.status)">运行状态：{{ device.statusText }}</div>
+            <div class="metric-list">
+              <div v-for="(metric, idx) in device.metrics" :key="idx" class="metric">
+                <span>{{ metric.label }}</span>
+                <span class="metric-value" :class="{ error: metric.isError }">{{ metric.value }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-grid">
+        <div class="trend-chart-section panel-surface">
+          <div class="section-header compact">
+            <div>
+              <div class="section-kicker">趋势分析</div>
+              <h2>温度趋势图</h2>
+            </div>
+            <div class="chart-date">{{ trendDate }}</div>
+          </div>
+          <div class="chart-container">
+            <BaseChart :options="trendChartOptions" />
+          </div>
+        </div>
+
+        <div class="alarm-stream panel-surface">
+          <div class="section-header compact">
+            <div>
+              <div class="section-kicker">告警流</div>
+              <h2>实时告警流水</h2>
+            </div>
+          </div>
+          <div v-if="hasAlarmList" class="alarm-list">
+            <div v-for="(alarm, idx) in alarmList" :key="idx" class="alarm-item">
+              <div class="alarm-main">
+                <span class="alarm-dot"></span>
+                <span class="alarm-text">{{ alarm.content }}</span>
+              </div>
+              <span class="time">{{ alarm.time }}</span>
+              <span class="link" @click.stop="handleAlarmClick(alarm)">查看详情</span>
+            </div>
+          </div>
+          <div v-else class="alarm-empty">
+            <div class="alarm-empty__icon">✓</div>
+            <div class="alarm-empty__title">当前没有新的告警</div>
+            <div class="alarm-empty__text">系统会在产生异常时自动推送到这里。</div>
+          </div>
+        </div>
+      </section>
     </div>
 
-    <!-- 设备温度趋势图 -->
-    <div class="trend-chart-section">
-      <div class="chart-header">
-        <div class="title">温度趋势图</div>
-        <div class="chart-date">{{ trendDate }}</div>
-      </div>
-      <div class="chart-container">
-        <BaseChart :options="trendChartOptions" />
-      </div>
-    </div>
-
-    <!-- 告警详情弹窗 -->
     <div v-if="alarmPopupVisible" class="alarm-popup">
-      <div class="popup-title">🚨 新告警提醒</div>
+      <div class="popup-title">新告警提醒</div>
       <div class="popup-content">
         <div class="popup-summary">{{ currentAlarm?.content }}</div>
       </div>
@@ -69,31 +120,18 @@
         <button class="popup-btn popup-btn-primary" @click="gotoAlarmDetail">查看详情</button>
       </div>
     </div>
-
-    <!-- 底部告警流水 -->
-    <div class="alarm-stream">
-      <div class="title">实时告警流水</div>
-      <div class="alarm-list">
-        <div v-for="(alarm, idx) in alarmList" :key="idx" class="alarm-item">
-          <span>{{ alarm.content }}</span>
-          <span class="time">{{ alarm.time }}</span>
-          <span class="link" @click.stop="handleAlarmClick(alarm)">查看详情</span>
-        </div>
-      </div>
-    </div>
-  </el-main>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue'
 import { ElNotification } from 'element-plus'
 import type { EChartsOption } from 'echarts'
 import { useDeviceDataStore } from '../../stores/deviceData'
 import { useRealtimeStore } from '../../stores/realtime'
 import { useAlarmStore, type AlarmEvent } from '../../stores/alarm'
-import { formatAlarmDetail } from '../../utils/alarmFormatter'
 import { audioNotification } from '../../utils/audioNotification'
-import BaseChart from '../charts/BaseChart.vue'
+const BaseChart = defineAsyncComponent(() => import('../charts/BaseChart.vue'))
 
 interface Metric {
   label: string
@@ -116,12 +154,10 @@ interface Alarm {
   alarmEvent: AlarmEvent
 }
 
-// 初始化 Store
 const deviceDataStore = useDeviceDataStore()
 const realtimeStore = useRealtimeStore()
 const alarmStore = useAlarmStore()
 
-// 参数标签映射
 const paramLabelMap: Record<string, string> = {
   temp: '温度',
   level: '液位',
@@ -132,10 +168,8 @@ const paramLabelMap: Record<string, string> = {
   speed: '速度'
 }
 
-// 从 Store 获取设备列表并转换格式
 const deviceList = computed<Device[]>(() => {
   return deviceDataStore.deviceList.map(device => {
-    // 转换状态文本
     let statusText = '正常'
     let statusType: 'normal' | 'alarm' | 'stop' = 'normal'
 
@@ -147,7 +181,6 @@ const deviceList = computed<Device[]>(() => {
       statusType = 'alarm'
     }
 
-    // 转换监控数据为 metrics 格式
     const metrics: Metric[] = []
     Object.entries(device.monitor_data).forEach(([key, item]) => {
       const label = paramLabelMap[key] || key
@@ -171,7 +204,6 @@ const deviceList = computed<Device[]>(() => {
   })
 })
 
-// 从告警 Store 获取最近 10 条告警
 const alarmList = computed<Alarm[]>(() => {
   return alarmStore.getRecentAlarms(10).map(record => ({
     content: record.content,
@@ -181,12 +213,13 @@ const alarmList = computed<Alarm[]>(() => {
   }))
 })
 
-// 设备颜色映射
+const hasAlarmList = computed(() => alarmList.value.length > 0)
+
 const deviceColors: Record<string, string> = {
-  '1001': '#5470c6',
-  '1002': '#ee6666',
-  '1003': '#91cc75',
-  '1004': '#fac858',
+  '1001': '#4f7cff',
+  '1002': '#ff6b6b',
+  '1003': '#67d39d',
+  '1004': '#f5b84b',
   '1005': '#73c0de'
 }
 
@@ -195,22 +228,15 @@ const trendDate = computed(() => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 })
 
-// 温度趋势图配置 (从 Store 获取实时数据)
 const trendChartOptions = computed<EChartsOption>(() => {
   const tempHistory = deviceDataStore.temperatureHistory
-
-  // 构建时间轴
   const timeLabels: string[] = []
   const seriesData: Record<string, number[]> = {}
 
-  // 遍历所有设备的温度历史
   tempHistory.forEach((history, deviceId) => {
     if (history.length === 0) return
-
-    // 初始化设备的数据数组
     seriesData[deviceId] = []
 
-    // 提取数据
     history.forEach(point => {
       const time = new Date(point.timestamp).toLocaleTimeString('zh-CN', {
         hour: '2-digit',
@@ -218,7 +244,6 @@ const trendChartOptions = computed<EChartsOption>(() => {
         second: '2-digit'
       })
 
-      // 收集时间标签(去重)
       if (!timeLabels.includes(time)) {
         timeLabels.push(time)
       }
@@ -227,21 +252,19 @@ const trendChartOptions = computed<EChartsOption>(() => {
     })
   })
 
-  // 如果没有数据,显示空图表
   if (timeLabels.length === 0) {
     timeLabels.push('00:00:00')
   }
 
-  // 构建图表系列
   const series = Object.entries(seriesData).map(([deviceId, data]) => {
     const device = deviceList.value.find(d => d.id === deviceId)
     return {
       name: device ? device.name : deviceId,
       type: 'line' as const,
-      data: data,
+      data,
       smooth: true,
-      itemStyle: { color: deviceColors[deviceId] || '#999' },
-      showSymbol: false, // 不显示数据点
+      itemStyle: { color: deviceColors[deviceId] || '#7c8aa5' },
+      showSymbol: false,
       lineStyle: { width: 2 }
     }
   })
@@ -253,7 +276,10 @@ const trendChartOptions = computed<EChartsOption>(() => {
     },
     legend: {
       data: series.map(s => s.name),
-      top: 10
+      top: 8,
+      textStyle: {
+        color: '#74839a'
+      }
     },
     grid: {
       left: '3%',
@@ -264,18 +290,21 @@ const trendChartOptions = computed<EChartsOption>(() => {
     xAxis: {
       type: 'category' as const,
       boundaryGap: false,
-      data: timeLabels
+      data: timeLabels,
+      axisLine: { lineStyle: { color: '#d6dde8' } },
+      axisLabel: { color: '#6c7a90' }
     },
     yAxis: {
       type: 'value' as const,
       name: '温度(℃)',
-      axisLine: { show: true, lineStyle: { color: '#333' } }
+      axisLine: { show: true, lineStyle: { color: '#d6dde8' } },
+      splitLine: { lineStyle: { color: '#eef2f7' } },
+      axisLabel: { color: '#6c7a90' }
     },
     series
   }
 })
 
-// WebSocket 连接状态
 const connectionStatusClass = computed(() => {
   if (realtimeStore.isConnected) {
     return 'status-connected'
@@ -296,9 +325,7 @@ const connectionStatusText = computed(() => {
   }
 })
 
-// 计算顶部统计数据
 const productionLineStatus = computed(() => {
-  // 有任何设备告警,则生产线状态为告警
   const hasAlarm = deviceList.value.some(d => d.status === 'alarm')
   return hasAlarm ? 'alarm' : 'normal'
 })
@@ -312,17 +339,12 @@ const deviceOnlineRate = computed(() => {
   if (totalDevices === 0) return '0%'
 
   const onlineDevices = deviceList.value.filter(d => d.status !== 'stop').length
-  const rate = (onlineDevices / totalDevices * 100).toFixed(1)
-  return `${rate}%`
+  return `${(onlineDevices / totalDevices * 100).toFixed(1)}%`
 })
 
-const totalAnomalyCount = computed(() => {
-  return alarmStore.todayCount
-})
+const totalAnomalyCount = computed(() => alarmStore.todayCount)
 
-const normalDeviceCount = computed(() => {
-  return deviceList.value.filter(d => d.status === 'normal').length
-})
+const normalDeviceCount = computed(() => deviceList.value.filter(d => d.status === 'normal').length)
 
 const getStatusClass = (status: string) => {
   switch (status) {
@@ -367,35 +389,23 @@ const gotoAlarmDetail = () => {
   })
 }
 
-// 通知限制配置
-const MAX_NOTIFICATIONS = 3 // 最多同时显示3条通知
+const MAX_NOTIFICATIONS = 3
 let activeNotifications = 0
 
-// 监听告警记录变化,自动弹窗
 watch(() => alarmStore.alarmRecords.length, (newLen, oldLen) => {
-  console.log(`[Dashboard] 🔔 告警记录长度变化: ${oldLen} -> ${newLen}`)
-
-  // 有新告警时
   if (newLen > oldLen) {
     const latestAlarm = alarmStore.alarmRecords[0]
-    console.log('[Dashboard] 🚨 检测到新告警:', latestAlarm)
 
-    // 播放告警提示音
     try {
       audioNotification.playAlarmSound()
-      console.log('[Dashboard] 🔊 播放告警提示音')
     } catch (e) {
       console.error('[Dashboard] 播放提示音失败:', e)
     }
 
-    // 限制通知数量
     if (activeNotifications < MAX_NOTIFICATIONS) {
       activeNotifications++
-      console.log(`[Dashboard] 📢 弹出 ElNotification (${activeNotifications}/${MAX_NOTIFICATIONS})`)
-
-      // ElNotification 弹窗
       ElNotification({
-        title: '🚨 新告警提醒',
+        title: '新告警提醒',
         message: latestAlarm.content,
         type: 'error',
         duration: 5000,
@@ -403,7 +413,6 @@ watch(() => alarmStore.alarmRecords.length, (newLen, oldLen) => {
           activeNotifications--
         },
         onClick: () => {
-          // 点击通知时显示详情弹窗
           currentAlarm.value = {
             content: latestAlarm.content,
             time: latestAlarm.time,
@@ -413,11 +422,8 @@ watch(() => alarmStore.alarmRecords.length, (newLen, oldLen) => {
           alarmPopupVisible.value = true
         }
       })
-    } else {
-      console.log('[Dashboard] ⚠️ 通知数量已达上限,跳过弹窗')
     }
 
-    // 同时显示自定义弹窗
     currentAlarm.value = {
       content: latestAlarm.content,
       time: latestAlarm.time,
@@ -425,52 +431,101 @@ watch(() => alarmStore.alarmRecords.length, (newLen, oldLen) => {
       alarmEvent: latestAlarm.alarmEvent
     }
     alarmPopupVisible.value = true
-    console.log('[Dashboard] 💬 显示自定义告警弹窗')
 
-    // 3秒后自动关闭弹窗
     setTimeout(() => {
       alarmPopupVisible.value = false
-      console.log('[Dashboard] 关闭自定义告警弹窗')
     }, 3000)
   }
 })
 
-// 生命周期: 组件挂载时启动 WebSocket
 onMounted(() => {
-  console.log('[DashboardMain] 组件挂载,启动 WebSocket 监控')
   realtimeStore.setMonitoring(true)
 })
 
-// 生命周期: 组件卸载时停止 WebSocket
 onUnmounted(() => {
-  console.log('[DashboardMain] 组件卸载,停止 WebSocket 监控')
   realtimeStore.setMonitoring(false)
 })
 </script>
 
 <style scoped>
 .dashboard-main-new {
-  padding: 16px;
-  background-color: #f0f2f5;
-  min-height: 100vh;
+  min-height: 100%;
+  padding: 0;
+  background: transparent;
   position: relative;
+  z-index: 1;
 }
 
-/* WebSocket 连接状态指示器 */
-.connection-indicator {
-  position: absolute;
-  top: 20px;
-  right: 20px;
+.dashboard-shell {
   display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.hero-panel,
+.panel-surface,
+.device-card {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(128, 144, 168, 0.16);
+  box-shadow: 0 18px 50px rgba(31, 45, 61, 0.08);
+  backdrop-filter: blur(10px);
+}
+
+.dashboard-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.hero-panel {
+  border-radius: 24px;
+  padding: 20px 22px;
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 16px;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: #fff;
-  border-radius: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.hero-copy .eyebrow,
+.section-kicker {
+  color: #5d6b82;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.hero-copy h1 {
+  margin: 8px 0 10px;
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1.12;
+  color: #162033;
+}
+
+.hero-copy p {
+  max-width: 60ch;
+  margin: 0;
   font-size: 14px;
-  z-index: 1000;
-  transition: all 0.3s;
+  line-height: 1.7;
+  color: #536177;
+}
+
+.hero-status {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.connection-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  align-self: flex-end;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(247, 249, 252, 0.9);
+  color: #334155;
+  font-size: 13px;
 }
 
 .indicator-dot {
@@ -480,349 +535,375 @@ onUnmounted(() => {
   animation: pulse 2s infinite;
 }
 
-.status-connected .indicator-dot {
-  background-color: #52c41a;
-}
+.status-connected .indicator-dot,
+.status-normal { color: #2ea65a; }
+.status-connected .indicator-dot { background-color: #2ea65a; }
+.status-connected .indicator-text { color: #2ea65a; }
+.status-disconnected .indicator-dot { background-color: #e24b4b; animation: none; }
+.status-disconnected .indicator-text { color: #e24b4b; }
+.status-reconnecting .indicator-dot { background-color: #e7a22d; }
+.status-reconnecting .indicator-text { color: #e7a22d; }
+.retry-count { font-size: 12px; color: #8a97ac; }
 
-.status-connected .indicator-text {
-  color: #52c41a;
-}
-
-.status-disconnected .indicator-dot {
-  background-color: #ff4d4f;
-  animation: none;
-}
-
-.status-disconnected .indicator-text {
-  color: #ff4d4f;
-}
-
-.status-reconnecting .indicator-dot {
-  background-color: #faad14;
-}
-
-.status-reconnecting .indicator-text {
-  color: #faad14;
-}
-
-.retry-count {
-  font-size: 12px;
-  color: #999;
-}
-
-@keyframes pulse {
-
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.5;
-  }
-}
-
-/* 顶部统计卡片 */
-.dashboard-stat-header {
+.hero-metrics {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 20px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
 }
 
-.stat-card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  text-align: center;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+.metric-pill {
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(246,249,253,0.92));
+  border: 1px solid rgba(131, 146, 170, 0.14);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.stat-card .value {
-  font-size: 24px;
-  font-weight: bold;
-  margin: 8px 0;
+.metric-pill-small .metric-value {
+  font-size: 18px;
 }
 
-.stat-card .label {
-  font-size: 14px;
-  color: #666;
+.metric-pill {
+  min-height: 84px;
 }
 
-.status-normal {
-  color: #52c41a;
+.metric-pill-primary {
+  grid-column: auto;
 }
 
-.status-alarm {
-  color: #faad14;
+.metric-label {
+  font-size: 13px;
+  color: #6f7d92;
 }
 
-.status-stop {
-  color: #f5222d;
+.metric-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #182235;
 }
 
-/* 设备卡片 */
+.section-block,
+.section-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.section-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.section-header h2 {
+  margin: 6px 0 0;
+  font-size: 20px;
+  color: #172033;
+}
+
+.section-note,
+.chart-date {
+  color: #74839a;
+  font-size: 13px;
+}
+
 .device-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 16px;
-  margin-bottom: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
 }
 
 .device-card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  border: 1px solid #eee;
+  border-radius: 20px;
+  padding: 18px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .device-card:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  border-color: #1890ff;
+  transform: translateY(-2px);
+  border-color: rgba(79, 124, 255, 0.32);
+  box-shadow: 0 20px 40px rgba(31, 45, 61, 0.12);
 }
 
-/* 离线设备样式 */
 .device-offline {
-  opacity: 0.6;
-  background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
-  border-color: #d9d9d9;
+  opacity: 0.72;
+  background: linear-gradient(180deg, rgba(255,255,255,0.68), rgba(236,240,245,0.86));
 }
 
-.device-offline:hover {
-  opacity: 0.8;
-  border-color: #ff4d4f;
+.device-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .device-card .name {
   font-size: 16px;
-  font-weight: bold;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #eee;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  font-weight: 700;
+  color: #162033;
 }
 
 .offline-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  background: #ff4d4f;
-  color: #fff;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(226, 75, 75, 0.12);
+  color: #e24b4b;
   font-size: 12px;
-  border-radius: 4px;
-  animation: blink 1.5s infinite;
-}
-
-@keyframes blink {
-
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.5;
-  }
 }
 
 .device-card .status {
-  font-size: 14px;
   margin-bottom: 12px;
+  font-size: 13px;
+  color: #5e6b80;
+}
+
+.metric-list {
+  display: grid;
+  gap: 10px;
 }
 
 .device-card .metric {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8px;
-  font-size: 14px;
-}
-
-.metric-value.error {
-  color: #f5222d;
-  font-weight: bold;
-}
-
-/* 趋势图 */
-.trend-chart-section {
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-  margin-bottom: 20px;
-}
-
-.chart-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.trend-chart-section .title {
-  font-size: 16px;
-  font-weight: bold;
-}
-
-.chart-date {
+  gap: 12px;
   font-size: 13px;
-  color: #666;
-  background-color: #f5f5f5;
-  padding: 4px 10px;
-  border-radius: 4px;
+  color: #4d5a70;
+}
+
+.metric-value.error,
+.status-alarm {
+  color: #e24b4b;
+}
+
+.status-stop {
+  color: #9a4c4c;
+}
+
+.status-normal {
+  color: #2ea65a;
+}
+
+.section-grid {
+  grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.9fr);
+  align-items: stretch;
+}
+
+.trend-chart-section,
+.alarm-stream {
+  border-radius: 24px;
+  padding: 20px;
+}
+
+.compact {
+  margin-bottom: 14px;
 }
 
 .chart-container {
-  height: 300px;
+  height: 340px;
   width: 100%;
 }
 
-/* 告警流水 */
-.alarm-stream {
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-}
-
-.alarm-stream .title {
-  font-size: 16px;
-  font-weight: bold;
-  margin-bottom: 12px;
-}
-
 .alarm-list {
-  max-height: 200px;
-  overflow-y: auto;
+  display: grid;
+  gap: 10px;
+  max-height: 340px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.alarm-empty {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(246, 249, 253, 0.9), rgba(240, 244, 250, 0.9));
+  border: 1px dashed rgba(131, 146, 170, 0.22);
+  color: #6f7d92;
+  text-align: center;
+  padding: 20px;
+}
+
+.alarm-empty__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(46, 166, 90, 0.12);
+  color: #2ea65a;
+  font-weight: 700;
+}
+
+.alarm-empty__title {
+  font-weight: 600;
+  color: #263245;
+}
+
+.alarm-empty__text {
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .alarm-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid #eee;
-  font-size: 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(246, 249, 253, 0.9);
+  border: 1px solid rgba(131, 146, 170, 0.12);
+}
+
+.alarm-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.alarm-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e24b4b;
+  box-shadow: 0 0 0 6px rgba(226, 75, 75, 0.12);
+  flex: none;
+}
+
+.alarm-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #1e2a3d;
 }
 
 .alarm-item .time {
-  color: #999;
+  color: #8b98ab;
+  font-size: 12px;
   white-space: nowrap;
 }
 
 .alarm-item .link {
-  color: #1890ff;
+  color: #4f7cff;
   cursor: pointer;
   white-space: nowrap;
+  font-size: 13px;
 }
 
 .alarm-item .link:hover {
   text-decoration: underline;
 }
 
-/* 告警弹窗 */
 .alarm-popup {
   position: fixed;
   top: 20px;
   right: 20px;
-  width: 300px;
-  background: #fff;
-  border-left: 4px solid #f5222d;
-  border-radius: 4px;
-  padding: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  width: min(360px, calc(100vw - 32px));
+  border-radius: 18px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(226, 75, 75, 0.18);
+  box-shadow: 0 24px 60px rgba(31, 45, 61, 0.16);
   z-index: 9999;
-  animation: slideIn 0.3s ease;
+  animation: slideIn 0.28s ease-out;
+}
+
+.popup-title {
+  font-weight: 700;
+  color: #e24b4b;
+  margin-bottom: 10px;
+}
+
+.popup-content {
+  font-size: 14px;
+  color: #536177;
+  margin-bottom: 12px;
+}
+
+.popup-summary {
+  font-weight: 500;
+  color: #1e2a3d;
+  line-height: 1.7;
+}
+
+.popup-btns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.popup-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 9px 14px;
+  cursor: pointer;
+}
+
+.popup-btn-close {
+  background: #eef2f7;
+  color: #415067;
+}
+
+.popup-btn-primary {
+  background: #4f7cff;
+  color: #fff;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
 }
 
 @keyframes slideIn {
   from {
-    transform: translateX(100%);
+    transform: translateX(16px);
     opacity: 0;
   }
-
   to {
     transform: translateX(0);
     opacity: 1;
   }
 }
 
-.alarm-popup .popup-title {
-  font-weight: bold;
-  color: #f5222d;
-  margin-bottom: 8px;
+@media (max-width: 1100px) {
+  .hero-panel,
+  .section-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
-.alarm-popup .popup-content {
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 12px;
-  max-height: 320px;
-  overflow-y: auto;
-}
-
-.alarm-popup .popup-summary {
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 8px;
-  padding-bottom: 8px;
-  border-bottom: 1px dashed #e0e0e0;
-}
-
-.alarm-popup .popup-detail {
-  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
-  font-size: 13px;
-  line-height: 1.6;
-  color: #555;
-  white-space: pre-wrap;
-  word-break: break-word;
-  margin: 0;
-  padding: 8px;
-  background: #f8f9fa;
-  border-radius: 4px;
-}
-
-.alarm-popup .popup-btns {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.popup-btn {
-  padding: 4px 12px;
-  font-size: 12px;
-  border-radius: 2px;
-  border: none;
-  cursor: pointer;
-}
-
-.popup-btn-primary {
-  background: #1890ff;
-  color: #fff;
-}
-
-.popup-btn-close {
-  background: #f5f5f5;
-  color: #666;
-}
-
-/* 移动端适配 */
 @media (max-width: 768px) {
-  .dashboard-stat-header {
-    grid-template-columns: repeat(2, 1fr);
+  .dashboard-main-new {
+    padding: 14px;
   }
 
-  .device-cards {
-    grid-template-columns: 1fr;
+  .hero-panel,
+  .trend-chart-section,
+  .alarm-stream {
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .hero-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .connection-indicator {
+    align-self: flex-start;
   }
 
   .alarm-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
+    grid-template-columns: 1fr;
+    align-items: start;
   }
 }
 </style>

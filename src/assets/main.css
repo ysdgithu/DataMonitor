@@ -3,6 +3,7 @@
 #app {
   font-weight: normal;
   width: 100%;
+  min-height: 100vh;
 }
 
 a,
@@ -37,10 +38,18 @@ li {
   font-weight: normal;
 }
 
+html,
+body {
+  min-height: 100%;
+}
+
 body {
   min-height: 100vh;
-  color: var(#2c3e50);
-  background: var(#fff);
+  color: #2c3e50;
+  background:
+    radial-gradient(circle at top left, rgba(79, 124, 255, 0.12), transparent 28%),
+    radial-gradient(circle at top right, rgba(103, 211, 157, 0.12), transparent 24%),
+    linear-gradient(180deg, #f7f9fd 0%, #eef3f9 100%);
   transition:
     color 0.5s,
     background-color 0.5s;

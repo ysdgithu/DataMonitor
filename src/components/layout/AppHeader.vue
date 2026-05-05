@@ -1,112 +1,124 @@
 <template>
-  <el-header class="app-header" style="color: #303133;">
-    <div class="header-left">
-      <div class="title-h1">IoT设备监控中心</div>
+  <div class="app-header">
+    <div class="header-inner">
+      <div class="header-left">
+        <div class="header-title-group">
+          <div class="header-kicker">工业态势总览</div>
+          <div class="title-h1">IoT设备监控中心</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <el-badge :value="3" class="notification">
+          <el-icon>
+            <Bell />
+          </el-icon>
+        </el-badge>
+        <el-dropdown>
+          <span class="user-info">
+            <span class="user-avatar">管</span>
+          </span>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item @click="logout">退出登录</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
     </div>
-    <div class="header-right">
-      <el-badge :value="3" class="notification">
-        <el-icon>
-          <Bell />
-        </el-icon>
-      </el-badge>
-      <el-dropdown>
-        <span class="user-info">
-          <!-- <el-avatar :size="32" src="src\assets\玫瑰长诗-头像.jpg" />  -->
-          <span>管理员</span>
-        </span>
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item @click="logout">退出登录</el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
-    </div>
-  </el-header>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { Moon, Sunny, Bell, Monitor, Location } from '@element-plus/icons-vue'
-import { useAuthStore } from '@/stores/auth'
+import { useRouter } from 'vue-router'
+import { Bell } from '@element-plus/icons-vue'
+import { useAuthStore } from '../../stores/auth'
 
 const authStore = useAuthStore()
-
-const route = useRoute()
 const router = useRouter()
-// 当前激活的菜单项
-const activeIndex = computed(() => route.path)
 
 const logout = () => {
   router.push('/login')
   authStore.logout()
 }
-
 </script>
 
 
 <style scoped>
 .app-header {
+  background: transparent;
+  padding: 16px 24px 12px;
+}
+
+.header-inner {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 var(--spacing-base);
-  height: 60px;
+  min-height: 64px;
+  padding: 0 2px 0 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: var(--spacing-base);
+  gap: 14px;
 }
 
-.header-menu {
-  background: transparent;
-  border: none;
+.header-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.header-menu :deep(.el-menu-item) {
-  color: var(--text-secondary);
-  border-bottom: 2px solid transparent;
-  height: 60px;
-  line-height: 60px;
-  padding: 0 var(--spacing-sm);
+.header-kicker {
+  color: #6b7a90;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
-.header-menu :deep(.el-menu-item:hover) {
-  background-color: var(--primary-light);
-  color: var(--primary);
-}
-
-.header-menu :deep(.el-menu-item.is-active) {
-  color: var(--primary);
-  border-bottom-color: var(--primary);
-  background-color: var(--primary-light);
-}
-
-.logo {
-  height: 40px;
+.title-h1 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #182235;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: var(--spacing-base);
-}
-
-.theme-switch {
-  margin-right: var(--spacing-base);
+  gap: 14px;
 }
 
 .notification {
   cursor: pointer;
 }
 
+.notification :deep(.el-badge__content) {
+  border: 0;
+  box-shadow: 0 8px 18px rgba(79, 124, 255, 0.18);
+}
+
 .user-info {
-  display: flex;
-  color: var(--text-secondary);
+  display: inline-flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: 10px;
   cursor: pointer;
+  color: #334155;
+}
+
+.user-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #4f7cff, #67d39d);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
 }
 </style>
