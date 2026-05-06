@@ -1,84 +1,71 @@
 <template>
   <main-layout>
     <div class="history-data-page">
-      <h3 class="page-title">历史数据查询与报表</h3>
 
-      <!-- 功能切换选项卡 -->
       <el-tabs v-model="activeTab" class="func-tabs" type="border-card">
         <el-tab-pane label="历史数据查询" name="history">
-          <!-- 历史数据查询模块 -->
           <div class="history-query-module">
-            <!-- 筛选区 -->
-            <div class="filter-section">
-              <el-row :gutter="20" align="middle">
-                <el-col :span="6">
-                  <div class="filter-item">
-                    <span class="filter-label">设备名称</span>
-                    <el-select v-model="queryForm.deviceId" placeholder="请选择设备" clearable style="width: 100%">
-                      <el-option v-for="device in deviceOptions" :key="device.value" :label="device.label"
-                        :value="device.value" />
-                    </el-select>
-                  </div>
-                </el-col>
+            <div class="filter-section filter-section--compact filter-section--history">
+              <div class="filter-grid filter-grid-history">
+                <div class="filter-item">
+                  <span class="filter-label">设备名称</span>
+                  <el-select v-model="queryForm.deviceId" placeholder="请选择设备" clearable class="filter-control filter-control--select">
+                    <el-option v-for="device in deviceOptions" :key="device.value" :label="device.label"
+                      :value="device.value" />
+                  </el-select>
+                </div>
 
-                <el-col :span="10">
-                  <div class="filter-item">
-                    <span class="filter-label">时间范围</span>
-                    <el-radio-group v-model="queryForm.timeRange">
-                      <el-radio-button label="today">今日</el-radio-button>
-                      <el-radio-button label="7days">近7天</el-radio-button>
-                      <el-radio-button label="30days">近30天</el-radio-button>
-                      <el-radio-button label="custom">自定义</el-radio-button>
-                    </el-radio-group>
-                  </div>
-                </el-col>
-
-                <el-col :span="8" v-if="queryForm.timeRange === 'custom'">
-                  <div class="filter-item">
-                    <span class="filter-label">自定义时间</span>
-                    <el-date-picker v-model="queryForm.customRange" type="daterange" range-separator="至"
-                      start-placeholder="开始日期" end-placeholder="结束日期" value-format="YYYY-MM-DD" />
-                  </div>
-                </el-col>
-              </el-row>
-
-              <el-row :gutter="20" style="margin-top: 15px;">
-                <el-col :span="24">
-                  <div class="filter-actions">
-                    <el-button type="primary" :loading="loading" @click="handleQuery">
-                      <el-icon>
-                        <Search />
-                      </el-icon>
-                      查询
-                    </el-button>
-                    <el-button @click="handleReset">
-                      <el-icon>
-                        <Refresh />
-                      </el-icon>
-                      重置
+                <div class="filter-item">
+                  <span class="filter-label">时间范围</span>
+                  <div class="range-button-group range-button-group--history">
+                    <el-button
+                      v-for="option in timeRangeOptions"
+                      :key="option.value"
+                      class="range-btn"
+                      :class="{ 'is-active': queryForm.timeRange === option.value }"
+                      @click="queryForm.timeRange = option.value"
+                    >
+                      {{ option.label }}
                     </el-button>
                   </div>
-                </el-col>
-              </el-row>
+                </div>
+
+                <div v-if="queryForm.timeRange === 'custom'" class="filter-item filter-item-wide">
+                  <span class="filter-label">自定义时间</span>
+                  <el-date-picker v-model="queryForm.customRange" type="daterange" range-separator="至"
+                    start-placeholder="开始日期" end-placeholder="结束日期" value-format="YYYY-MM-DD" class="filter-control filter-control--date" />
+                </div>
+              </div>
+
+              <div class="filter-actions">
+                <el-button type="primary" :loading="loading" @click="handleQuery">
+                  <el-icon>
+                    <Search />
+                  </el-icon>
+                  查询
+                </el-button>
+                <el-button @click="handleReset">
+                  <el-icon>
+                    <Refresh />
+                  </el-icon>
+                  重置
+                </el-button>
+              </div>
             </div>
 
-            <!-- 数据展示区 -->
             <div v-if="hasQueried" class="data-display-area">
-              <!-- 指标历史数据表格 -->
               <div class="section">
-                <div class="section-header">
-                  <h4 class="section-title">指标历史数据</h4>
-                  <div class="data-range-tips">
-                    数据范围：<span class="range-text">{{ dataRangeText }}</span>
+                <div class="section-heading">
+                  <div>
+                    <div class="section-kicker">数据结果</div>
                   </div>
+                  <div class="data-range-tips">数据范围：<span class="range-text">{{ dataRangeText }}</span></div>
                 </div>
                 <DataTable :columns="indicatorColumns" :data="indicatorData" :loading="loading" :show-pagination="true"
                   :current-page="currentPage" :page-size="pageSize" :total="total" @page-change="handlePageChange" />
               </div>
-
             </div>
 
-            <!-- 空状态 -->
             <div v-else class="empty-state">
               <CommonEmpty description="请选择时间范围后点击查询" />
             </div>
@@ -86,64 +73,84 @@
         </el-tab-pane>
 
         <el-tab-pane label="统计报表导出" name="report">
-          <!-- 统计报表导出模块 -->
           <div class="report-export-module">
-            <!-- 报表类型切换 -->
             <div class="report-type-section">
-              <el-radio-group v-model="reportType" size="large">
-                <el-radio-button label="device-run">设备运行统计报表</el-radio-button>
-                <el-radio-button label="alarm-stat">异常告警统计报表</el-radio-button>
-              </el-radio-group>
+              <div class="report-type-group">
+                <el-button
+                  v-for="option in reportTypeOptions"
+                  :key="option.value"
+                  class="toggle-btn"
+                  :class="{ 'is-active': reportType === option.value }"
+                  @click="reportType = option.value"
+                >
+                  {{ option.label }}
+                </el-button>
+              </div>
+              <div class="report-hint">
+                当前预览：<strong>{{ reportType === 'device-run' ? '设备运行统计' : '异常告警统计' }}</strong>
+              </div>
             </div>
 
-            <!-- 报表筛选区 -->
-            <div class="filter-section">
-              <el-row :gutter="20" align="middle">
-                <el-col :span="10">
-                  <div class="filter-item">
-                    <span class="filter-label">时间范围</span>
-                    <el-radio-group v-model="reportForm.timeRange">
-                      <el-radio-button label="today">今日</el-radio-button>
-                      <el-radio-button label="7days">近7天</el-radio-button>
-                      <el-radio-button label="30days">近30天</el-radio-button>
-                      <el-radio-button label="custom">自定义</el-radio-button>
-                    </el-radio-group>
+            <div class="filter-section filter-section--compact filter-section--report">
+              <div class="filter-grid filter-grid-report">
+                <div class="filter-item">
+                  <span class="filter-label">时间范围</span>
+                  <div class="range-button-group range-button-group--report">
+                    <el-button
+                      v-for="option in timeRangeOptions"
+                      :key="option.value"
+                      class="range-btn"
+                      :class="{ 'is-active': reportForm.timeRange === option.value }"
+                      @click="reportForm.timeRange = option.value"
+                    >
+                      {{ option.label }}
+                    </el-button>
                   </div>
-                </el-col>
+                </div>
 
-                <el-col :span="8" v-if="reportForm.timeRange === 'custom'">
-                  <div class="filter-item">
-                    <span class="filter-label">自定义时间</span>
-                    <el-date-picker v-model="reportForm.customRange" type="daterange" range-separator="至"
-                      start-placeholder="开始日期" end-placeholder="结束日期" value-format="YYYY-MM-DD" />
-                  </div>
-                </el-col>
+                <div v-if="reportForm.timeRange === 'custom'" class="filter-item filter-item-wide">
+                  <span class="filter-label">自定义时间</span>
+                  <el-date-picker v-model="reportForm.customRange" type="daterange" range-separator="至"
+                    start-placeholder="开始日期" end-placeholder="结束日期" value-format="YYYY-MM-DD" class="filter-control" />
+                </div>
+              </div>
 
-                <el-col :span="6">
-                  <el-button type="primary" :loading="reportLoading" @click="handleGenerateReport">
-                    生成报表
-                  </el-button>
-                </el-col>
-              </el-row>
+              <div class="filter-actions">
+                <el-button type="primary" :loading="reportLoading" @click="handleGenerateReport">
+                  生成报表
+                </el-button>
+              </div>
             </div>
 
-            <!-- 报表预览区 -->
             <div v-if="hasGeneratedReport" class="report-preview-area">
-              <!-- 设备运行统计报表 -->
               <div v-if="reportType === 'device-run'" class="report-content">
-                <h4 class="section-title">设备运行统计</h4>
+                <div class="section-heading">
+                  <div>
+                    <div class="section-kicker">报表预览</div>
+                    <h4 class="section-title">设备运行统计</h4>
+                  </div>
+                </div>
                 <VirtualTable :columns="deviceRunColumns" :data="deviceRunData" :height="350" />
               </div>
 
-              <!-- 异常告警统计报表 -->
               <div v-else class="report-content">
                 <div class="alarm-report-layout">
                   <div class="alarm-table-section">
-                    <h4 class="section-title">异常告警统计</h4>
+                    <div class="section-heading compact-header">
+                      <div>
+                        <div class="section-kicker">报表预览</div>
+                        <h4 class="section-title">异常告警统计</h4>
+                      </div>
+                    </div>
                     <VirtualTable :columns="alarmStatColumns" :data="alarmStatData" :height="350" />
                   </div>
                   <div class="alarm-chart-section">
-                    <h4 class="section-title">告警类型分布</h4>
+                    <div class="section-heading compact-header">
+                      <div>
+                        <div class="section-kicker">图表摘要</div>
+                        <h4 class="section-title">告警类型分布</h4>
+                      </div>
+                    </div>
                     <div class="chart-container">
                       <BaseChart :options="alarmPieChartOptions" />
                     </div>
@@ -151,9 +158,8 @@
                 </div>
               </div>
 
-              <!-- 导出操作区 -->
               <div class="export-section">
-                <el-row justify="space-between" align="middle">
+                <div class="export-layout">
                   <el-button type="success" :disabled="!hasGeneratedReport" @click="handleExport">
                     <el-icon>
                       <Download />
@@ -163,13 +169,12 @@
 
                   <div class="export-history">
                     <h5 class="history-title">导出历史</h5>
-                    <DataTable :columns="exportHistoryColumns" :data="exportHistoryData" style="width: 400px" />
+                    <DataTable :columns="exportHistoryColumns" :data="exportHistoryData" style="width: 100%" />
                   </div>
-                </el-row>
+                </div>
               </div>
             </div>
 
-            <!-- 空状态 -->
             <div v-else class="empty-state">
               <CommonEmpty description="请点击生成报表查看数据" />
             </div>
@@ -184,6 +189,7 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import MainLayout from '../components/layout/MainLayout.vue'
 import DataTable from '../components/common/DataTable/index.vue'
+import VirtualTable from '../components/common/VirtualTable/index.vue'
 import BaseChart from '../components/charts/BaseChart.vue'
 import CommonEmpty from '../components/common/Empty/index.vue'
 import { Search, Refresh, Download } from '@element-plus/icons-vue'
@@ -216,10 +222,20 @@ const queryForm = reactive({
 
 // ========== 报表表单 ==========
 const reportType = ref('device-run')
+const reportTypeOptions = [
+  { label: '设备运行统计报表', value: 'device-run' },
+  { label: '异常告警统计报表', value: 'alarm-stat' }
+]
 const reportForm = reactive({
   timeRange: 'today',
   customRange: [] as string[]
 })
+const timeRangeOptions = [
+  { label: '今日', value: 'today' },
+  { label: '近7天', value: '7days' },
+  { label: '近30天', value: '30days' },
+  { label: '自定义', value: 'custom' }
+]
 
 // ========== 数据范围显示文本 ==========
 const dataRangeText = computed(() => {
@@ -227,6 +243,12 @@ const dataRangeText = computed(() => {
   const format = (t: number) => new Date(t).toLocaleString('zh-CN', { hour12: false })
   return `${format(startTime)} ~ ${format(endTime)}`
 })
+
+const currentPageDeviceCount = computed(() => {
+  return new Set(indicatorData.value.map(row => row.deviceId).filter(Boolean)).size
+})
+
+const metricColumnCount = computed(() => Math.max(indicatorColumns.value.length - 3, 0))
 
 // ========== 动态表格列 ==========
 const indicatorColumns = ref<DataColumn[]>([])
@@ -455,6 +477,14 @@ const handlePageChange = (page: number) => {
   handleQuery()
 }
 
+watch([() => queryForm.timeRange, () => queryForm.customRange], () => {
+  currentPage.value = 1
+})
+
+watch([() => reportForm.timeRange, () => reportForm.customRange], () => {
+  hasGeneratedReport.value = false
+})
+
 // ========== 重置处理 ==========
 const handleReset = () => {
   queryForm.deviceId = ''
@@ -555,90 +585,254 @@ onMounted(async () => {
 
 <style scoped>
 .history-data-page {
-  padding: var(--spacing-base);
-  margin: var(--spacing-base);
-  background-color: var(--bg-main);
+  padding: 0;
+  margin: 0;
   min-height: calc(100vh - 100px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.section-kicker {
+  color: #6b7a90;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+
 }
 
 .page-title {
-  font-size: var(--font-lg);
-  font-weight: bold;
-  margin-bottom: var(--spacing-base);
-  color: var(--text-primary);
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #182235;
 }
 
-/* 功能选项卡样式 */
+.page-head__desc {
+  color: #5d6b82;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
 .func-tabs :deep(.el-tabs__header) {
-  margin-bottom: var(--spacing-base);
+  background: transparent;
+  border-bottom: 0;
+  margin-top: 10px;
+}
+
+.func-tabs :deep(.el-tabs__nav-wrap) {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  backdrop-filter: none;
+}
+
+.func-tabs :deep(.el-tabs__nav-wrap::after) {
+  display: none;
+}
+
+.func-tabs :deep(.el-tabs__nav) {
+  border: 0;
+  background: transparent;
+}
+
+.func-tabs :deep(.el-tabs__item) {
+  border-radius: 14px;
+  margin-right: 8px;
+  color: #6f7d92;
+  transition: all 0.2s ease;
+}
+
+.func-tabs :deep(.el-tabs__item:hover) {
+  color: #3c5fa8;
+}
+
+.func-tabs :deep(.el-tabs__item.is-active) {
+  color: #1f3356;
+  background: rgba(79, 124, 255, 0.08);
+  box-shadow: none;
+}
+
+.func-tabs :deep(.el-tabs__item) {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 6px 16px rgba(148, 163, 184, 0.08);
+}
+
+.func-tabs :deep(.el-tabs__item:hover) {
+  background: rgba(79, 124, 255, 0.08);
+  border-color: rgba(79, 124, 255, 0.16);
 }
 
 .func-tabs :deep(.el-tabs__content) {
-  padding: var(--spacing-base) 0;
+  padding: 16px 0 0;
+  background: transparent;
+  box-shadow: none;
 }
 
-/* 筛选区样式 */
-.filter-section {
-  background-color: var(--bg-secondary);
-  padding: var(--spacing-base);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--spacing-lg);
+.func-tabs :deep(.el-tab-pane) {
+  background: transparent;
+}
+
+.history-data-page :deep(.el-tabs--border-card),
+.history-data-page :deep(.el-tabs--border-card > .el-tabs__content),
+.history-data-page :deep(.el-tabs--border-card > .el-tabs__header),
+.history-data-page :deep(.el-tabs--border-card > .el-tabs__body) {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.history-query-module,
+.report-export-module {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.filter-section,
+.report-type-section,
+.report-content,
+.export-section,
+.empty-state,
+.section {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0;
+  backdrop-filter: none;
+}
+
+.section-heading,
+.filter-actions,
+.export-layout {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.section-title {
+  margin: 6px 0 0;
+  font-size: 18px;
+  color: #172033;
+}
+
+.filter-grid {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.filter-grid-history {
+  grid-template-columns: 1fr 1.4fr 1fr;
+}
+
+.filter-grid-report {
+  grid-template-columns: 1.6fr 1fr;
 }
 
 .filter-item {
   display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
+  flex-direction: column;
+  gap: 8px;
 }
 
 .filter-label {
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
-  font-weight: 500;
-  white-space: nowrap;
-  min-width: 70px;
+  font-size: 13px;
+  color: #516079;
+  font-weight: 600;
+}
+
+.filter-control {
+  width: 100%;
+}
+
+.filter-control--select :deep(.el-input__wrapper),
+.filter-control--date :deep(.el-input__wrapper) {
+  border-radius: 16px;
+  min-height: 44px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.12);
+}
+
+.filter-item-wide {
+  min-width: 0;
+}
+
+.range-button-group--history {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.range-btn {
+  border-radius: 16px !important;
+  min-height: 44px;
+  padding: 0 18px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #516079;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: none;
+}
+
+.range-btn:hover {
+  background: rgba(79, 124, 255, 0.08);
+  border-color: rgba(79, 124, 255, 0.2);
+  color: #1f3356;
+}
+
+.range-btn.is-active {
+  background: rgba(79, 124, 255, 0.14);
+  border-color: rgba(79, 124, 255, 0.28);
+  color: #1f3356;
+  box-shadow: inset 0 0 0 1px rgba(79, 124, 255, 0.08);
 }
 
 .filter-actions {
-  display: flex;
-  gap: var(--spacing-sm);
+  margin-top: 14px;
+  justify-content: flex-start;
 }
 
-/* 数据展示区样式 */
-.data-display-area {
+.filter-actions :deep(.el-button--primary) {
+  background: rgba(79, 124, 255, 0.08);
+  border-color: rgba(79, 124, 255, 0.16);
+  color: #1f3356;
+  box-shadow: none;
+}
+
+.filter-actions :deep(.el-button--primary:hover),
+.filter-actions :deep(.el-button--primary:focus) {
+  background: rgba(79, 124, 255, 0.12);
+  border-color: rgba(79, 124, 255, 0.22);
+  color: #1f3356;
+}
+
+.filter-actions :deep(.el-button:not(.el-button--primary)) {
+  background: rgba(255, 255, 255, 0.78);
+  border-color: rgba(148, 163, 184, 0.18);
+  color: #516079;
+}
+
+.data-display-area,
+.report-preview-area {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
+  gap: 16px;
 }
 
-.section {
-  background-color: var(--bg-secondary);
-  padding: var(--spacing-base);
-  border-radius: var(--radius-md);
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--spacing-base);
-}
-
-.section-title {
-  font-size: var(--font-base);
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 var(--spacing-base) 0;
-}
-
-.data-range-tips {
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
+.data-range-tips,
+.history-title {
+  color: #6f7d92;
+  font-size: 12px;
 }
 
 .range-text {
-  font-weight: 600;
-  color: var(--primary);
+  font-weight: 700;
+  color: #1f3356;
 }
 
 .chart-container {
@@ -646,70 +840,129 @@ onMounted(async () => {
   width: 100%;
 }
 
-/* 报表模块样式 */
-.report-type-section {
-  margin-bottom: var(--spacing-base);
-  padding: var(--spacing-base);
-  background-color: var(--bg-secondary);
-  border-radius: var(--radius-md);
-  text-align: center;
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
 }
 
-.report-preview-area {
+.summary-card {
+  border: 1px solid rgba(79, 124, 255, 0.1);
+  background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(246,250,255,0.82));
+  border-radius: 18px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
+  gap: 6px;
+}
+
+.summary-card--primary {
+  background: linear-gradient(135deg, rgba(79, 124, 255, 0.08), rgba(79, 124, 255, 0.03));
+}
+
+.summary-label {
+  color: #6f7d92;
+  font-size: 12px;
+}
+
+.summary-value {
+  font-size: 18px;
+  color: #1b2740;
+}
+
+.summary-value--accent {
+  color: #4f7cff;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.summary-desc {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.report-type-section {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.report-type-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+.toggle-btn {
+  border-radius: 16px !important;
+  min-height: 44px;
+  padding: 0 18px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #516079;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: none;
+}
+
+.toggle-btn:hover {
+  background: rgba(79, 124, 255, 0.08);
+  border-color: rgba(79, 124, 255, 0.2);
+  color: #1f3356;
+}
+
+.toggle-btn.is-active {
+  background: rgba(79, 124, 255, 0.14);
+  border-color: rgba(79, 124, 255, 0.28);
+  color: #1f3356;
+  box-shadow: inset 0 0 0 1px rgba(79, 124, 255, 0.08);
+}
+
+.report-hint {
+  color: #6f7d92;
+  font-size: 12px;
 }
 
 .alarm-report-layout {
   display: grid;
   grid-template-columns: 1.5fr 1fr;
-  gap: var(--spacing-base);
+  gap: 16px;
 }
 
-.alarm-table-section,
-.alarm-chart-section {
-  background-color: var(--bg-secondary);
-  padding: var(--spacing-base);
-  border-radius: var(--radius-md);
+.compact-header {
+  margin-bottom: 12px;
 }
 
-.export-section {
-  background-color: var(--bg-secondary);
-  padding: var(--spacing-base);
-  border-radius: var(--radius-md);
+.export-layout {
+  align-items: flex-start;
 }
 
-.history-title {
-  font-size: var(--font-sm);
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin: 0 0 var(--spacing-sm) 0;
+.export-history {
+  width: min(420px, 100%);
 }
 
-/* 空状态样式 */
 .empty-state {
-  padding: 60px 0;
-  background-color: var(--bg-secondary);
-  border-radius: var(--radius-md);
+  padding: 52px 20px;
+  display: grid;
+  place-items: center;
 }
 
-/* 响应式适配 */
 @media (max-width: 1200px) {
-  .alarm-report-layout {
+  .filter-grid,
+  .alarm-report-layout,
+  .summary-grid {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 768px) {
-  .filter-item {
+  .section-heading,
+  .filter-actions,
+  .export-layout {
     flex-direction: column;
     align-items: flex-start;
-    gap: var(--spacing-xs);
-  }
-
-  .filter-label {
-    min-width: auto;
   }
 }
+
 </style>

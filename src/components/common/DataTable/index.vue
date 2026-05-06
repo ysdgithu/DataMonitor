@@ -97,50 +97,62 @@ const formatTime = (timestamp: number) => {
 <style scoped>
 .data-table-wrapper {
   width: 100%;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: #fff;
+  box-shadow: 0 10px 26px rgba(31, 45, 61, 0.05);
 }
 
 .data-table {
   width: 100%;
-  background-color: var(--bg-main);
+  background-color: transparent;
 }
 
-/* 表头样式 - 使用base.css的设计系统 */
+/* 表头样式 - 更接近参考图 */
+.data-table :deep(.el-table__header-wrapper),
 .data-table :deep(.el-table__header) {
-  background-color: var(--bg-secondary);
+  background: linear-gradient(180deg, #fafcff 0%, #f4f8fd 100%);
+}
+
+.data-table :deep(.el-table__header th),
+.data-table :deep(.el-table__cell) {
+  border-color: #e5edf8;
 }
 
 .data-table :deep(.el-table__header th) {
-  background-color: var(--bg-secondary);
-  color: var(--text-secondary);
+  background: linear-gradient(180deg, #fafcff 0%, #f4f8fd 100%);
+  color: #5f6f85;
   font-weight: 600;
-  border-color: var(--border-light);
-  font-size: var(--font-sm);
+  font-size: 13px;
+  height: 48px;
+  padding: 0 14px;
 }
 
 /* 表体样式 */
-.data-table :deep(.el-table__body) {
-  background-color: var(--bg-main);
-}
-
 .data-table :deep(.el-table__body tr) {
-  background-color: var(--bg-main);
+  background-color: #fff;
 }
 
 .data-table :deep(.el-table__body tr td) {
-  border-color: var(--border-light);
-  color: var(--text-secondary);
-  font-size: var(--font-sm);
+  color: #2b3648;
+  font-size: 13px;
+  height: 52px;
+  padding: 0 14px;
+}
+
+.data-table :deep(.el-table__body tr:nth-child(even) td) {
+  background-color: #fbfdff;
 }
 
 /* 行悬停效果 */
 .data-table :deep(.el-table__body tr:hover > td) {
-  background-color: var(--primary-light) !important;
+  background-color: #f2f7ff !important;
 }
-
 
 /* 空状态 */
 .data-table :deep(.el-table__empty-block) {
-  background-color: var(--bg-main);
+  background-color: #fff;
 }
 
 /* 操作按钮组 */

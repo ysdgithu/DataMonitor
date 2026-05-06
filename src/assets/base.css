@@ -1,12 +1,12 @@
 :root {
   /* 主题蓝色 */
-  --primary: #1677ff;
+  --primary: #1f3356;
   /* 科技蓝主色-B端IOT平台经典色 */
-  --primary-light: #e8f3ff;
+  --primary-light: rgba(79, 124, 255, 0.12);
   /* 主色浅背景 */
-  --primary-hover: #4096ff;
+  --primary-hover: #4f7cff;
   /* 主色悬停 */
-  --primary-active: #0958d9;
+  --primary-active: #172944;
   /* 主色激活 */
 
 
