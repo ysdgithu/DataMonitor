@@ -130,7 +130,6 @@ import { TokenManager } from '../utils/tokenManager'
 // 初始态对话态切换
 const viweState = ref(true)
 const loading = ref(false)
-const sessionId = ref<string>('')
 
 // 历史记录数据 - 先保留本地占位，后续再接历史会话接口
 const historyList = ref([
@@ -216,8 +215,7 @@ const streamQuestion = async (question: string) => {
       ...(token ? { Authorization: `Bearer ${token}` } : {})
     },
     body: JSON.stringify({
-      question,
-      sessionId: sessionId.value || undefined
+      question
     })
   })
 
@@ -254,9 +252,6 @@ const streamQuestion = async (question: string) => {
 
         try {
           const parsed = JSON.parse(jsonStr)
-          if (parsed.sessionId) {
-            sessionId.value = parsed.sessionId
-          }
           if (parsed.content !== undefined) {
             answer += parsed.content
             updateAiMessage(aiMsg.id, { content: answer })
@@ -275,7 +270,6 @@ const streamQuestion = async (question: string) => {
       if (jsonStr !== '[DONE]') {
         try {
           const parsed = JSON.parse(jsonStr)
-          if (parsed.sessionId) sessionId.value = parsed.sessionId
           if (parsed.content !== undefined) {
             answer += parsed.content
             updateAiMessage(aiMsg.id, { content: answer })

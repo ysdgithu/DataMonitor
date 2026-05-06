@@ -41,7 +41,7 @@ withDefaults(defineProps<Props>(), {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
+  padding: 52px 20px;
   text-align: center;
 }
 
@@ -51,7 +51,7 @@ withDefaults(defineProps<Props>(), {
 
 .empty-description {
   font-size: 14px;
-  color: #909399;
+  color: #6f7d92;
   margin-bottom: 16px;
 }
 

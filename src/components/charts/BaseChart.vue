@@ -56,6 +56,39 @@ const initChart = () => {
   }
 }
 
+const prepareIncrementalOptions = (nextOptions: EChartsOption) => {
+  const incrementalOptions: any = {}
+
+  if (nextOptions.xAxis) {
+    incrementalOptions.xAxis = nextOptions.xAxis
+  }
+
+  if (nextOptions.yAxis) {
+    incrementalOptions.yAxis = nextOptions.yAxis
+  }
+
+  if (nextOptions.legend) {
+    incrementalOptions.legend = nextOptions.legend
+  }
+
+  if (nextOptions.tooltip) {
+    incrementalOptions.tooltip = nextOptions.tooltip
+  }
+
+  if (nextOptions.grid) {
+    incrementalOptions.grid = nextOptions.grid
+  }
+
+  if (nextOptions.series && Array.isArray(nextOptions.series)) {
+    incrementalOptions.series = nextOptions.series.map((s: any) => ({
+      ...s,
+      data: s.data
+    }))
+  }
+
+  return incrementalOptions
+}
+
 
 
 // 固定频率 RAF 循环（60FPS），高频模式下用队列保证顺序渲染
@@ -68,37 +101,19 @@ const startRAFLoop = () => {
           // 【新增】dataOnly 模式：只更新数据部分，避免清空重绘
           if (props.dataOnly && isInitialized) {
             // 提取数据部分
-            const dataOnlyOptions: any = {}
-
-            // 更新 xAxis 数据
-            if (nextOptions.xAxis) {
-              const xAxisConfig = Array.isArray(nextOptions.xAxis) ? nextOptions.xAxis[0] : nextOptions.xAxis
-              if (xAxisConfig && (xAxisConfig as any).data) {
-                dataOnlyOptions.xAxis = { data: (xAxisConfig as any).data }
-              }
-            }
-
-            // 更新 series 数据
-            if (nextOptions.series && Array.isArray(nextOptions.series)) {
-              dataOnlyOptions.series = nextOptions.series.map((s: any) => ({
-                data: s.data,
-                // 保留状态相关的配置
-                itemStyle: s.itemStyle
-              }))
-            }
+            const dataOnlyOptions: any = prepareIncrementalOptions(nextOptions)
 
             chart.setOption(dataOnlyOptions, {
-              notMerge: false, // 增量合并
-              // lazyUpdate: true,
-              // silent: true
+              notMerge: false,
+              lazyUpdate: true,
+              silent: true
             })
           } else {
-            // 正常模式：完整更新
+            // 正常模式：完整更新但保留已有实例状态，避免图表从头重绘
             chart.setOption(nextOptions, {
               notMerge: false,
-              // lazyUpdate: true,
-              // silent: true,
-              replaceMerge: ['series'] // 只替换series，提升性能
+              lazyUpdate: true,
+              silent: true
             })
           }
         } catch (error) {
@@ -125,23 +140,7 @@ const updateChartDebounced = debounce((newOptions: EChartsOption) => {
   if (chart) {
     // 【新增】dataOnly 模式：只更新数据部分
     if (props.dataOnly && isInitialized) {
-      const dataOnlyOptions: any = {}
-
-      // 更新 xAxis 数据
-      if (newOptions.xAxis) {
-        const xAxisConfig = Array.isArray(newOptions.xAxis) ? newOptions.xAxis[0] : newOptions.xAxis
-        if (xAxisConfig && (xAxisConfig as any).data) {
-          dataOnlyOptions.xAxis = { data: (xAxisConfig as any).data }
-        }
-      }
-
-      // 更新 series 数据
-      if (newOptions.series && Array.isArray(newOptions.series)) {
-        dataOnlyOptions.series = newOptions.series.map((s: any) => ({
-          data: s.data,
-          itemStyle: s.itemStyle
-        }))
-      }
+      const dataOnlyOptions: any = prepareIncrementalOptions(newOptions)
 
       chart.setOption(dataOnlyOptions, {
         notMerge: false,
@@ -153,8 +152,7 @@ const updateChartDebounced = debounce((newOptions: EChartsOption) => {
       chart.setOption(newOptions, {
         notMerge: false,
         lazyUpdate: true,
-        silent: true,
-        replaceMerge: ['series']
+        silent: true
       })
     }
   }

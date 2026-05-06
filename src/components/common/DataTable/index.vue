@@ -1,7 +1,7 @@
 <template>
   <div class="data-table-wrapper">
     <!-- 表格 -->
-    <el-table :data="data" v-loading="loading" stripe highlight-current-row class="data-table">
+    <el-table :data="data" v-loading="loading" highlight-current-row class="data-table">
       <el-table-column v-for="col in columns" :key="col.prop" :prop="col.prop" :label="col.label" :width="col.width">
         <template #default="{ row }">
           <!-- 自定义渲染 -->
@@ -41,7 +41,7 @@
 </template>
 
 <script setup lang="ts">
-import { h, defineComponent } from 'vue'
+import { defineComponent } from 'vue'
 import StatusTag from '../statusTag.vue'
 import Pagination from '../Pagination.vue'
 import type { Props } from './types'
@@ -98,10 +98,10 @@ const formatTime = (timestamp: number) => {
 .data-table-wrapper {
   width: 100%;
   overflow: hidden;
-  border-radius: 18px;
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  background: #fff;
-  box-shadow: 0 10px 26px rgba(31, 45, 61, 0.05);
+  border-radius: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .data-table {
@@ -109,15 +109,22 @@ const formatTime = (timestamp: number) => {
   background-color: transparent;
 }
 
-/* 表头样式 - 更接近参考图 */
+.data-table :deep(.el-table),
+.data-table :deep(.el-table__inner-wrapper),
+.data-table :deep(.el-table__header-wrapper),
+.data-table :deep(.el-table__body-wrapper) {
+  background: transparent;
+}
+
 .data-table :deep(.el-table__header-wrapper),
 .data-table :deep(.el-table__header) {
   background: linear-gradient(180deg, #fafcff 0%, #f4f8fd 100%);
 }
 
 .data-table :deep(.el-table__header th),
-.data-table :deep(.el-table__cell) {
+.data-table :deep(.el-table__body td) {
   border-color: #e5edf8;
+  border-bottom-color: #e5edf8;
 }
 
 .data-table :deep(.el-table__header th) {
@@ -129,33 +136,25 @@ const formatTime = (timestamp: number) => {
   padding: 0 14px;
 }
 
-/* 表体样式 */
 .data-table :deep(.el-table__body tr) {
   background-color: #fff;
 }
 
-.data-table :deep(.el-table__body tr td) {
+.data-table :deep(.el-table__body td) {
   color: #2b3648;
   font-size: 13px;
   height: 52px;
   padding: 0 14px;
 }
 
-.data-table :deep(.el-table__body tr:nth-child(even) td) {
-  background-color: #fbfdff;
-}
-
-/* 行悬停效果 */
 .data-table :deep(.el-table__body tr:hover > td) {
   background-color: #f2f7ff !important;
 }
 
-/* 空状态 */
 .data-table :deep(.el-table__empty-block) {
   background-color: #fff;
 }
 
-/* 操作按钮组 */
 .actions {
   display: flex;
   gap: var(--spacing-sm);

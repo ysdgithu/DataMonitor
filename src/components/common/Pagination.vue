@@ -107,17 +107,18 @@ const handlePageClick = (page: number) => {
 .pagination-wrapper {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  color: var(--text-secondary);
-  font-size: var(--font-sm);
-  margin-top: var(--spacing-base);
-  padding: var(--spacing-base);
+  gap: 10px;
+  color: #6f7d92;
+  font-size: 12px;
+  margin-top: 16px;
+  padding: 0;
   justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .pagination-total {
-  margin-right: var(--spacing-sm);
-  color: var(--text-secondary);
+  margin-right: 8px;
+  color: #6f7d92;
 }
 
 .pagination-item {
@@ -126,28 +127,33 @@ const handlePageClick = (page: number) => {
   justify-content: center;
   min-width: 32px;
   height: 32px;
-  padding: 0 6px;
-  border-radius: var(--radius-sm);
+  padding: 0 8px;
+  border-radius: 10px;
   cursor: pointer;
-  color: var(--text-secondary);
+  color: #516079;
   transition: all 0.2s;
   user-select: none;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .pagination-item:hover:not(.active):not(.disabled):not(.pagination-ellipsis) {
-  color: var(--primary);
-  background-color: var(--primary-light);
+  color: #1f3356;
+  background-color: rgba(79, 124, 255, 0.08);
+  border-color: rgba(79, 124, 255, 0.2);
 }
 
 .pagination-item.active {
-  background-color: var(--primary-light);
-  color: var(--primary);
+  background-color: rgba(79, 124, 255, 0.14);
+  color: #1f3356;
   font-weight: 500;
+  border-color: rgba(79, 124, 255, 0.28);
 }
 
 .pagination-item.disabled {
-  color: var(--text-disabled);
+  color: #94a3b8;
   cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.48);
 }
 
 .pagination-ellipsis {
@@ -155,7 +161,8 @@ const handlePageClick = (page: number) => {
 }
 
 .pagination-ellipsis:hover {
-  color: var(--text-secondary);
-  background-color: transparent;
+  color: #516079;
+  background-color: rgba(255, 255, 255, 0.72);
+  border-color: rgba(148, 163, 184, 0.18);
 }
 </style>

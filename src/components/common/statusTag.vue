@@ -160,4 +160,9 @@ const computedText = computed(() => {
 })
 </script>
 
-<style scoped></style>
+<style scoped>
+.el-tag {
+  border-radius: 6px;
+  font-weight: 500;
+}
+</style>

@@ -8,12 +8,12 @@ const router = Router();
  * POST /api/qa/chat
  * AI 智能问答：接收用户问题并流式转发给 RAGFlow
  *
- * Body: { question: string, sessionId?: string }
+ * Body: { question: string }
  * Response: SSE 流 (text/event-stream)
  */
 router.post('/', authMiddleware, async (req: Request, res: Response) => {
     try {
-        const { question, sessionId } = req.body;
+        const { question } = req.body;
 
         if (!question || typeof question !== 'string' || !question.trim()) {
             res.status(400).json({
@@ -25,12 +25,14 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
         }
 
         const cleanQuestion = question.trim();
-        console.log('[QA 问答] 收到请求:', { question: cleanQuestion, sessionId });
+        const qaChatId = ragflowClient.getQaChatId();
+        console.log('[QA 问答] 收到请求:', { question: cleanQuestion });
+        console.log('[QA 问答] 使用的 chatId:', qaChatId);
 
         let fullAnswer = '';
 
         await ragflowClient.streamChat(cleanQuestion, res, {
-            sessionId: sessionId as string | undefined,
+            chatId: qaChatId,
             onChunk: (chunk: string) => {
                 fullAnswer += chunk;
             }
@@ -44,8 +46,7 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
 
         console.log('[QA 问答] 完成:', {
             hasAnswer: !!fullAnswer,
-            answerLength: fullAnswer.length,
-            sessionId
+            answerLength: fullAnswer.length
         });
     } catch (error: any) {
         console.error('[QA 问答] 接口异常:', error);

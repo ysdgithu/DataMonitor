@@ -32,12 +32,12 @@ const DEVICE_THRESHOLDS: Record<string, Record<string, { min?: number, max?: num
   '调配罐': {
     temp: { min: 63, max: 67 },
     level: { min: 90, max: 150 },
-    current: { min: 10, max: 20 },
+    current: { min: 8, max: 24 },
     ph: { min: 6.5, max: 7.5 }
   },
   '灌装机': {
     fill_volume: { min: 495, max: 505 },
-    pressure: { min: 0.7, max: 1.0 },
+    pressure: { min: 0.6, max: 1.2 },
     speed: { min: 48, max: 65 },
     temp: { min: 20, max: 28 }
   }

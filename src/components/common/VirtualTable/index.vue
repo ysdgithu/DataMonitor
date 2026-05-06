@@ -10,10 +10,11 @@
 </template>
 
 <script setup lang="ts">
-import { h, computed } from 'vue'
+import { h, computed, defineAsyncComponent } from 'vue'
 import { TableV2 as ElTableV2, ElAutoResizer, ElButton } from 'element-plus'
-import StatusTag from '../statusTag.vue'
-import type { Props, Column, Action } from './types'
+import type { Props, Column } from './types'
+
+const StatusTag = defineAsyncComponent(() => import('../statusTag.vue'))
 
 const props = withDefaults(defineProps<Props>(), {
   loading: false,
@@ -88,71 +89,82 @@ const processedColumns = computed(() => {
 .virtual-table-wrapper {
   width: 100%;
   height: 100%;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
+  border: 0;
+  border-radius: 0;
   overflow: hidden;
+  background: transparent;
 }
 
-/* ========== 表头样式 ========== */
+.virtual-table :deep(.el-table-v2) {
+  background: transparent;
+}
+
 .virtual-table :deep(.el-table-v2__header) {
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-light);
+  background: linear-gradient(180deg, #fafcff 0%, #f4f8fd 100%);
+  border-bottom: 1px solid #e5edf8;
 }
 
 .virtual-table :deep(.el-table-v2__header-row) {
-  background-color: var(--bg-secondary);
-  color: var(--text-secondary);
+  background: linear-gradient(180deg, #fafcff 0%, #f4f8fd 100%);
+  color: #5f6f85;
   font-weight: 600;
-  font-size: var(--font-sm);
+  font-size: 13px;
 }
 
 .virtual-table :deep(.el-table-v2__header-cell) {
-  background-color: var(--bg-secondary);
-  color: var(--text-secondary);
+  background: linear-gradient(180deg, #fafcff 0%, #f4f8fd 100%);
+  color: #5f6f85;
   font-weight: 600;
-  font-size: var(--font-sm);
-  border-right: 1px solid var(--border-light);
+  font-size: 13px;
   padding: 0 12px;
 }
 
-.virtual-table :deep(.el-table-v2__header-cell:last-child) {
-  border-right: none;
-}
-
-/* ========== 表体样式 ========== */
 .virtual-table :deep(.el-table-v2__row) {
-  background-color: var(--bg-main);
-  border-bottom: 1px solid var(--border-light);
-}
-
-/* 斑马纹效果 */
-.virtual-table :deep(.el-table-v2__row:nth-child(even)) {
-  background-color: var(--bg-secondary);
-}
-
-/* 行悬停效果 */
-.virtual-table :deep(.el-table-v2__row:hover) {
-  background-color: var(--primary-light) !important;
+  background-color: #fff;
+  border-bottom: 1px solid #e5edf8;
 }
 
 .virtual-table :deep(.el-table-v2__row-cell) {
-  color: var(--text-secondary);
-  font-size: var(--font-sm);
-  border-right: 1px solid var(--border-light);
+  color: #2b3648;
+  font-size: 13px;
   padding: 0 12px;
 }
 
-.virtual-table :deep(.el-table-v2__row-cell:last-child) {
-  border-right: none;
+.status-text {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.78);
+  color: #516079;
+  font-size: 12px;
 }
 
-/* ========== 空状态样式 ========== */
+.status-text--status {
+  background: rgba(79, 124, 255, 0.08);
+  color: #1f3356;
+}
+
+.status-text--priority {
+  background: rgba(245, 158, 11, 0.08);
+  color: #8a5a00;
+}
+
+.virtual-table :deep(.el-table-v2__row:hover) {
+  background-color: #f2f7ff !important;
+}
+
+.virtual-table :deep(.el-table-v2__row:hover .el-table-v2__row-cell) {
+  background-color: #f2f7ff !important;
+}
+
 .virtual-table :deep(.el-table-v2__empty) {
-  background-color: var(--bg-main);
-  color: var(--text-secondary);
+  background-color: #fff;
+  color: #6f7d92;
 }
 
-/* ========== 操作按钮组 ========== */
 .actions {
   display: flex;
   gap: var(--spacing-sm);
@@ -167,7 +179,6 @@ const processedColumns = computed(() => {
   color: var(--primary-hover);
 }
 
-/* ========== 滚动条样式 ========== */
 .virtual-table :deep(.el-scrollbar__bar) {
   z-index: 10;
 }

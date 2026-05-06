@@ -12,70 +12,6 @@
         </el-button>
       </div>
 
-      <!-- 统计卡片区域 -->
-      <el-row :gutter="20" class="statistics-row">
-        <el-col :span="6">
-          <el-card class="stat-card">
-            <div class="stat-content">
-              <div class="stat-icon total">
-                <el-icon>
-                  <Document />
-                </el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-label">总任务数</div>
-                <div class="stat-value">{{ stats.total }}</div>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-        <el-col :span="6">
-          <el-card class="stat-card">
-            <div class="stat-content">
-              <div class="stat-icon running">
-                <el-icon>
-                  <Loading />
-                </el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-label">进行中</div>
-                <div class="stat-value">{{ stats.running }}</div>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-        <el-col :span="6">
-          <el-card class="stat-card">
-            <div class="stat-content">
-              <div class="stat-icon completed">
-                <el-icon>
-                  <CircleCheck />
-                </el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-label">已完成</div>
-                <div class="stat-value">{{ stats.completed }}</div>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-        <el-col :span="6">
-          <el-card class="stat-card">
-            <div class="stat-content">
-              <div class="stat-icon failed">
-                <el-icon>
-                  <CircleClose />
-                </el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-label">失败</div>
-                <div class="stat-value">{{ stats.failed }}</div>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
-
       <!-- 筛选和搜索区域 -->
       <el-card class="filter-card">
         <el-row :gutter="16" align="middle">
@@ -161,10 +97,6 @@ import VirtualTable from '../components/common/VirtualTable/index.vue'
 import { DiagnosticApi, type DiagnosisTask, type QueryParams } from '../utils/diagnosticApi'
 import {
   Plus,
-  Document,
-  Loading,
-  CircleCheck,
-  CircleClose,
   Refresh
 } from '@element-plus/icons-vue'
 
@@ -395,23 +327,24 @@ onMounted(() => {
 
 <style scoped>
 .diagnosis-main {
-  padding: var(--spacing-base);
-  background-color: var(--bg-secondary);
-  min-height: 100%;
+  padding: 0;
+  margin: 0;
+  min-height: calc(100vh - 100px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-/* 页面标题 */
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-base);
 }
 
 .page-title {
-  color: var(--text-main);
-  font-size: var(--font-xl);
-  font-weight: 600;
+  color: #182235;
+  font-size: 24px;
+  font-weight: 700;
   margin: 0;
 }
 
@@ -425,133 +358,109 @@ onMounted(() => {
   border-color: var(--primary-hover);
 }
 
-/* 统计卡片 */
-.statistics-row {
-  margin-bottom: var(--spacing-base);
-}
-
-.stat-card {
-  background-color: var(--bg-main);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  transition: all 0.3s;
-  box-shadow: var(--shadow-light);
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-base);
-  border-color: var(--border-light);
-}
-
-.stat-card :deep(.el-card__body) {
-  padding: var(--spacing-base);
-}
-
-.stat-content {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-base);
-}
-
-.stat-icon {
-  width: 50px;
-  height: 50px;
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--font-xl);
-}
-
-.stat-icon.total {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: var(--text-white);
-}
-
-.stat-icon.running {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: var(--text-white);
-}
-
-.stat-icon.completed {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  color: var(--text-white);
-}
-
-.stat-icon.failed {
-  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-  color: var(--text-white);
-}
-
-.stat-info {
-  flex: 1;
-}
-
-.stat-label {
-  color: var(--text-tertiary);
-  font-size: var(--font-sm);
-  margin-bottom: var(--spacing-xs);
-}
-
-.stat-value {
-  color: var(--text-main);
-  font-size: var(--font-2xl);
-  font-weight: 700;
-}
-
-/* 筛选卡片 */
-.filter-card {
-  background-color: var(--bg-main);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  margin-bottom: var(--spacing-base);
-  box-shadow: var(--shadow-light);
+.filter-card,
+.task-list-card {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
 }
 
 .filter-card :deep(.el-card__body) {
-  padding: var(--spacing-base);
+  padding: 0;
 }
 
-/* Select 和 DatePicker 宽度设置 */
-.filter-card :deep(.el-select) {
-  width: 100%;
-}
-
+.filter-card :deep(.el-select),
 .filter-card :deep(.el-date-editor) {
   width: 100%;
-}
-
-/* 任务列表卡片 */
-.task-list-card {
-  background-color: var(--bg-main);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-light);
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: var(--text-main);
+  color: #172033;
   font-weight: 600;
 }
 
-/* 表格样式 */
 .task-table {
-  background-color: var(--bg-main);
+  background-color: transparent;
 }
 
-/* 分页 */
 .pagination-container {
   display: flex;
   justify-content: flex-end;
-  margin-top: var(--spacing-base);
-  padding: var(--spacing-base) 0;
+  margin-top: 12px;
+  padding: 12px 0 0;
 }
 
-/* 滚动条美化 */
+.pagination-container :deep(.el-pagination) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  color: #6f7d92;
+  flex-wrap: wrap;
+}
+
+.pagination-container :deep(.el-pagination__total) {
+  margin-right: 10px;
+  color: #6f7d92;
+  font-size: 12px;
+  border-right: 1px solid rgba(148, 163, 184, 0.22);
+  padding-right: 10px;
+}
+
+.pagination-container :deep(.btn-prev),
+.pagination-container :deep(.btn-next),
+.pagination-container :deep(.el-pager li) {
+  min-width: 28px;
+  height: 28px;
+  line-height: 26px;
+  padding: 0 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.72);
+  color: #516079;
+  font-weight: 400;
+  margin: 0;
+  font-size: 12px;
+}
+
+.pagination-container :deep(.el-pager li:not(.is-active):hover),
+.pagination-container :deep(.btn-prev:hover:not(.disabled)),
+.pagination-container :deep(.btn-next:hover:not(.disabled)) {
+  color: #1f3356;
+  background-color: rgba(79, 124, 255, 0.08);
+  border-color: rgba(79, 124, 255, 0.2);
+}
+
+.pagination-container :deep(.el-pager li.is-active) {
+  background-color: rgba(79, 124, 255, 0.14);
+  color: #1f3356;
+  border-color: rgba(79, 124, 255, 0.28);
+}
+
+.pagination-container :deep(.btn-prev.is-disabled),
+.pagination-container :deep(.btn-next.is-disabled) {
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.48);
+  border-color: rgba(148, 163, 184, 0.14);
+}
+
+.pagination-container :deep(.el-pagination__sizes),
+.pagination-container :deep(.el-pagination__jump) {
+  margin: 0;
+  color: #6f7d92;
+}
+
+.pagination-container :deep(.el-select .el-input__wrapper),
+.pagination-container :deep(.el-input__wrapper) {
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.72);
+}
+
 .diagnosis-main::-webkit-scrollbar {
   width: 8px;
 }
