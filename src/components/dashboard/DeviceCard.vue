@@ -25,18 +25,19 @@
     </div>
 
     <!-- 告警提示（仅在告警时显示） -->
-    <div v-if="hasAlarm" class="alarm-tips">
+    <!-- <div v-if="hasAlarm" class="alarm-tips">
       <el-icon>
         <Warning />
       </el-icon>
       <span>{{ alarmMessage }}</span>
-    </div>
+    </div> -->
   </el-card>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Warning } from '@element-plus/icons-vue'
+import { useRealtimeStore } from '../../stores/realtime'
 
 interface DeviceData {
   id: number
@@ -53,6 +54,8 @@ interface DeviceData {
 const props = defineProps<{
   deviceData: DeviceData
 }>()
+
+const realtimeStore = useRealtimeStore()
 
 // 参数中文标签映射
 const paramLabels: Record<string, string> = {
@@ -79,18 +82,14 @@ const alarmMessage = computed(() => {
   return `${alarmParams.join('、')} 异常`
 })
 
-// 设备状态文本
+// 设备状态文本（仅根据 WebSocket 连接状态判断）
 const statusText = computed(() => {
-  if (props.deviceData.status === 0) return '离线'
-  if (props.deviceData.status === 2) return '故障'
-  return '运行中'
+  return realtimeStore.isConnected ? '在线' : '离线'
 })
 
-// 设备状态标签类型
+// 设备状态标签类型（仅根据 WebSocket 连接状态判断）
 const statusTagType = computed(() => {
-  if (props.deviceData.status === 0) return 'info'
-  if (props.deviceData.status === 2) return 'danger'
-  return 'success'
+  return realtimeStore.isConnected ? 'success' : 'info'
 })
 </script>
 

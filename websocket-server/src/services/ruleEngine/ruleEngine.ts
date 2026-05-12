@@ -570,6 +570,14 @@ export class RuleEngine {
     }
 
     /**
+     * 手动重载规则（用于后台修改规则后即时生效）
+     */
+    async reloadRules(): Promise<void> {
+        await this.loadRules();
+        console.log('[RuleEngine] 🔄 规则已手动重载');
+    }
+
+    /**
      * 获取当前规则列表
      */
     getRules(): AlarmRule[] {

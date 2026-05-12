@@ -8,6 +8,7 @@ import ChatQAView from '../views/ChatQA.vue';
 import PermissionView from '../views/Permission.vue';
 import ExceptionView from '../views/Exception.vue';
 import KnowledgeView from '../views/Knowledge.vue';
+import DeviceManagementView from '../views/DeviceManagement.vue';
 import { useAuthStore } from '../stores/auth'
 import { ElMessage } from 'element-plus'
 
@@ -21,6 +22,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/exception', name: 'exception', component: ExceptionView, meta: { requiresAuth: true, title: '异常规则', roles: ['admin', 'user'] } },
   { path: '/knowledge', name: 'knowledge', component: KnowledgeView, meta: { requiresAuth: true, title: '知识库管理', roles: ['admin'] } },
   { path: '/diagnosis', name: 'diagnosis', component: DiagnosisView, meta: { requiresAuth: true, title: '诊断任务管理 - DataMonitor' } },
+  { path: '/devices', name: 'devices', component: DeviceManagementView, meta: { requiresAuth: true, title: '设备管理 - DataMonitor', roles: ['admin', 'user'] } },
   { path: '/:pathMatch(.*)*', redirect: '/' }
 ]
 

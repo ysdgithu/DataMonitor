@@ -11,6 +11,7 @@ import reportRoutes from './routes/report';
 import aiAnalysisRoutes from './routes/ai-analysis';
 import qaChatRoutes from './routes/qa-chat';
 import alarmRuleRoutes from './routes/alarm-rule';
+import deviceRoutes from './routes/device';
 
 const app = express();
 const PORT = process.env.API_PORT || 3002;
@@ -30,6 +31,7 @@ app.use('/api/report', reportRoutes);
 app.use('/api/ai-analysis', aiAnalysisRoutes);
 app.use('/api/qa/chat', qaChatRoutes);
 app.use('/api/alarm-rules', alarmRuleRoutes);
+app.use('/api/devices', deviceRoutes);
 
 // 健康检查接口
 app.get('/api/health', (req, res) => {

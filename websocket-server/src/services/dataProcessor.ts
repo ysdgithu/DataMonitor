@@ -1,6 +1,7 @@
 import WebSocket from 'ws';
 import { DataModel } from '../database/models';
 import { RuleEngine, AlarmEvent } from './ruleEngine';
+import { setRuleEngineInstance } from './ruleEngineManager';
 
 // 设备数据类型
 interface DeviceData {
@@ -24,6 +25,9 @@ export class DataProcessor {
             checkInterval: 5000,     // 5秒检查一次
             historyBuffer: 600000    // 10分钟历史数据
         });
+
+        // 注册规则引擎实例，供 API 路由在规则变更后触发热重载
+        setRuleEngineInstance(this.ruleEngine);
 
         // 设置告警回调
         this.ruleEngine.onAlarm((event: AlarmEvent) => {

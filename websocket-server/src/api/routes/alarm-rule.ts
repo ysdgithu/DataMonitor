@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware, roleMiddleware } from '../middleware';
 import DatabaseConnection from '../../database/connection';
+import { getRuleEngineInstance } from '../../services/ruleEngineManager';
 
 const router = Router();
 const db = DatabaseConnection.getInstance();
@@ -99,7 +100,15 @@ router.put('/:id', authMiddleware, roleMiddleware(['admin']), async (req: Reques
       ]
     );
 
-    res.json({ success: true, message: '规则更新成功' });
+    // 规则热更新：更新数据库后立即重载内存规则，避免必须重启服务
+    const engine = getRuleEngineInstance();
+    if (engine) {
+      await engine.reloadRules();
+    } else {
+      console.warn('[alarm-rule] RuleEngine 实例不存在，本次更新将在服务重启后生效');
+    }
+
+    res.json({ success: true, message: '规则更新成功，已热重载' });
   } catch (error: any) {
     console.error('[alarm-rule] 更新失败:', error);
     res.status(500).json({ success: false, message: error.message || '更新规则失败' });

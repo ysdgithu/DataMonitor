@@ -110,7 +110,7 @@
       </section>
     </div>
 
-    <div v-if="alarmPopupVisible" class="alarm-popup">
+    <!-- <div v-if="alarmPopupVisible" class="alarm-popup">
       <div class="popup-title">新告警提醒</div>
       <div class="popup-content">
         <div class="popup-summary">{{ currentAlarm?.content }}</div>
@@ -119,7 +119,7 @@
         <button class="popup-btn popup-btn-close" @click="closeAlarmPopup">关闭</button>
         <button class="popup-btn popup-btn-primary" @click="gotoAlarmDetail">查看详情</button>
       </div>
-    </div>
+    </div> -->
   </div>
 </template>
 
@@ -131,6 +131,7 @@ import { useDeviceDataStore } from '../../stores/deviceData'
 import { useRealtimeStore } from '../../stores/realtime'
 import { useAlarmStore, type AlarmEvent } from '../../stores/alarm'
 import { audioNotification } from '../../utils/audioNotification'
+import { deviceApi, type DeviceItem } from '../../utils/deviceApi'
 const BaseChart = defineAsyncComponent(() => import('../charts/BaseChart.vue'))
 
 interface Metric {
@@ -168,38 +169,64 @@ const paramLabelMap: Record<string, string> = {
   speed: '速度'
 }
 
-const deviceList = computed<Device[]>(() => {
-  return deviceDataStore.deviceList.map(device => {
-    let statusText = '正常'
-    let statusType: 'normal' | 'alarm' | 'stop' = 'normal'
+const DYNAMIC_DEVICE_IDS = new Set(['1001', '1003'])
+const managedDevices = ref<DeviceItem[]>([])
 
-    if (device.status === 0) {
-      statusText = '离线'
-      statusType = 'stop'
-    } else if (device.status === 2) {
-      statusText = '告警'
-      statusType = 'alarm'
+function getPlaceholderMetrics(deviceType: string): Metric[] {
+  if (deviceType === '调配罐') {
+    return [
+      { label: '温度(℃)', value: '65.00' },
+      { label: '液位(L)', value: '120.00' },
+      { label: '搅拌电机电流(A)', value: '16.00' },
+      { label: 'pH值', value: '7.00' }
+    ]
+  }
+
+  return [
+    { label: '灌装量(ml)', value: '500.00' },
+    { label: '压力(MPa)', value: '0.90' },
+    { label: '速度(瓶/分)', value: '56.00' },
+    { label: '温度(℃)', value: '24.00' }
+  ]
+}
+
+function toMetrics(monitorData: Record<string, { value: number; unit: string; status: 'normal' | 'alarm' }>): Metric[] {
+  return Object.entries(monitorData).map(([key, item]) => {
+    const label = paramLabelMap[key] || key
+    const displayLabel = item.unit ? `${label}(${item.unit})` : label
+    return {
+      label: displayLabel,
+      value: typeof item.value === 'number' ? item.value.toFixed(2) : item.value,
+      isError: item.status === 'alarm'
+    }
+  })
+}
+
+const deviceList = computed<Device[]>(() => {
+  const realtimeMap = new Map(deviceDataStore.deviceList.map(d => [d.id, d]))
+
+  return managedDevices.value.map(device => {
+    const deviceId = device.device_code
+    const realtimeDevice = realtimeMap.get(deviceId)
+    const isDynamic = DYNAMIC_DEVICE_IDS.has(deviceId)
+
+    if (isDynamic && realtimeDevice) {
+      const statusType: 'normal' | 'stop' = realtimeStore.isConnected ? 'normal' : 'stop'
+      return {
+        id: deviceId,
+        name: `${device.device_name}（${deviceId}）`,
+        status: statusType,
+        statusText: realtimeStore.isConnected ? '在线' : '离线',
+        metrics: toMetrics(realtimeDevice.monitor_data)
+      }
     }
 
-    const metrics: Metric[] = []
-    Object.entries(device.monitor_data).forEach(([key, item]) => {
-      const label = paramLabelMap[key] || key
-      const unit = item.unit
-      const displayLabel = unit ? `${label}(${unit})` : label
-
-      metrics.push({
-        label: displayLabel,
-        value: typeof item.value === 'number' ? item.value.toFixed(2) : item.value,
-        isError: item.status === 'alarm'
-      })
-    })
-
     return {
-      id: device.id,
-      name: device.device_name,
-      status: statusType,
-      statusText,
-      metrics
+      id: deviceId,
+      name: `${device.device_name}（${deviceId}）`,
+      status: 'stop',
+      statusText: '离线',
+      metrics: getPlaceholderMetrics(device.device_type)
     }
   })
 })
@@ -438,8 +465,23 @@ watch(() => alarmStore.alarmRecords.length, (newLen, oldLen) => {
   }
 })
 
-onMounted(() => {
+const loadManagedDevices = async () => {
+  try {
+    const res = await deviceApi.getList()
+    if (res.success) {
+      managedDevices.value = res.data || []
+    } else {
+      managedDevices.value = []
+    }
+  } catch (error) {
+    console.error('[Dashboard] 加载设备列表失败:', error)
+    managedDevices.value = []
+  }
+}
+
+onMounted(async () => {
   realtimeStore.setMonitoring(true)
+  await loadManagedDevices()
 })
 
 onUnmounted(() => {

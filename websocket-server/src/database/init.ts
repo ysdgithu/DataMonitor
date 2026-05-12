@@ -51,26 +51,6 @@ async function initDatabase() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         `);
 
-        // 数据统计表
-        console.log('创建 data_statistics 表...');
-        await connection.execute(`
-            CREATE TABLE IF NOT EXISTS data_statistics (
-                id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                date DATE NOT NULL,
-                hour INT NOT NULL,
-                data_type VARCHAR(20) NOT NULL,
-                category VARCHAR(20),
-                avg_value DOUBLE,
-                max_value DOUBLE,
-                min_value DOUBLE,
-                count INT,
-                error_count INT,
-                warning_count INT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                INDEX idx_date_type (date, data_type)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        `);
-
         // 用户表 - 用于 API 鉴权和登录
         console.log('创建 users 表...');
         await connection.execute(`
@@ -109,14 +89,29 @@ async function initDatabase() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         `);
 
+        // 设备管理表
+        console.log('创建 device 表...');
+        await connection.execute(`
+            CREATE TABLE IF NOT EXISTS device (
+                id BIGINT NOT NULL AUTO_INCREMENT COMMENT '设备唯一标识',
+                device_code VARCHAR(50) NOT NULL COMMENT '设备编号（与 device_data.device_id 对应）',
+                device_name VARCHAR(100) NOT NULL COMMENT '设备名称',
+                device_type VARCHAR(50) NOT NULL COMMENT '设备类型（与 alarm_rule.device_type 匹配，如调配罐、灌装机等）',
+                create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+                is_deleted TINYINT NOT NULL DEFAULT 0 COMMENT '软删除标记（0-未删除，1-已删除）',
+                PRIMARY KEY (id),
+                UNIQUE KEY uk_device_code (device_code)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='设备表'
+        `);
+
         console.log('数据表创建完成，开始创建索引...');
 
         // 创建复合索引 - 优化查询性能
         const indexes = [
             'CREATE INDEX idx_device_data_device_type_time ON device_data(device_id, data_type, timestamp)',
             'CREATE INDEX idx_device_data_type_time ON device_data(data_type, timestamp)',
-            'CREATE INDEX idx_device_data_status ON device_data(data_status)',
-            'CREATE INDEX idx_statistics_date_type ON data_statistics(date, data_type)'
+            'CREATE INDEX idx_device_data_status ON device_data(data_status)'
         ];
 
         for (const indexSql of indexes) {

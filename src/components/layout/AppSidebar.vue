@@ -34,7 +34,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { Odometer, DataAnalysis, Document, ChatLineRound, User } from '@element-plus/icons-vue'
+import { Odometer, DataAnalysis, Document, ChatLineRound, User, Setting } from '@element-plus/icons-vue'
 import { useAuthStore } from '../../stores/auth'
 import { ElMessage } from 'element-plus'
 
@@ -45,9 +45,10 @@ const menuItems = [
   { index: 0, label: '监控大屏', icon: Odometer, route: '/' },
   { index: 1, label: '历史数据', icon: DataAnalysis, route: '/history' },
   { index: 2, label: '诊断任务', icon: Document, route: '/diagnosis' },
-  { index: 3, label: '智能问答', icon: ChatLineRound, route: '/chatqa' },
+  { index: 3, label: '设备管理', icon: Setting, route: '/devices' },
+  { index: 4, label: '智能问答', icon: ChatLineRound, route: '/chatqa' },
   {
-    index: 4,
+    index: 5,
     label: '用户管理',
     icon: User,
     route: null,
