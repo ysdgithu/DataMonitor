@@ -8,7 +8,12 @@
       <div class="header-actions">
         <el-tag :type="getStatusType(taskDetail?.status)" effect="plain">{{ getStatusText(taskDetail?.status) }}</el-tag>
         <el-tag :type="getPriorityType(taskDetail?.priority)" effect="plain">{{ getPriorityText(taskDetail?.priority) }}</el-tag>
-        <el-button type="primary" class="primary-btn">完成</el-button>
+        <el-button type="primary" class="primary-btn" :loading="confirmingTask" :disabled="taskDetail?.status === 1" @click="confirmTask">
+          {{ taskDetail?.status === 1 ? '已确认' : '确认' }}
+        </el-button>
+        <el-button type="primary" class="primary-btn" :loading="updatingTask" :disabled="taskDetail?.status === 2" @click="updateTask">
+          {{ taskDetail?.status === 2 ? '已完成' : '完成' }}
+        </el-button>
       </div>
     </div>
 
@@ -51,12 +56,17 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { Connection } from '@element-plus/icons-vue'
 import { DiagnosticApi, type DiagnosisTask } from '../utils/diagnosticApi'
 import { parseTaskDetail, formatDetailData } from '../utils/alarmFormatter'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import MarkdownIt from 'markdown-it'
 
 const first = ref(true)
 // 接收任务数据属性
 const props = defineProps<{
   taskData?: DiagnosisTask
+}>()
+
+const emit = defineEmits<{
+  (e: 'task-updated', payload: { id: number; status: number }): void
 }>()
 
 // 任务详情数据（直接使用传入的数据）
@@ -83,7 +93,10 @@ const parsedDetail = computed(() => {
 let aiResult = ref('')
 let aiResultHtml = ref('')
 const loading = ref(true)
+const updatingTask = ref(false)
+const confirmingTask = ref(false)
 const md = new MarkdownIt()
+const api = new DiagnosticApi()
 
 // 格式化时间戳
 const formatTime = (timestamp?: number) => {
@@ -162,30 +175,112 @@ const convertMD = (data: string) => {
   return md.render(raw)
 }
 
-// 完成当前任务处理
-const updateTask = () => {
-  console.log('完成任务:', taskDetail.value?.id)
+// 确认当前任务（状态 -> 1 进行中）
+const confirmTask = async () => {
+  const id = taskDetail.value?.id
+  if (!id) {
+    ElMessage.error('任务ID无效')
+    return
+  }
+
+  if (taskDetail.value?.status === 1) {
+    ElMessage.info('任务已是进行中状态')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm('确认将该诊断任务标记为“进行中”吗？', '确认任务', {
+      confirmButtonText: '确认',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+  } catch {
+    return
+  }
+
+  try {
+    confirmingTask.value = true
+    const res = await api.updateDiagnosisTask(id, { status: 1 })
+    if (res.success) {
+      if (taskDetail.value) {
+        taskDetail.value.status = 1
+      }
+      emit('task-updated', { id, status: 1 })
+      ElMessage.success('任务已标记为进行中')
+    } else {
+      ElMessage.error(res.message || '任务状态更新失败')
+    }
+  } catch (error: any) {
+    console.error('[TaskDetails] 确认任务失败:', error)
+    ElMessage.error(error?.message || '任务状态更新失败')
+  } finally {
+    confirmingTask.value = false
+  }
 }
 
+// 完成当前任务（状态 -> 2 已完成）
+const updateTask = async () => {
+  const id = taskDetail.value?.id
+  if (!id) {
+    ElMessage.error('任务ID无效')
+    return
+  }
+
+  if (taskDetail.value?.status === 2) {
+    ElMessage.info('任务已是完成状态')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm('确认将该诊断任务标记为“已完成”吗？', '完成确认', {
+      confirmButtonText: '确认',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+  } catch {
+    return
+  }
+
+  try {
+    updatingTask.value = true
+    const res = await api.updateDiagnosisTask(id, { status: 2 })
+    if (res.success) {
+      if (taskDetail.value) {
+        taskDetail.value.status = 2
+      }
+      emit('task-updated', { id, status: 2 })
+      ElMessage.success('任务已标记为完成')
+    } else {
+      ElMessage.error(res.message || '任务状态更新失败')
+    }
+  } catch (error: any) {
+    console.error('[TaskDetails] 更新任务状态失败:', error)
+    ElMessage.error(error?.message || '任务状态更新失败')
+  } finally {
+    updatingTask.value = false
+  }
+}
 
 
 // 状态映射
 const getStatusType = (status?: number) => {
   const map: Record<number, string> = {
-    0: 'primary',
-    1: 'success',
-    2: 'danger'
+    0: 'warning',
+    1: 'primary',
+    2: 'success',
+    3: 'danger'
   }
-  return map[status || 0] || 'info'
+  return map[status ?? 0] || 'info'
 }
 
 const getStatusText = (status?: number) => {
   const map: Record<number, string> = {
-    0: '进行中',
-    1: '已完成',
-    2: '失败'
+    0: '待确认',
+    1: '进行中',
+    2: '已完成',
+    3: '失败'
   }
-  return map[status || 0] || '未知'
+  return map[status ?? 0] || '未知'
 }
 
 // 优先级映射

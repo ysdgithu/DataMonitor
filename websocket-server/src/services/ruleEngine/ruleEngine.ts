@@ -555,7 +555,7 @@ export class RuleEngine {
         await this.db.run(sql, [
             taskName,
             event.deviceId,
-            1,
+            0,
             rule.description ? 2 : 1,  // priority: 有处置建议的设为2-重要，否则1-一般
             detail,
             'system',   // assignee: 系统默认分配

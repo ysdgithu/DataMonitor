@@ -20,9 +20,10 @@
           </el-col>
           <el-col :span="4">
             <el-select v-model="filterStatus" placeholder="任务状态" clearable>
-              <el-option label="进行中" :value="0" />
-              <el-option label="已完成" :value="1" />
-              <el-option label="失败" :value="2" />
+              <el-option label="待确认" :value="0" />
+              <el-option label="进行中" :value="1" />
+              <el-option label="已完成" :value="2" />
+              <el-option label="失败" :value="3" />
             </el-select>
           </el-col>
           <el-col :span="4">
@@ -70,13 +71,10 @@
     </div>
     <!-- 历史数据查询面板弹窗 -->
     <el-drawer v-model="showPanel" :modal="false" :with-header="false" size="50%">
-      <TaskDetailsComponent v-if="currentTask" :taskData="currentTask" />
+      <TaskDetailsComponent v-if="currentTask" :taskData="currentTask" @task-updated="handleTaskUpdated" />
       <template #footer>
         <div class="drawer-footer">
-          <el-button @click="showPanel = false">取消</el-button>
-          <el-button type="primary" @click="showPanel = false">
-            确认
-          </el-button>
+          <el-button @click="showPanel = false">关闭</el-button>
         </div>
       </template>
     </el-drawer>
@@ -128,6 +126,18 @@ const handleClosePanel = () => {
   showPanel.value = false
   currentTask.value = null
 }
+
+const handleTaskUpdated = async (payload: { id: number; status: number }) => {
+  const target = taskList.value.find((item) => item.id === payload.id)
+  if (target) {
+    target.status = payload.status
+  }
+  if (currentTask.value?.id === payload.id) {
+    currentTask.value.status = payload.status
+  }
+  await getData()
+}
+
 
 // 统计数据
 const stats = ref({
@@ -311,8 +321,6 @@ const columns = [
     isActions: true,
     actions: [
       { label: '查看', type: 'primary', onClick: (row: DiagnosisTask) => detailClick(row) },
-      { label: '暂停', type: 'warning', onClick: (row: DiagnosisTask) => console.log('暂停', row), show: (row: DiagnosisTask) => row.status === 0 },
-      { label: '重试', type: 'success', onClick: (row: DiagnosisTask) => console.log('重试', row), show: (row: DiagnosisTask) => row.status === 2 },
       { label: '删除', type: 'danger', onClick: (row: DiagnosisTask) => deleteTask(row.id) }
     ]
   }
