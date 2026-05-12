@@ -1,7 +1,6 @@
 <template>
   <main-layout>
     <div class="chat-container-wrapper">
-      <!-- 左侧历史记录 -->
       <aside class="sidebar">
         <div class="sidebar-header">
           <h3 class="h3">问答历史记录</h3>
@@ -9,11 +8,18 @@
         </div>
 
         <div class="sidebar-content" @scroll="handleScroll">
-          <template v-for="date in ['today', 'yesterday', 'earlier']" :key="date">
+          <div v-if="historyLoading" class="history-state">正在加载历史会话...</div>
+          <div v-else-if="!historyList.length" class="history-state empty">暂无历史会话</div>
+          <template v-else v-for="date in ['today', 'yesterday', 'earlier']" :key="date">
             <div class="date-group">
               <p class="date-label">{{ date === 'today' ? '今天' : date === 'yesterday' ? '昨天' : '更早' }}</p>
               <ul class="history-list">
-                <li v-for="item in getHistoryByDate(date)" :key="item.id" class="history-item">
+                <li
+                  v-for="item in getHistoryByDate(date)"
+                  :key="item.id"
+                  class="history-item"
+                  @click="loadSessionDetail(item)"
+                >
                   <p class="history-question">{{ item.question }}</p>
                   <p class="history-time">{{ item.time }}</p>
                 </li>
@@ -23,27 +29,29 @@
         </div>
       </aside>
 
-      <!-- 右侧主内容区 -->
       <div class="chat-main">
-        <!-- 顶部标题 -->
         <header class="chat-header">
           <h2 class="h2">智能运维问答助手</h2>
-          <p class="text-sm">基于RAG技术的工业设备智能诊断与问答系统</p>
+          <p class="text-sm">基于 RAG 技术的工业设备智能诊断与问答系统</p>
         </header>
 
-        <!-- 聊天内容区 -->
         <div class="chat-body" :class="{ 'is-empty': viweState }">
-          <!-- 初始状态 - 欢迎页 -->
           <div v-if="viweState" class="welcome-container">
             <div class="welcome-content">
               <h1 class="h1">有什么我能帮你的吗？</h1>
-              <p class="text-tip" style="margin-top: var(--spacing-sm);">我可以帮您解答设备运维、故障诊断等问题</p>
+              <p class="text-tip" style="margin-top: var(--spacing-sm);">
+                我可以帮您解答设备运维、故障诊断等问题
+              </p>
 
               <div class="suggested-questions">
                 <p class="text-sm" style="margin-bottom: var(--spacing-base); color: var(--text-secondary);">猜你想了解：</p>
                 <ul class="question-list">
-                  <li v-for="(question, index) in suggestedQuestions" :key="index" class="question-item"
-                    @click="handleSuggestedQuestion(question)">
+                  <li
+                    v-for="(question, index) in suggestedQuestions"
+                    :key="index"
+                    class="question-item"
+                    @click="handleSuggestedQuestion(question)"
+                  >
                     {{ question }}
                   </li>
                 </ul>
@@ -51,20 +59,16 @@
             </div>
           </div>
 
-          <!-- 对话状态 - 消息列表 -->
           <div v-else class="message-list">
             <template v-for="msg in messageList" :key="msg.id">
-              <!-- 用户消息 -->
               <div v-if="msg.type === 'user'" class="message-wrapper user-message">
                 <div class="message-bubble user-bubble">
                   <p>{{ msg.content }}</p>
                 </div>
               </div>
 
-              <!-- AI 消息 -->
               <div v-else class="message-wrapper ai-message">
                 <div class="message-bubble ai-bubble">
-                  <!-- 搜索关键词 -->
                   <div v-if="msg.searchKeywords" class="search-keywords">
                     <el-icon :size="14" style="margin-right: var(--spacing-xs);">
                       <Search />
@@ -73,22 +77,30 @@
                     <span class="keywords">{{ msg.searchKeywords.join(' · ') }}</span>
                   </div>
 
-                  <!-- AI 回答内容 -->
-                  <div class="answer-content">
-                    <p style="white-space: pre-wrap;">{{ msg.content }}</p>
+                  <div v-if="msg.reasoningContent" class="reasoning-content">
+                    <p class="text-sm reasoning-label">思考摘要</p>
+                    <p class="reasoning-text">{{ msg.reasoningContent }}</p>
                   </div>
 
-                  <!-- 参考来源 -->
+                  <div class="answer-content">
+                    <p style="white-space: pre-wrap;">{{ formatAnswerContent(msg.content) }}</p>
+                  </div>
+
                   <div v-if="msg.references && msg.references.length > 0" class="references">
                     <p class="text-sm" style="margin-bottom: var(--spacing-xs); color: var(--text-secondary);">参考来源：</p>
                     <ul class="reference-list">
                       <li v-for="(ref, idx) in msg.references" :key="idx" class="reference-item">
-                        <a :href="ref.url">{{ ref.name }}</a>
+                        <button class="reference-pill" type="button" @click="openReference(ref)">
+                          {{ ref.name || ref.figureLabel || `来源 ${idx + 1}` }}
+                        </button>
+                        <p v-if="ref.figureLabel || ref.page !== undefined" class="reference-meta">
+                          <span v-if="ref.figureLabel">{{ ref.figureLabel }}</span>
+                          <span v-if="ref.page !== undefined">第 {{ ref.page }} 页</span>
+                        </p>
                       </li>
                     </ul>
                   </div>
 
-                  <!-- 操作按钮 -->
                   <div class="message-actions">
                     <el-icon class="action-icon" @click="handleRegenerate(msg.id)">
                       <Refresh />
@@ -104,11 +116,15 @@
           </div>
         </div>
 
-        <!-- 底部输入框 -->
         <footer class="chat-footer">
           <div class="input-container">
-            <el-input v-model="userQValue" placeholder="请输入您的问题，按 Enter 发送" class="chat-input-field"
-              @keyup.enter="handleUserQuestion" clearable>
+            <el-input
+              v-model="userQValue"
+              placeholder="请输入您的问题，按 Enter 发送"
+              class="chat-input-field"
+              @keyup.enter="handleUserQuestion"
+              clearable
+            >
               <template #suffix>
                 <el-icon class="send-icon" @click="handleUserQuestion">
                   <Position />
@@ -119,59 +135,124 @@
         </footer>
       </div>
     </div>
+
+    <el-dialog v-model="referenceDialogVisible" width="640px" class="reference-dialog" title="参考片段">
+      <div v-if="activeReference" class="reference-dialog-content">
+        <div class="reference-dialog-header">
+          <div>
+            <p class="reference-dialog-title">{{ activeReference.name }}</p>
+            <p class="reference-dialog-subtitle">
+              <span v-if="activeReference.figureLabel">{{ activeReference.figureLabel }}</span>
+              <span v-if="activeReference.page !== undefined"> · 第 {{ activeReference.page }} 页</span>
+            </p>
+          </div>
+          <el-button v-if="activeReference.url" type="primary" link @click="openSourceLink(activeReference)">
+            打开来源
+          </el-button>
+        </div>
+
+        <div v-if="activeReference.title || activeReference.source" class="reference-dialog-meta">
+          <p v-if="activeReference.title"><strong>标题：</strong>{{ activeReference.title }}</p>
+          <p v-if="activeReference.source"><strong>来源：</strong>{{ activeReference.source }}</p>
+        </div>
+
+        <div class="reference-dialog-snippet">
+          <p class="text-sm" style="margin-bottom: 8px; color: var(--text-secondary);">片段内容</p>
+          <p style="white-space: pre-wrap; line-height: 1.8;">{{ activeReference.snippet || '暂无片段内容' }}</p>
+        </div>
+      </div>
+    </el-dialog>
   </main-layout>
 </template>
+
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../components/layout/MainLayout.vue'
 import { Position, Search, Refresh, CopyDocument } from '@element-plus/icons-vue'
 import { TokenManager } from '../utils/tokenManager'
+import request from '../utils/request'
+import { ElMessage } from 'element-plus'
 
-// 初始态对话态切换
 const viweState = ref(true)
 const loading = ref(false)
+const historyLoading = ref(false)
 
-// 历史记录数据 - 先保留本地占位，后续再接历史会话接口
-const historyList = ref([
-  { id: 1, question: '3号生产线温度异常如何处理？', time: '14:23', date: 'today' },
-  { id: 2, question: '压缩机振动频率超标原因分析', time: '11:45', date: 'today' },
-  { id: 3, question: '如何查看设备维护记录？', time: '09:18', date: 'today' },
-  { id: 4, question: '电机轴承温度正常范围是多少？', time: '16:30', date: 'yesterday' },
-  { id: 5, question: '生产线停机应急预案流程', time: '14:22', date: 'yesterday' },
-  { id: 6, question: '设备故障代码E102含义', time: '10:15', date: 'yesterday' },
-  { id: 7, question: '如何导出本月设备运行报表？', time: '15:40', date: 'earlier' },
-  { id: 8, question: '冷却系统压力下降处理方法', time: '09:30', date: 'earlier' }
-])
+interface HistorySession {
+  id: string | number
+  question: string
+  time: string
+  date: 'today' | 'yesterday' | 'earlier'
+  raw?: any
+}
 
-// 推荐问题列表 - 常见运维问题
-const suggestedQuestions = ref([
-  '设备温度超过80℃如何处理？',
-  '如何查看设备实时运行状态？',
-  '生产线异常停机的常见原因有哪些？',
-  '设备维护保养周期是多久？'
-])
+const historyList = ref<HistorySession[]>([])
+const suggestedQuestions = ref(['灌装机常见的故障原因是什么？'])
 
-// 对话消息列表
 interface Message {
   id: number
   type: 'user' | 'ai'
   content: string
   time: string
   searchKeywords?: string[]
-  references?: { name: string, url: string }[]
+  reasoningContent?: string
+  references?: Array<{
+    name?: string
+    url?: string
+    figureLabel?: string
+    snippet?: string
+    page?: number
+  }>
+  usage?: {
+    prompt_tokens?: number
+    completion_tokens?: number
+    total_tokens?: number
+  }
 }
 
 const messageList = ref<Message[]>([])
-
 const userQValue = ref('')
-
 const qaApiBase = import.meta.env.VITE_API_URL || 'http://localhost:3002/api'
+let messageIdSeed = 0
 
+const nextMessageId = () => Date.now() * 1000 + (messageIdSeed++ % 1000)
 const currentTime = () => new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+
+const formatSessionTime = (value: any) => {
+  if (!value) return currentTime()
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value).slice(11, 16)
+  return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+}
+
+const getDateGroup = (value: any): 'today' | 'yesterday' | 'earlier' => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'earlier'
+  const now = new Date()
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const startOfYesterday = startOfToday - 24 * 60 * 60 * 1000
+  const ts = date.getTime()
+  if (ts >= startOfToday) return 'today'
+  if (ts >= startOfYesterday) return 'yesterday'
+  return 'earlier'
+}
+
+const normalizeHistory = (items: any[]): HistorySession[] => {
+  return items.map((item, index) => {
+    const question = item.question || item.title || item.summary || item.name || item.last_question || '历史会话'
+    const rawTime = item.updated_at || item.created_at || item.create_time || item.last_update || item.timestamp || item.time
+    return {
+      id: item.id ?? item.session_id ?? `${index}`,
+      question,
+      time: formatSessionTime(rawTime),
+      date: getDateGroup(rawTime),
+      raw: item
+    }
+  })
+}
 
 const pushUserMessage = (content: string) => {
   const userMsg: Message = {
-    id: Date.now(),
+    id: nextMessageId(),
     type: 'user',
     content,
     time: currentTime()
@@ -183,7 +264,7 @@ const pushUserMessage = (content: string) => {
 
 const pushAiMessage = () => {
   const aiMsg: Message = {
-    id: Date.now() + 1,
+    id: nextMessageId(),
     type: 'ai',
     content: '正在为您分析，请稍候...',
     time: currentTime(),
@@ -203,6 +284,73 @@ const updateAiMessage = (id: number, patch: Partial<Message>) => {
   }
 }
 
+const loadHistorySessions = async () => {
+  historyLoading.value = true
+  try {
+    const res: any = await request.get('/ai-analysis/history', {
+      params: { chatId: '46fb6734358611f180d46988dbe8f3ea' }
+    })
+    if (res?.success) {
+      historyList.value = normalizeHistory(res.data || [])
+    } else {
+      ElMessage.error(res?.message || '获取历史会话失败')
+    }
+  } catch (error: any) {
+    console.error('获取历史会话失败:', error)
+    ElMessage.error(error.message || '获取历史会话失败')
+  } finally {
+    historyLoading.value = false
+  }
+}
+
+const loadSessionDetail = (item: HistorySession) => {
+  ElMessage.info(`已选择会话：${item.question}`)
+  if (item.raw?.session_id || item.raw?.id) {
+    console.log('历史会话详情', item.raw)
+  }
+}
+
+interface ReferenceItem {
+  name?: string
+  url?: string
+  figureLabel?: string
+  snippet?: string
+  page?: number
+  source?: string
+  title?: string
+}
+
+const referenceDialogVisible = ref(false)
+const activeReference = ref<ReferenceItem | null>(null)
+
+const normalizeReference = (ref: any, index = 0): ReferenceItem => {
+  const name = ref?.name || ref?.title || ref?.doc_name || ref?.document_name || ref?.source_name || `来源 ${index + 1}`
+  return {
+    name,
+    url: ref?.url || ref?.source_url || ref?.link,
+    figureLabel: ref?.figureLabel || ref?.figure || ref?.label || ref?.chunk_label,
+    snippet: ref?.snippet || ref?.content || ref?.text || ref?.chunk || ref?.excerpt,
+    page: ref?.page ?? ref?.page_no ?? ref?.pageNumber,
+    source: ref?.source || ref?.file_path || ref?.path,
+    title: ref?.title || ref?.doc_title || ref?.document_title
+  }
+}
+
+const sanitizeAnswer = (text: string) => text.replace(/\s*\[ID:\s*\d+\]\s*/g, ' ').replace(/\s+/g, ' ').trim()
+
+const formatAnswerContent = (text: string) => sanitizeAnswer(text)
+
+const openSourceLink = (ref: ReferenceItem) => {
+  if (ref?.url) {
+    window.open(ref.url, '_blank', 'noopener,noreferrer')
+  }
+}
+
+const openReference = (ref: any) => {
+  activeReference.value = normalizeReference(ref)
+  referenceDialogVisible.value = true
+}
+
 const streamQuestion = async (question: string) => {
   const token = TokenManager.getAccessToken()
   const aiMsg = pushAiMessage()
@@ -214,9 +362,7 @@ const streamQuestion = async (question: string) => {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {})
     },
-    body: JSON.stringify({
-      question
-    })
+    body: JSON.stringify({ question })
   })
 
   if (!response.ok) {
@@ -252,15 +398,40 @@ const streamQuestion = async (question: string) => {
 
         try {
           const parsed = JSON.parse(jsonStr)
+          if (parsed.reasoningContent) {
+            const current = messageList.value.find(item => item.id === aiMsg.id)
+            updateAiMessage(aiMsg.id, {
+              reasoningContent: current?.reasoningContent
+                ? `${current.reasoningContent}\n${parsed.reasoningContent}`
+                : parsed.reasoningContent
+            })
+          }
           if (parsed.content !== undefined) {
             answer += parsed.content
             updateAiMessage(aiMsg.id, { content: answer })
           }
+          if (parsed.references) {
+            const rawReferences = Array.isArray(parsed.references)
+              ? parsed.references
+              : (parsed.references?.items || parsed.references?.list || parsed.references?.data || [parsed.references])
+            const normalized = rawReferences.map((ref: any, index: number) => normalizeReference(ref, index))
+            updateAiMessage(aiMsg.id, { references: normalized })
+          }
+          if (parsed.references) {
+            const rawReferences = Array.isArray(parsed.references)
+              ? parsed.references
+              : (parsed.references?.items || parsed.references?.list || parsed.references?.data || [parsed.references])
+            const normalized = rawReferences.map((ref: any, index: number) => normalizeReference(ref, index))
+            updateAiMessage(aiMsg.id, { references: normalized })
+          }
+          if (parsed.usage) {
+            updateAiMessage(aiMsg.id, { usage: parsed.usage })
+          }
           if (parsed.error) {
             throw new Error(parsed.error)
           }
-        } catch (_) {
-          // 忽略非 JSON 行
+        } catch {
+          // ignore malformed chunks
         }
       }
     }
@@ -274,8 +445,15 @@ const streamQuestion = async (question: string) => {
             answer += parsed.content
             updateAiMessage(aiMsg.id, { content: answer })
           }
-        } catch (_) {
-          // ignore
+          if (parsed.references) {
+            const rawReferences = Array.isArray(parsed.references)
+              ? parsed.references
+              : (parsed.references?.items || parsed.references?.list || parsed.references?.data || [parsed.references])
+            const normalized = rawReferences.map((ref: any, index: number) => normalizeReference(ref, index))
+            updateAiMessage(aiMsg.id, { references: normalized })
+          }
+        } catch {
+          // ignore malformed chunks
         }
       }
     }
@@ -288,7 +466,6 @@ const streamQuestion = async (question: string) => {
   }
 }
 
-// 处理用户提问
 const handleUserQuestion = async () => {
   const question = userQValue.value.trim()
   if (!question || loading.value) return
@@ -300,7 +477,7 @@ const handleUserQuestion = async () => {
     await streamQuestion(question)
   } catch (error: any) {
     messageList.value.push({
-      id: Date.now() + 2,
+      id: nextMessageId(),
       type: 'ai',
       content: `问答失败：${error.message || '未知错误'}`,
       time: currentTime()
@@ -308,18 +485,16 @@ const handleUserQuestion = async () => {
   }
 }
 
-// 点击推荐问题
 const handleSuggestedQuestion = (question: string) => {
   userQValue.value = question
   handleUserQuestion()
 }
 
-// 复制回答
+
 const handleCopy = (content: string) => {
   navigator.clipboard.writeText(content)
 }
 
-// 重新生成回答
 const handleRegenerate = (messageId: number) => {
   const targetIndex = messageList.value.findIndex(m => m.id === messageId && m.type === 'ai')
   if (targetIndex === -1) return
@@ -329,7 +504,6 @@ const handleRegenerate = (messageId: number) => {
   void streamQuestion(prevUser.content)
 }
 
-// 下拉刷新历史记录
 const handleScroll = (e: any) => {
   if (e.target.scrollTop === 0) {
     console.log('触发刷新历史记录')
@@ -342,57 +516,77 @@ const groupedHistory = computed(() => ({
   earlier: historyList.value.filter(h => h.date === 'earlier')
 }))
 
-const getHistoryByDate = (date: string) => {
-  return groupedHistory.value[date as keyof typeof groupedHistory.value] || []
-}
+const getHistoryByDate = (date: string) => groupedHistory.value[date as keyof typeof groupedHistory.value] || []
+
+onMounted(() => {
+  loadHistorySessions()
+})
 </script>
+
 <style scoped>
-/* ========== 整体布局 ========== */
 .chat-container-wrapper {
   display: flex;
   height: 100%;
   gap: var(--spacing-base);
-  background-color: var(--bg-secondary);
   padding: var(--spacing-base);
 }
 
-/* ========== 左侧边栏 ========== */
 .sidebar {
   width: 280px;
-  background-color: var(--bg-main);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-light);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border: 1px solid #e7edf3;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 6px 18px rgba(25, 36, 52, 0.05);
 }
 
 .sidebar-header {
   padding: var(--spacing-lg) var(--spacing-base);
-  border-bottom: 1px solid var(--border-light);
-  background-color: var(--bg-main);
+  border-bottom: 1px solid #e7edf3;
+  background-color: #fbfcfd;
 }
 
 .sidebar-header .h3 {
   margin-bottom: var(--spacing-xs);
-  color: var(--text-main);
+  color: #223042;
+}
+
+.sidebar-header .text-tip,
+.chat-header .text-sm,
+.date-label,
+.history-time,
+.message-time,
+.action-icon,
+.send-icon {
+  color: #7d8a97;
 }
 
 .sidebar-content {
   flex: 1;
   overflow-y: auto;
   padding: var(--spacing-sm);
+  background-color: transparent;
   scrollbar-width: none;
 }
 
-/* 日期分组 */
+.history-state {
+  padding: var(--spacing-lg);
+  color: #6f7c8b;
+  font-size: var(--font-sm);
+}
+
+.history-state.empty {
+  text-align: center;
+  color: #7e8b98;
+}
+
 .date-group {
   margin-bottom: var(--spacing-base);
 }
 
 .date-label {
   font-size: var(--font-xs);
-  color: var(--text-tertiary);
   font-weight: 600;
   padding: var(--spacing-xs) var(--spacing-sm);
   margin-bottom: var(--spacing-xs);
@@ -400,31 +594,32 @@ const getHistoryByDate = (date: string) => {
   letter-spacing: 0.5px;
 }
 
-/* 历史记录列表 */
 .history-list {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xs);
+  gap: 10px;
 }
 
 .history-item {
   padding: var(--spacing-sm);
-  background-color: var(--bg-main);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-base);
+  background-color: #ffffff;
+  border: 1px solid #e4eaf1;
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(25, 36, 52, 0.04);
 }
 
 .history-item:hover {
-  background-color: var(--bg-hover);
-  border-color: var(--primary-light);
-  box-shadow: var(--shadow-light);
+  transform: translateY(-1px);
+  background-color: #f5f8fb;
+  border-color: #d9e3ee;
+  box-shadow: 0 2px 8px rgba(25, 36, 52, 0.05);
 }
 
 .history-question {
   font-size: var(--font-sm);
-  color: var(--text-main);
+  color: #243244;
   margin-bottom: var(--spacing-xs);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -434,49 +629,41 @@ const getHistoryByDate = (date: string) => {
   line-height: 1.4;
 }
 
-.history-time {
-  font-size: var(--font-xs);
-  color: var(--text-tertiary);
-}
-
-/* ========== 右侧主内容区 ========== */
 .chat-main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background-color: var(--bg-main);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-light);
   overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid #e7edf3;
+  box-shadow: 0 6px 18px rgba(25, 36, 52, 0.05);
 }
 
-/* 顶部标题 */
 .chat-header {
   padding: var(--spacing-lg) var(--spacing-xl);
-  border-bottom: 1px solid var(--border-light);
-  background-color: var(--bg-main);
+  border-bottom: 1px solid #e7edf3;
+  background-color: #fbfcfd;
 }
 
 .chat-header .h2 {
   margin-bottom: var(--spacing-xs);
-  color: var(--text-main);
+  color: #223042;
 }
 
-/* 聊天内容区 */
 .chat-body {
   flex: 1;
   overflow-y: auto;
   padding: var(--spacing-xl);
-  background-color: var(--bg-secondary);
+  background-color: transparent;
 }
 
 .chat-body.is-empty {
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba(244, 246, 248, 0.2), rgba(244, 246, 248, 0));
 }
 
-/* ========== 欢迎页 ========== */
 .welcome-container {
   width: 100%;
   max-width: 600px;
@@ -484,8 +671,8 @@ const getHistoryByDate = (date: string) => {
 }
 
 .welcome-content .h1 {
-  color: var(--text-main);
   margin-bottom: var(--spacing-sm);
+  color: #223042;
 }
 
 .suggested-questions {
@@ -501,27 +688,28 @@ const getHistoryByDate = (date: string) => {
 
 .question-item {
   padding: var(--spacing-base);
-  background-color: var(--bg-main);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-base);
-  color: var(--text-secondary);
+  border: 1px solid #e4eaf1;
+  border-radius: 12px;
+  background-color: #ffffff;
+  color: #4b5a6b;
   font-size: var(--font-sm);
   cursor: pointer;
   transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(25, 36, 52, 0.04);
 }
 
 .question-item:hover {
-  background-color: var(--primary-light);
-  border-color: var(--primary);
-  color: var(--primary);
-  box-shadow: var(--shadow-light);
+  transform: translateY(-1px);
+  background-color: #f5f8fb;
+  border-color: #d9e3ee;
+  box-shadow: 0 2px 8px rgba(25, 36, 52, 0.05);
+  color: #2f4259;
 }
 
-/* ========== 消息列表 ========== */
 .message-list {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
+  gap: 14px;
 }
 
 .message-wrapper {
@@ -530,29 +718,24 @@ const getHistoryByDate = (date: string) => {
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* 用户消息 */
 .user-message {
   justify-content: flex-end;
+}
+
+.ai-message {
+  justify-content: flex-start;
 }
 
 .user-bubble {
   max-width: 70%;
   padding: var(--spacing-base) var(--spacing-lg);
-  background-color: var(--primary);
-  color: var(--text-white);
   border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
-  box-shadow: var(--shadow-light);
+  background-color:white;
+  box-shadow: 0 4px 12px rgba(47, 70, 104, 0.18);
 }
 
 .user-bubble p {
@@ -560,51 +743,99 @@ const getHistoryByDate = (date: string) => {
   line-height: 1.6;
 }
 
-/* AI 消息 */
-.ai-message {
-  justify-content: flex-start;
-}
-
 .ai-bubble {
   max-width: 80%;
   padding: var(--spacing-lg);
-  background-color: var(--bg-main);
-  border: 1px solid var(--border-light);
+  border: 1px solid #e4eaf1;
   border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-sm);
-  box-shadow: var(--shadow-base);
+  background-color: #ffffff;
+  box-shadow: 0 1px 6px rgba(25, 36, 52, 0.03);
 }
 
-/* 搜索关键词 */
 .search-keywords {
   display: flex;
   align-items: center;
-  padding: var(--spacing-sm) var(--spacing-base);
-  background-color: var(--bg-hover);
-  border-radius: var(--radius-base);
   margin-bottom: var(--spacing-base);
+  padding: var(--spacing-sm) var(--spacing-base);
+  border: 1px solid #dfe6ee;
+  border-radius: var(--radius-base);
+  background-color: #eef3f8;
+  color: #516173;
   font-size: var(--font-sm);
-  color: var(--text-secondary);
 }
 
 .keywords {
-  color: var(--primary);
+  color: #4f6b8a;
   font-weight: 500;
 }
 
-/* 回答内容 */
-.answer-content {
+.reasoning-content {
   margin-bottom: var(--spacing-base);
-  line-height: 1.8;
-  color: var(--text-main);
-  font-size: var(--font-base);
+  padding: var(--spacing-base);
+  border-radius: var(--radius-base);
+  background: linear-gradient(180deg, #f7faff 0%, #f3f7fb 100%);
+  border: 1px solid #dce7f2;
 }
 
-/* 参考来源 */
-.references {
-  padding: var(--spacing-base);
-  background-color: var(--bg-secondary);
-  border-radius: var(--radius-base);
+.reasoning-label {
+  margin-bottom: var(--spacing-xs);
+  font-weight: 600;
+  color: #4f6b8a;
+}
+
+.reasoning-text {
+  color: #516173;
+  font-size: var(--font-sm);
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.answer-content {
   margin-bottom: var(--spacing-base);
+  color: #2a3746;
+  font-size: var(--font-base);
+  line-height: 1.8;
+}
+
+.references {
+  margin-bottom: var(--spacing-base);
+  padding: var(--spacing-base);
+  border-radius: var(--radius-base);
+  background-color: #f6f8fb;
+  color: #516173;
+}
+
+.reference-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.reference-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.reference-dialog-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #223042;
+}
+
+.reference-dialog-subtitle {
+  margin-top: 4px;
+  color: #7d8a97;
+  font-size: var(--font-sm);
+}
+
+.reference-dialog-meta,
+.reference-dialog-snippet {
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fbfcfe;
 }
 
 .reference-list {
@@ -617,42 +848,54 @@ const getHistoryByDate = (date: string) => {
   font-size: var(--font-sm);
 }
 
-.reference-item a {
-  color: var(--primary);
-  text-decoration: none;
-  transition: color 0.2s ease;
+.reference-pill {
+  border: 1px solid #cfd9e4;
+  background: #fff;
+  color: #4f6b8a;
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.reference-item a:hover {
-  color: var(--primary-hover);
-  text-decoration: underline;
+.reference-pill:hover {
+  background: #f4f8fc;
+  border-color: #b7c8d8;
+  color: #385f86;
 }
 
-/* 消息操作按钮 */
+.reference-meta {
+  margin-top: 6px;
+  color: #7d8a97;
+  font-size: var(--font-xs);
+}
+
 .message-actions {
   display: flex;
   align-items: center;
   gap: var(--spacing-base);
   padding-top: var(--spacing-sm);
-  border-top: 1px solid var(--border-light);
+  border-top: 1px solid #e7edf3;
 }
 
 .action-icon {
-  color: var(--text-tertiary);
   cursor: pointer;
   transition: color 0.2s ease;
 }
 
-.action-icon:hover {
-  color: var(--primary);
+.action-icon:hover,
+.send-icon:hover {
+  color: #365473;
 }
 
+.message-time {
+  color: #7d8a97;
+}
 
-/* ========== 底部输入框 ========== */
 .chat-footer {
   padding: var(--spacing-lg) var(--spacing-xl);
-  border-top: 1px solid var(--border-light);
-  background-color: var(--bg-main);
+  border-top: 1px solid #e7edf3;
+  background-color: #fbfcfd;
 }
 
 .input-container {
@@ -666,13 +909,29 @@ const getHistoryByDate = (date: string) => {
 }
 
 .send-icon {
-  color: var(--primary);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .send-icon:hover {
-  color: var(--primary-hover);
-  transform: scale(1.1);
+  transform: scale(1.08);
+}
+
+.chat-input-field :deep(.el-input__wrapper) {
+  background-color: #ffffff;
+  box-shadow: inset 0 0 0 1px #e3e9f0;
+}
+
+.chat-input-field :deep(.el-input__wrapper:hover),
+.chat-input-field :deep(.el-input__wrapper.is-focus) {
+  box-shadow: inset 0 0 0 1px #cdd9e4;
+}
+
+.chat-input-field :deep(.el-input__inner) {
+  color: #223042;
+}
+
+.chat-input-field :deep(.el-input__inner::placeholder) {
+  color: #99a6b3;
 }
 </style>

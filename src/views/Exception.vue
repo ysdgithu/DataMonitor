@@ -1,211 +1,246 @@
 <template>
   <main-layout>
-    <!-- 筛选区 -->
-    <div class="filter-section background">
-      <h3 class="title">异常规则管理</h3>
-      <div style="display: flex; justify-content: space-between;">
-        <ul class="filter-list">
-          <li v-for="item in deviceOptions" :key="item.value" class="filter-item">
-            <el-icon>
-              <Filter />
-            </el-icon>
-            <p>{{ item.label }}</p>
-          </li>
-        </ul>
-        <el-button type="primary">新增</el-button>
+    <div class="exception-page">
+      <div class="page-header">
+        <div>
+          <h2 class="page-title">告警规则管理</h2>
+          <p class="page-desc">管理员可在此页面修改阈值、持续时间和告警等级，当前仅支持编辑已有规则。</p>
+        </div>
+        <el-button type="primary" :loading="loading" @click="loadRules">刷新规则</el-button>
       </div>
-      <search-input :placeholder="'搜索规则名称'" />
-    </div>
-    <!-- 规则总表 -->
-    <div class="background exception-table">
-      <DataTable :data="exceptionList" :columns="columns" />
-    </div>
 
+      <el-card class="rule-card" shadow="never">
+        <el-table :data="filteredRules" v-loading="loading" border stripe>
+          <el-table-column prop="rule_name" label="规则名称" min-width="160" />
+          <el-table-column prop="device_type" label="设备类型" width="140" />
+          <el-table-column prop="params" label="监控参数" min-width="180" />
+          <el-table-column label="阈值范围" min-width="170">
+            <template #default="{ row }">
+              {{ formatThreshold(row.threshold_min, row.threshold_max) }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="duration" label="持续时间(s)" width="120" />
+          <el-table-column prop="count" label="连续次数" width="100" />
+          <el-table-column label="告警等级" width="100">
+            <template #default="{ row }">
+              {{ formatLevel(row.alarm_level) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="90">
+            <template #default="{ row }">
+              <el-tag :type="row.status === 1 ? 'success' : 'info'" effect="light">
+                {{ row.status === 1 ? '启用' : '禁用' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="120" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" @click="openEditDialog(row)">修改</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-card>
+
+      <el-dialog v-model="dialogVisible" title="修改告警规则" width="720px">
+        <el-form ref="formRef" :model="form" :rules="formRules" label-width="120px">
+          <el-form-item label="规则名称" prop="rule_name">
+            <el-input v-model="form.rule_name" placeholder="请输入规则名称" />
+          </el-form-item>
+          <el-form-item label="设备类型" prop="device_type">
+            <el-select v-model="form.device_type" style="width: 100%">
+              <el-option label="调配罐" value="调配罐" />
+              <el-option label="灌装机" value="灌装机" />
+              <el-option label="封盖机" value="封盖机" />
+              <el-option label="贴标机" value="贴标机" />
+              <el-option label="洗瓶机" value="洗瓶机" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="监控参数" prop="params">
+            <el-input v-model="form.params" placeholder="多个参数用英文逗号分隔" />
+          </el-form-item>
+          <el-form-item label="阈值下限">
+            <el-input-number v-model="form.threshold_min" :precision="2" :step="0.1" style="width: 100%" />
+          </el-form-item>
+          <el-form-item label="阈值上限">
+            <el-input-number v-model="form.threshold_max" :precision="2" :step="0.1" style="width: 100%" />
+          </el-form-item>
+          <el-form-item label="持续时间(秒)">
+            <el-input-number v-model="form.duration" :min="0" :step="1" style="width: 100%" />
+          </el-form-item>
+          <el-form-item label="连续触发次数">
+            <el-input-number v-model="form.count" :min="0" :step="1" style="width: 100%" />
+          </el-form-item>
+          <el-form-item label="告警等级" prop="alarm_level">
+            <el-radio-group v-model="form.alarm_level">
+              <el-radio :value="1">一般</el-radio>
+              <el-radio :value="2">重要</el-radio>
+              <el-radio :value="3">紧急</el-radio>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item label="处置建议">
+            <el-input v-model="form.handle_suggest" type="textarea" :rows="4" placeholder="请输入处置建议" />
+          </el-form-item>
+          <el-form-item label="状态">
+            <el-switch v-model="form.status" :active-value="1" :inactive-value="0" />
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="dialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="saving" @click="submit">保存</el-button>
+        </template>
+      </el-dialog>
+    </div>
   </main-layout>
 </template>
 
 <script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
+import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import MainLayout from '../components/layout/MainLayout.vue'
-import DataTable from '../components/common/DataTable/index.vue'
-import type { Column } from '../components/common/DataTable/types'
-import { Filter, MilkTea, Search } from '@element-plus/icons-vue'
-import { ref, h } from 'vue'
-// 规则总表数据
-const exceptionList = ref<ExceptionRule[]>([
-  {
-    name: '温度偏离规则',
-    device: 'mixer', //调配罐
-    condition: '温度偏离设定值±2℃持续5分钟',
-    parameter: 'temperature',
-    conditionType: 'duration',
-    conditionValue: '±2℃',
-    duration: '5分钟',
-    triggerCondition: '> 设定值+2℃ 或 < 设定值-2℃'
-  },
-  {
-    name: '液位异常规则',
-    device: 'mixer', //调配罐
-    condition: '液位在"应进料"时段无变化（泵故障）',
-    parameter: 'level',
-    conditionType: 'duration',
-    conditionValue: '无变化',
-    duration: '应进料时段',
-    triggerCondition: '液位变化率 = 0'
-  },
-  {
-    name: '灌装精度规则',
-    device: 'filler', //灌装机
-    condition: '连续10瓶灌装量误差超过±5ml',
-    parameter: 'fill_accuracy',
-    conditionType: 'count',
-    conditionValue: '±5ml',
-    count: '10瓶',
-    triggerCondition: '灌装量误差 > 5ml 或 < -5ml'
-  },
-  {
-    name: '灌装速度规则',
-    device: 'filler', //灌装机
-    condition: '灌装速度低于额定值80%持续1分钟',
-    parameter: 'fill_speed',
-    conditionType: 'duration',
-    conditionValue: '80%',
-    duration: '1分钟',
-    triggerCondition: '实际速度 < 额定速度 × 80%'
-  },
-  {
-    name: '旋盖扭矩规则',
-    device: 'capper', //封盖机
-    condition: '旋盖扭矩低于下限（漏液风险）或高于上限（损坏瓶口）',
-    parameter: 'torque',
-    conditionType: 'threshold',
-    conditionValue: '下限/上限',
-    triggerCondition: '扭矩 < 1.5N·m 或 > 2.2N·m'
-  },
-  {
-    name: '缺盖报警规则',
-    device: 'capper', //封盖机
-    condition: '单位时间缺盖报警次数超标',
-    parameter: 'cap_missing',
-    conditionType: 'count',
-    conditionValue: '超标',
-    count: '单位时间内',
-    triggerCondition: '缺盖报警次数 > 5次/分钟'
-  },
-  {
-    name: '贴标位置规则',
-    device: 'labeler', //贴标机
-    condition: '贴标位置偏移连续报警',
-    parameter: 'error_rate',
-    conditionType: 'count',
-    conditionValue: '偏移',
-    count: '连续',
-    triggerCondition: '贴偏率 > 2%'
-  },
-  {
-    name: '标签余量规则',
-    device: 'labeler', //贴标机
-    condition: '标签余量低于10%',
-    parameter: 'label_remain',
-    conditionType: 'threshold',
-    conditionValue: '10%',
-    triggerCondition: '标签余量 < 10%'
-  },
-  {
-    name: '抓取失败规则',
-    device: 'packer', //包装机
-    condition: '抓取失败次数在10分钟内超过3次',
-    parameter: 'grab_success',
-    conditionType: 'count',
-    conditionValue: '3次',
-    duration: '10分钟',
-    triggerCondition: '抓取失败率 > 5%'
-  },
-  {
-    name: '栈板库存规则',
-    device: 'packer', //包装机
-    condition: '栈板库存低于安全库存',
-    parameter: 'pallet_remain',
-    conditionType: 'threshold',
-    conditionValue: '安全库存',
-    triggerCondition: '栈板余量 < 安全库存阈值'
-  }
-]);
-// 异常规则类型定义
-interface ExceptionRule {
-  name: string
-  device: string
-  condition: string
-  parameter: string
-  conditionType?: string
-  conditionValue?: string
-  duration?: string
-  count?: string
-  triggerCondition: string
+import { getAlarmRules, updateAlarmRule, type AlarmRule } from '../utils/alarmRuleApi'
+
+const loading = ref(false)
+const saving = ref(false)
+const dialogVisible = ref(false)
+const rules = ref<AlarmRule[]>([])
+const currentRuleId = ref<number | null>(null)
+const formRef = ref<FormInstance>()
+
+const form = reactive({
+  rule_name: '',
+  device_type: '',
+  params: '',
+  threshold_min: null as number | null,
+  threshold_max: null as number | null,
+  duration: 0,
+  count: 0,
+  alarm_level: 1,
+  handle_suggest: '',
+  status: 1
+})
+
+const formRules: FormRules = {
+  rule_name: [{ required: true, message: '请输入规则名称', trigger: 'blur' }],
+  device_type: [{ required: true, message: '请选择设备类型', trigger: 'change' }],
+  params: [{ required: true, message: '请输入监控参数', trigger: 'blur' }],
+  alarm_level: [{ required: true, message: '请选择告警等级', trigger: 'change' }]
 }
 
-// 表格列配置
-const columns: Column[] = [
-  {
-    prop: 'name',
-    label: '规则名称',
-    width: 180,
-    customRender: ({ row }: any) => h('div', [
-      h('p', { style: 'font-weight: 600;' }, row.name),
-      h('p', { style: 'color: var(--text-tertiary); font-size: 12px;' }, row.device)
-    ])
-  },
-  {
-    prop: 'condition',
-    label: '规则条件',
-    customRender: ({ row }: any) => h('div', [
-      h('p', row.condition),
-      h('p', { style: 'color: var(--text-tertiary); font-size: 12px;' }, `监控参数：${row.parameter} | 触发条件：${row.triggerCondition}`)
-    ])
-  },
-  {
-    prop: 'actions',
-    label: '操作',
-    width: 200,
-    isActions: true,
-    actions: [
-      { label: '编辑', type: 'primary', onClick: (row: ExceptionRule) => console.log('编辑', row) },
-      { label: '删除', type: 'danger', onClick: (row: ExceptionRule) => console.log('删除', row) }
-    ]
-  }
-]
+const filteredRules = computed(() => rules.value)
 
-// 设备配置项
-const deviceOptions = [
-  { label: '全部设备', value: 'mixer', icon: 'MilkTea' },
-  { label: '调配罐', value: 'mixer', icon: 'MilkTea' },
-  { label: '灌装机', value: 'filler', icon: 'MilkTea' },
-  { label: '封盖机', value: 'capper', icon: 'MilkTea' },
-  { label: '贴标机', value: 'labeler', icon: 'MilkTea' },
-  { label: '包装机', value: 'packer', icon: 'MilkTea' }
-]
+const formatThreshold = (min: number | null, max: number | null) => {
+  if (min === null && max === null) return '-'
+  if (min === null) return `≤ ${max}`
+  if (max === null) return `≥ ${min}`
+  return `${min} ~ ${max}`
+}
+
+const formatLevel = (level: number) => {
+  const map: Record<number, string> = {
+    1: '一般',
+    2: '重要',
+    3: '紧急'
+  }
+  return map[level] || String(level)
+}
+
+const loadRules = async () => {
+  loading.value = true
+  try {
+    const res: any = await getAlarmRules()
+    if (res?.success) {
+      rules.value = res.data || []
+    } else {
+      ElMessage.error(res?.message || '获取告警规则失败')
+    }
+  } catch (error: any) {
+    console.error('获取告警规则失败:', error)
+    ElMessage.error(error.message || '获取告警规则失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+const openEditDialog = (row: AlarmRule) => {
+  currentRuleId.value = row.id
+  form.rule_name = row.rule_name
+  form.device_type = row.device_type
+  form.params = row.params
+  form.threshold_min = row.threshold_min
+  form.threshold_max = row.threshold_max
+  form.duration = row.duration || 0
+  form.count = row.count || 0
+  form.alarm_level = row.alarm_level
+  form.handle_suggest = row.handle_suggest || ''
+  form.status = row.status
+  dialogVisible.value = true
+}
+
+const submit = async () => {
+  if (!formRef.value || currentRuleId.value === null) return
+
+  await formRef.value.validate(async (valid) => {
+    if (!valid) return
+
+    saving.value = true
+    try {
+      const payload = {
+        ...form,
+        handle_suggest: form.handle_suggest || null
+      }
+      const res: any = await updateAlarmRule(currentRuleId.value as number, payload)
+      if (res?.success) {
+        ElMessage.success('规则更新成功')
+        dialogVisible.value = false
+        await loadRules()
+      } else {
+        ElMessage.error(res?.message || '规则更新失败')
+      }
+    } catch (error: any) {
+      console.error('更新规则失败:', error)
+      ElMessage.error(error.message || '规则更新失败')
+    } finally {
+      saving.value = false
+    }
+  })
+}
+
+onMounted(() => {
+  loadRules()
+})
 </script>
 
 <style scoped>
-.filter-section {
-  height: 150px;
-
+.exception-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.filter-list {
+.page-header {
   display: flex;
-  margin-bottom: var(--spacing-sm);
-  padding: 0px;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
 }
 
-.filter-item {
-  display: flex;
-  gap: var(--spacing-xs);
-  height: 40px;
-  margin-right: var(--spacing-xs);
-  padding: var(--spacing-sm);
-  border: 1px solid var(--border-light);
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-base);
+.page-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #182235;
+}
+
+.page-desc {
+  margin: 8px 0 0;
+  color: #5d6b82;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.rule-card {
+  border: 0;
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(31, 45, 61, 0.08);
 }
 </style>

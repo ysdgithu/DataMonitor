@@ -44,6 +44,7 @@ export const useAuthStore = defineStore('auth', () => {
   }))
 
   const isAdmin = computed(() => user.value?.role === 'admin')
+  const isUser = computed(() => user.value?.role === 'user')
 
   // ============ 方法 ============
 
@@ -193,6 +194,7 @@ export const useAuthStore = defineStore('auth', () => {
     // 计算属性
     authState,
     isAdmin,
+    isUser,
 
     // 方法
     initializeAuth,

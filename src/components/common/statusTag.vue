@@ -39,8 +39,7 @@ const props = withDefaults(defineProps<Props>(), {
 const statusMap: Record<string, { type: StatusTagType; text: string }> = {
   '0': { type: 'primary', text: '进行中' },
   '1': { type: 'success', text: '已完成' },
-  '2': { type: 'danger', text: '失败' },
-  '4': { type: 'info', text: '待执行' }
+  '2': { type: 'danger', text: '失败' }
 }
 
 // 优先级映射配置

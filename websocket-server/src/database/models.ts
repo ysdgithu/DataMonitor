@@ -54,6 +54,24 @@ interface QueryParams {
     offset?: number;
 }
 
+interface AlarmRuleRecord {
+    id: number;
+    rule_name: string;
+    device_type: string;
+    params: string;
+    threshold_max: number | null;
+    threshold_min: number | null;
+    duration: number;
+    count: number;
+    alarm_level: number;
+    handle_suggest: string | null;
+    status: number;
+    create_user: number;
+    create_time: string;
+    update_time: string;
+    is_deleted: number;
+}
+
 class DataModel {
     private db: DatabaseConnection;
 
@@ -278,6 +296,65 @@ class DataModel {
         } catch (e) {
             return row;
         }
+    }
+
+    // ==================== 告警规则管理方法 ====================
+
+    // 查询告警规则列表
+    async queryAlarmRules(): Promise<AlarmRuleRecord[]> {
+        const sql = `
+            SELECT *
+            FROM alarm_rule
+            WHERE is_deleted = 0
+            ORDER BY update_time DESC, id DESC
+        `;
+        return await this.db.all(sql, []);
+    }
+
+    // 根据ID查询告警规则详情
+    async getAlarmRuleById(id: number): Promise<AlarmRuleRecord | null> {
+        const sql = 'SELECT * FROM alarm_rule WHERE id = ? AND is_deleted = 0';
+        return await this.db.get(sql, [id]);
+    }
+
+    // 更新告警规则（仅支持修改）
+    async updateAlarmRule(id: number, updates: {
+        rule_name?: string;
+        device_type?: string;
+        params?: string;
+        threshold_max?: number | null;
+        threshold_min?: number | null;
+        duration?: number;
+        count?: number;
+        alarm_level?: number;
+        handle_suggest?: string | null;
+        status?: number;
+    }): Promise<void> {
+        const updateFields: string[] = [];
+        const params: any[] = [];
+
+        const append = (field: string, value: any) => {
+            updateFields.push(`${field} = ?`);
+            params.push(value);
+        };
+
+        if (updates.rule_name !== undefined) append('rule_name', updates.rule_name);
+        if (updates.device_type !== undefined) append('device_type', updates.device_type);
+        if (updates.params !== undefined) append('params', updates.params);
+        if (updates.threshold_max !== undefined) append('threshold_max', updates.threshold_max);
+        if (updates.threshold_min !== undefined) append('threshold_min', updates.threshold_min);
+        if (updates.duration !== undefined) append('duration', updates.duration);
+        if (updates.count !== undefined) append('count', updates.count);
+        if (updates.alarm_level !== undefined) append('alarm_level', updates.alarm_level);
+        if (updates.handle_suggest !== undefined) append('handle_suggest', updates.handle_suggest);
+        if (updates.status !== undefined) append('status', updates.status);
+
+        if (updateFields.length === 0) return;
+
+        updateFields.push('update_time = CURRENT_TIMESTAMP');
+        const sql = `UPDATE alarm_rule SET ${updateFields.join(', ')} WHERE id = ? AND is_deleted = 0`;
+        params.push(id);
+        await this.db.run(sql, params);
     }
 
     // ==================== 诊断任务管理方法 ====================

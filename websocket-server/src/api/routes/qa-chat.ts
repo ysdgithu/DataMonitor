@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { authMiddleware } from '../middleware';
+import { authMiddleware, roleMiddleware } from '../middleware';
 import ragflowClient from '../../services/ragflow-client';
 
 const router = Router();
@@ -11,7 +11,7 @@ const router = Router();
  * Body: { question: string }
  * Response: SSE 流 (text/event-stream)
  */
-router.post('/', authMiddleware, async (req: Request, res: Response) => {
+router.post('/', authMiddleware, roleMiddleware(['admin', 'user']), async (req: Request, res: Response) => {
     try {
         const { question } = req.body;
 
@@ -29,10 +29,17 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
         console.log('[QA 问答] 收到请求:', { question: cleanQuestion });
         console.log('[QA 问答] 使用的 chatId:', qaChatId);
 
+        const sessionId = await ragflowClient.createSession(qaChatId);
+        console.log('[QA 问答] 创建的新 sessionId:', sessionId);
+
         let fullAnswer = '';
 
         await ragflowClient.streamChat(cleanQuestion, res, {
             chatId: qaChatId,
+            sessionId,
+            messages: [{ role: 'user', content: cleanQuestion }],
+            reference: true,
+            referenceMetadata: true,
             onChunk: (chunk: string) => {
                 fullAnswer += chunk;
             }

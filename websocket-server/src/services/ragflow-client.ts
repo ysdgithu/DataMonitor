@@ -10,6 +10,20 @@ interface RagflowConfig {
     qaChatId: string;
 }
 
+interface OpenAIChatMessage {
+    role: 'system' | 'user' | 'assistant';
+    content: string;
+}
+
+interface StreamOptions {
+    onChunk?: (chunk: string) => void;
+    chatId?: string;
+    sessionId?: string;
+    messages?: OpenAIChatMessage[];
+    reference?: boolean;
+    referenceMetadata?: boolean;
+}
+
 function loadConfig(): RagflowConfig {
     const configPath = path.join(__dirname, '../../config.json');
     const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
@@ -27,7 +41,7 @@ class RagflowClient {
             timeout: 60000,
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.config.apiKey}`
+                Authorization: `Bearer ${this.config.apiKey}`
             }
         });
     }
@@ -40,42 +54,72 @@ class RagflowClient {
         return this.config.qaChatId;
     }
 
-    /**
-     * 流式对话：将 RAGFlow 的 SSE 流直接透传给 Express Response
-     * @param question 用户问题
-     * @param res Express Response 对象
-     * @param options 可选配置，onChunk 用于收集完整内容
-     */
-    async streamChat(
-        question: string,
-        res: Response,
-        options?: { onChunk?: (chunk: string) => void; chatId?: string }
-    ): Promise<void> {
+    async createSession(chatId: string): Promise<string> {
+        const url = `/api/v1/chats/${chatId}/sessions`;
+        const response = await this.client.post(url, {});
+        const sessionId = response.data?.data?.id || response.data?.data?.session_id || response.data?.session_id;
+        if (!sessionId) {
+            throw new Error('RAGFlow 未返回有效 sessionId');
+        }
+        return String(sessionId);
+    }
+
+    async listSessions(chatId: string, params?: { page?: number; pageSize?: number }): Promise<any[]> {
+        const url = `/api/v1/chats/${chatId}/sessions`;
+        const response = await this.client.get(url, {
+            params: {
+                page: params?.page,
+                page_size: params?.pageSize
+            }
+        });
+
+        const rawData = response.data?.data ?? response.data;
+        if (Array.isArray(rawData)) return rawData;
+        if (Array.isArray(rawData?.list)) return rawData.list;
+        if (Array.isArray(rawData?.items)) return rawData.items;
+        return [];
+    }
+
+    async streamChat(question: string, res: Response, options?: StreamOptions): Promise<void> {
         const chatId = options?.chatId || this.config.qaChatId;
-        const url = `/api/v1/chats/${chatId}/completions`;
+        const url = `/api/v1/chats_openai/${chatId}/chat/completions`;
 
         try {
-            const response = await this.client.post(url, {
-                question,
-                stream: true
-            }, {
+            const messages: OpenAIChatMessage[] = options?.messages?.length
+                ? options.messages
+                : [{ role: 'user', content: question }];
+
+            const requestBody: Record<string, any> = {
+                model: 'model',
+                messages,
+                stream: true,
+                extra_body: {
+                    reference: options?.reference ?? true,
+                    reference_metadata: {
+                        include: options?.referenceMetadata ?? true
+                    }
+                }
+            };
+
+            if (options?.sessionId) {
+                requestBody.extra_body.session_id = options.sessionId;
+            }
+
+            const response = await this.client.post(url, requestBody, {
                 responseType: 'stream'
             });
 
-            // 设置 SSE 响应头
             res.setHeader('Content-Type', 'text/event-stream');
             res.setHeader('Cache-Control', 'no-cache');
             res.setHeader('Connection', 'keep-alive');
             res.setHeader('X-Accel-Buffering', 'no');
             res.status(200);
-
-            // 显式发送 HTTP 响应头（防止 Express 自动处理）
             res.flushHeaders();
 
             const stream = response.data as NodeJS.ReadableStream;
             let buffer = '';
+            let lastReferences: any = null;
 
-            // 返回 Promise，等待流真正结束
             return new Promise<void>((resolve, reject) => {
                 stream.on('data', (chunk: Buffer) => {
                     buffer += chunk.toString('utf-8');
@@ -91,22 +135,50 @@ class RagflowClient {
 
                         try {
                             const parsed = JSON.parse(jsonStr);
-                            // RAGFlow 格式: { code: 0, data: { answer: '...' } }
-                            const answer = parsed?.data?.answer;
-                            if (answer !== undefined && answer !== null) {
-                                // 将提取出的纯文本 answer 重新包装为 SSE 格式返回给前端
-                                const payload = JSON.stringify({ content: answer });
-                                res.write(`data: ${payload}\n\n`);
-                                // 回调收集完整内容（用于后端存储）
-                                options?.onChunk?.(answer);
+                            const choice = parsed?.choices?.[0] ?? {};
+                            const delta = choice?.delta;
+                            const message = choice?.message;
+                            const content = delta?.content ?? message?.content;
+                            const reasoningContent = delta?.reasoning_content ?? message?.reasoning_content;
+                            const references =
+                                delta?.reference ?? delta?.references ??
+                                message?.reference ?? message?.references ??
+                                parsed?.references ?? parsed?.data?.references ?? parsed?.data?.reference;
+                            const usage = parsed?.usage;
+
+                            const payload: Record<string, any> = {};
+
+                            if (content !== undefined && content !== null) {
+                                payload.content = content;
+                                options?.onChunk?.(String(content));
                             }
-                        } catch (e) {
+
+                            if (reasoningContent) {
+                                payload.reasoningContent = reasoningContent;
+                            }
+
+                            if (references) {
+                                lastReferences = references;
+                                payload.references = references;
+                            }
+
+                            if (usage) {
+                                payload.usage = usage;
+                            }
+
+                            if (Object.keys(payload).length > 0) {
+                                res.write(`data: ${JSON.stringify(payload)}\n\n`);
+                            }
+                        } catch {
                             // 忽略非 JSON 行
                         }
                     }
                 });
 
                 stream.on('end', () => {
+                    if (lastReferences) {
+                        res.write(`data: ${JSON.stringify({ references: lastReferences })}\n\n`);
+                    }
                     res.write('data: [DONE]\n\n');
                     res.end();
                     resolve();
@@ -119,7 +191,6 @@ class RagflowClient {
                     reject(err);
                 });
             });
-
         } catch (error: any) {
             console.error('[RAGFlow] 请求失败:', error.message);
             if (!res.headersSent) {
@@ -136,19 +207,22 @@ class RagflowClient {
         }
     }
 
-    /**
-     * 非流式对话（备用）
-     * @param question 用户问题
-     */
     async chat(question: string): Promise<string> {
-        const url = `/api/v1/chats/${this.config.qaChatId}/completions`;
+        const url = `/api/v1/chats_openai/${this.config.qaChatId}/chat/completions`;
 
         const response = await this.client.post(url, {
-            question,
-            stream: false
+            model: 'model',
+            messages: [{ role: 'user', content: question }],
+            stream: false,
+            extra_body: {
+                reference: true,
+                reference_metadata: {
+                    include: true
+                }
+            }
         });
 
-        const answer = response.data?.data?.answer;
+        const answer = response.data?.choices?.[0]?.message?.content;
         if (answer === undefined || answer === null) {
             throw new Error('RAGFlow 未返回有效回答');
         }

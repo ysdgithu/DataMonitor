@@ -3,13 +3,14 @@ import express from 'express';
 import cors from 'cors';
 import { DataModel, QueryParams } from '../database/models';
 import UserModel from '../database/userModel';
-import { authMiddleware, requestLogMiddleware, errorHandler } from './middleware';
+import { authMiddleware, roleMiddleware, requestLogMiddleware, errorHandler } from './middleware';
 import { generateToken, validateUsername, validatePasswordStrength } from '../utils/auth';
 import { buildAIContext, BuildContextParams } from '../services/aiContextBuilder';
 import DatabaseConnection from '../database/connection';
 import reportRoutes from './routes/report';
 import aiAnalysisRoutes from './routes/ai-analysis';
 import qaChatRoutes from './routes/qa-chat';
+import alarmRuleRoutes from './routes/alarm-rule';
 
 const app = express();
 const PORT = process.env.API_PORT || 3002;
@@ -28,6 +29,7 @@ const db = DatabaseConnection.getInstance();
 app.use('/api/report', reportRoutes);
 app.use('/api/ai-analysis', aiAnalysisRoutes);
 app.use('/api/qa/chat', qaChatRoutes);
+app.use('/api/alarm-rules', alarmRuleRoutes);
 
 // 健康检查接口
 app.get('/api/health', (req, res) => {
@@ -374,7 +376,7 @@ app.get('/api/overview', authMiddleware, async (req, res) => {
 // ==================== 诊断任务管理接口 ====================
 
 // 获取诊断任务列表（分页）
-app.get('/api/diagnosis-tasks', authMiddleware, async (req, res) => {
+app.get('/api/diagnosis-tasks', authMiddleware, roleMiddleware(['admin', 'user']), async (req, res) => {
     try {
         const page = parseInt(req.query.page as string) || 1;
         const pageSize = parseInt(req.query.pageSize as string) || 5;
@@ -453,7 +455,7 @@ app.get('/api/diagnosis-tasks/:id', authMiddleware, async (req, res) => {
 });
 
 // 创建诊断任务
-app.post('/api/diagnosis-tasks', authMiddleware, async (req, res) => {
+app.post('/api/diagnosis-tasks', authMiddleware, roleMiddleware(['admin']), async (req, res) => {
     try {
         const { name, deviceId, priority, assignee, detail, status } = req.body;
 
@@ -493,7 +495,7 @@ app.post('/api/diagnosis-tasks', authMiddleware, async (req, res) => {
             priority,
             assignee,
             detail,
-            status
+            status: status ?? 0
         });
 
         res.json({
@@ -512,7 +514,7 @@ app.post('/api/diagnosis-tasks', authMiddleware, async (req, res) => {
 });
 
 // 更新诊断任务
-app.put('/api/diagnosis-tasks/:id', authMiddleware, async (req, res) => {
+app.put('/api/diagnosis-tasks/:id', authMiddleware, roleMiddleware(['admin']), async (req, res) => {
     try {
         const id = parseInt(req.params.id);
         if (isNaN(id)) {
@@ -581,7 +583,7 @@ app.put('/api/diagnosis-tasks/:id', authMiddleware, async (req, res) => {
 });
 
 // 删除诊断任务
-app.delete('/api/diagnosis-tasks/:id', authMiddleware, async (req, res) => {
+app.delete('/api/diagnosis-tasks/:id', authMiddleware, roleMiddleware(['admin']), async (req, res) => {
     try {
         const id = parseInt(req.params.id);
         if (isNaN(id)) {
@@ -621,7 +623,7 @@ app.delete('/api/diagnosis-tasks/:id', authMiddleware, async (req, res) => {
 });
 
 // 获取诊断任务统计信息
-app.get('/api/diagnosis-tasks-stats', authMiddleware, async (req, res) => {
+app.get('/api/diagnosis-tasks-stats', authMiddleware, roleMiddleware(['admin', 'user']), async (req, res) => {
     try {
         const stats = await dataModel.getDiagnosisTaskStats();
 

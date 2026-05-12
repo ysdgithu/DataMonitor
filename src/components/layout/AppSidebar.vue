@@ -9,13 +9,13 @@
     </div>
 
     <el-menu :default-active="activeMenu" class="sidebar-menu" @select="handleMenuSelect">
-      <el-menu-item v-for="item in menuItems.filter(i => !i.children)" :key="item.index" :index="item.route">
+      <el-menu-item v-for="item in visibleMenuItems.filter(i => !i.children)" :key="item.index" :index="item.route">
         <el-icon>
           <component :is="item.icon" />
         </el-icon>
         <span>{{ item.label }}</span>
       </el-menu-item>
-      <el-sub-menu v-for="item in menuItems.filter(i => i.children)" :key="item.index"
+      <el-sub-menu v-for="item in visibleMenuItems.filter(i => i.children)" :key="item.index"
         :index="item.route || String(item.index)">
         <template #title>
           <el-icon>
@@ -35,39 +35,23 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { Odometer, DataAnalysis, Document, ChatLineRound, User } from '@element-plus/icons-vue'
+import { useAuthStore } from '../../stores/auth'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 const menuItems = [
-  {
-    index: 0,
-    label: '监控大屏',
-    icon: Odometer,
-    route: '/'
-  },
-  {
-    index: 1,
-    label: '历史数据',
-    icon: DataAnalysis,
-    route: '/history'
-  },
-  {
-    index: 2,
-    label: '诊断任务',
-    icon: Document,
-    route: '/diagnosis'
-  },
-  {
-    index: 3,
-    label: '智能问答',
-    icon: ChatLineRound,
-    route: '/chatqa'
-  },
+  { index: 0, label: '监控大屏', icon: Odometer, route: '/' },
+  { index: 1, label: '历史数据', icon: DataAnalysis, route: '/history' },
+  { index: 2, label: '诊断任务', icon: Document, route: '/diagnosis' },
+  { index: 3, label: '智能问答', icon: ChatLineRound, route: '/chatqa' },
   {
     index: 4,
     label: '用户管理',
     icon: User,
     route: null,
+    roles: ['admin'],
     children: [
       { label: '权限管理', route: '/permission' },
       { label: '异常规则', route: '/exception' },
@@ -75,14 +59,31 @@ const menuItems = [
     ]
   },
 ]
-//路由跳转
+
+const visibleMenuItems = computed(() => {
+  const role = authStore.user?.role || 'user'
+  return menuItems
+    .map(item => {
+      if (!item.roles || item.roles.includes(role)) return item
+      return null
+    })
+    .filter(Boolean) as typeof menuItems
+})
+
+const restrictedRoutes = new Set(['/permission', '/knowledge'])
+
 const handleMenuSelect = (route: string) => {
+  if (!route) return
+  const role = authStore.user?.role || 'user'
+  if (restrictedRoutes.has(route) && role !== 'admin') {
+    ElMessage.warning('无权限访问该页面，已返回首页')
+    router.push('/')
+    return
+  }
   router.push(route)
 }
-//根据当前路由确定激活的菜单项
+
 const activeMenu = computed(() => router.currentRoute.value.path)
-
-
 </script>
 
 <style scoped>

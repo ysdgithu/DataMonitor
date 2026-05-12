@@ -177,4 +177,3 @@ export interface PasswordValidationResult {
     hasSpecialChar?: boolean
   }
 }
-

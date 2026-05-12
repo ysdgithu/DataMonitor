@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { authMiddleware } from '../middleware';
+import { authMiddleware, roleMiddleware } from '../middleware';
 import DatabaseConnection from '../../database/connection';
 import ragflowClient from '../../services/ragflow-client';
 
@@ -12,7 +12,7 @@ const router = Router();
  * Body: { taskId: number }
  * Response: SSE 流 (text/event-stream)
  */
-router.post('/', authMiddleware, async (req: Request, res: Response) => {
+router.post('/', authMiddleware, roleMiddleware(['admin', 'user']), async (req: Request, res: Response) => {
     try {
         const { taskId } = req.body;
 
@@ -48,10 +48,14 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
         const question = `我出现了${taskName}这个异常，请尽量使用简洁精炼的语言回答，包括可能的原因和处理步骤`;
         console.log('[AI 分析] 提示词:', question);
 
-        // 3. 流式调用 RAGFlow，同时收集完整结果用于存储
+        // 3. 先创建新会话，再流式调用 RAGFlow
+        const sessionId = await ragflowClient.createSession(analysisChatId);
+        console.log('[AI 分析] 创建的新 sessionId:', sessionId);
+
         let fullResult = '';
         await ragflowClient.streamChat(question, res, {
             chatId: analysisChatId,
+            sessionId,
             onChunk: (chunk: string) => {
                 fullResult += chunk;
             }
@@ -79,6 +83,43 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
             res.write(`data: ${JSON.stringify({ error: error.message || '未知错误' })}\n\n`);
             res.end();
         }
+    }
+});
+
+/**
+ * GET /api/ai-analysis/history
+ * 获取智能问答历史会话列表
+ */
+router.get('/history', authMiddleware, roleMiddleware(['admin', 'user']), async (req: Request, res: Response) => {
+    try {
+        const chatId = String(req.query.chatId || ragflowClient.getQaChatId()).trim();
+        const page = req.query.page ? Number(req.query.page) : 1;
+        const pageSize = req.query.pageSize ? Number(req.query.pageSize) : 20;
+
+        if (!chatId) {
+            res.status(400).json({
+                success: false,
+                error: '参数错误',
+                message: '缺少 chatId'
+            });
+            return;
+        }
+
+        const sessions = await ragflowClient.listSessions(chatId, { page, pageSize });
+        res.json({
+            success: true,
+            data: sessions,
+            chatId,
+            page,
+            pageSize
+        });
+    } catch (error: any) {
+        console.error('[AI 分析] 获取历史会话失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '获取历史会话失败',
+            message: error.message || '未知错误'
+        });
     }
 });
 

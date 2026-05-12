@@ -65,14 +65,13 @@ export class RuleEngine {
         if (this.isRunning) return;
 
         console.log('[RuleEngine] 启动规则引擎（事件驱动模式）...');
-        console.log(`[RuleEngine] 历史缓冲: ${this.config.historyBuffer}ms`);
 
         // 1. 加载规则
         await this.loadRules();
 
         this.isRunning = true;
 
-        console.log('[RuleEngine] 规则引擎已启动（等待数据事件触发）');
+        console.log('[RuleEngine] 规则引擎已启动');
     }
 
     /**
@@ -109,11 +108,6 @@ export class RuleEngine {
             this.rules = rows.map(row => this.parseDbRuleToAtom(row));
 
             console.log(`[RuleEngine] 从数据库加载了 ${this.rules.length} 条规则`);
-
-            // 打印规则详情
-            for (const rule of this.rules) {
-                console.log(`  - [${rule.id}] ${rule.name} (${rule.deviceType}, 设备${rule.deviceId || '全部'})`);
-            }
         } catch (error) {
             console.error('[RuleEngine] 加载规则失败:', error);
             this.rules = [];
@@ -297,11 +291,8 @@ export class RuleEngine {
             if (!rule.enabled) continue;
 
             try {
-                console.log(`[RuleEngine] 检查规则 [${rule.id}] ${rule.name}`);
-
                 // 1. 获取该规则匹配的设备
                 const devices = await this.getMatchingDevices(rule);
-                console.log(`[RuleEngine]   匹配设备: ${devices.map(d => d.deviceId).join(', ') || '无'}`);
 
                 for (const device of devices) {
                     // 2. 拉取历史数据
@@ -310,14 +301,11 @@ export class RuleEngine {
                         this.config.historyBuffer
                     );
 
-                    console.log(`[RuleEngine]   设备${device.deviceId}: ${historyData.length}条数据`);
-
                     if (historyData.length === 0) continue;
 
                     // 3. 构建评估上下文（使用数据中的最新时间戳，而不是当前时间）
                     const currentData = historyData[historyData.length - 1];
                     const dataTimestamp = currentData.timestamp; // 使用数据的实际时间戳
-                    console.log(`[RuleEngine]   数据时间戳: ${new Date(dataTimestamp).toLocaleString()}, 当前时间: ${new Date(now).toLocaleString()}`);
 
                     const context: EvaluateContext = {
                         deviceId: device.deviceId,
@@ -329,7 +317,6 @@ export class RuleEngine {
 
                     // 4. 评估规则
                     const result = this.evaluator.evaluate(rule.rootAtom, context);
-                    console.log(`[RuleEngine]   评估结果: triggered=${result.triggered}, message=${result.message}`);
 
                     // 5. 触发告警
                     if (result.triggered) {

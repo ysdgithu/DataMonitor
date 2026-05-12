@@ -1,64 +1,54 @@
 <template>
-  <div class="common-layout" style="height: 100%;">
-    <el-container>
-      <el-header style="height: auto; padding: 16px;">
-        <!-- 任务名+状态+优先级   修改状态和优先级-->
-        <el-row class="task-header">
-          <el-space size="medium">
-            <h3 class="task-title">{{ taskDetail?.name }}</h3>
-            <el-tag :type="getStatusType(taskDetail?.status)">{{ getStatusText(taskDetail?.status) }}</el-tag>
-            <el-tag :type="getPriorityType(taskDetail?.priority)">{{ getPriorityText(taskDetail?.priority) }}</el-tag>
-          </el-space>
-          <el-button type="primary">完成</el-button>
-        </el-row>
-      </el-header>
-      <el-divider style="margin: 0" />
-      <el-main style="padding: 20px;">
-        <!-- 处理人+任务详情+设备+创建时间 -->
-        <el-col class="info-section">
-          <p class="info-item"><span class="label">处理人：</span>{{ taskDetail?.assignee }}</p>
-          <p class="info-item"><span class="label">设备：</span>{{ taskDetail?.device_id }}</p>
-          <p class="info-item"><span class="label">创建时间：</span>{{ formatTime(taskDetail?.createTime) }}</p>
-          <!-- 任务描述：优先解析 JSON 详情，否则直接显示原文 -->
-          <div class="info-item detail-block">
-            <span class="label">任务描述：</span>
-            <div class="detail-content">
-              <pre class="detail-summary">{{ parsedDetail.summary }}</pre>
-              <pre v-if="parsedDetail.detailData" class="detail-formatted">{{ formatDetailData(parsedDetail.detailData) }}</pre>
-            </div>
-          </div>
-        </el-col>
-        <el-divider />
-        <!-- ai 分析部分 -->
-        <div class="ai-analysis-section">
-          <el-button type="primary" class="ai-button" @click="askAI">
+  <div class="task-detail-page">
+    <div class="page-header">
+      <div>
+        <div class="page-kicker">诊断任务管理</div>
+        <h2 class="page-title">{{ taskDetail?.name }}</h2>
+      </div>
+      <div class="header-actions">
+        <el-tag :type="getStatusType(taskDetail?.status)" effect="plain">{{ getStatusText(taskDetail?.status) }}</el-tag>
+        <el-tag :type="getPriorityType(taskDetail?.priority)" effect="plain">{{ getPriorityText(taskDetail?.priority) }}</el-tag>
+        <el-button type="primary" class="primary-btn">完成</el-button>
+      </div>
+    </div>
+
+    <el-card class="detail-card" shadow="never">
+      <div class="info-grid">
+        <p class="info-item"><span class="label">处理人：</span>{{ taskDetail?.assignee }}</p>
+        <p class="info-item"><span class="label">设备：</span>{{ taskDetail?.device_id }}</p>
+        <p class="info-item"><span class="label">创建时间：</span>{{ formatTime(taskDetail?.createTime) }}</p>
+      </div>
+
+      <div class="detail-block">
+        <span class="label label-top">任务描述：</span>
+        <div class="detail-content">
+          <pre class="detail-summary">{{ parsedDetail.summary }}</pre>
+          <pre v-if="parsedDetail.detailData" class="detail-formatted">{{ formatDetailData(parsedDetail.detailData) }}</pre>
+        </div>
+      </div>
+    </el-card>
+
+    <el-card class="ai-card" shadow="never">
+      <template #header>
+        <div class="card-header">
+          <span>AI 分析</span>
+          <el-button type="primary" class="primary-btn" @click="askAI">
             <el-icon>
               <Connection />
             </el-icon>
             AI 一键分析
           </el-button>
-          <!-- ai 分析结果 -->
-          <el-card class="ai-result-card">
-            <template #header>
-              <div class="ai-result-header">
-                <el-icon>
-                  <ChatRound />
-                </el-icon>
-                <span>AI 分析结果</span>
-              </div>
-            </template>
-            <div class="ai-result-content" v-loading="loading" v-html="aiResultHtml"></div>
-          </el-card>
         </div>
-      </el-main>
-    </el-container>
-  </div>
+      </template>
 
+      <div class="ai-result-content" v-loading="loading" v-html="aiResultHtml"></div>
+    </el-card>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { Connection, ChatRound } from '@element-plus/icons-vue'
+import { Connection } from '@element-plus/icons-vue'
 import { DiagnosticApi, type DiagnosisTask } from '../utils/diagnosticApi'
 import { parseTaskDetail, formatDetailData } from '../utils/alarmFormatter'
 import MarkdownIt from 'markdown-it'
@@ -182,7 +172,7 @@ const updateTask = () => {
 // 状态映射
 const getStatusType = (status?: number) => {
   const map: Record<number, string> = {
-    0: 'warning',
+    0: 'primary',
     1: 'success',
     2: 'danger'
   }
@@ -234,35 +224,88 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.task-header {
+.task-detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.page-kicker {
+  color: #6b7a90;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #182235;
+}
+
+.header-actions {
   display: flex;
   align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.task-title {
-  font-weight: bold;
-  font-size: var(--font-lg);
-  margin: 0;
+.primary-btn {
+  background: rgba(79, 124, 255, 0.14);
+  border-color: rgba(79, 124, 255, 0.24);
+  color: #1f3356;
 }
 
-.info-section {
-  margin-bottom: var(--spacing-base);
+.primary-btn:hover,
+.primary-btn:focus {
+  background: rgba(79, 124, 255, 0.18);
+  border-color: rgba(79, 124, 255, 0.3);
+  color: #1f3356;
+}
+
+.detail-card,
+.ai-card {
+  border: 0;
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(31, 45, 61, 0.08);
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 20px;
+  margin-bottom: 16px;
 }
 
 .info-item {
-  margin: var(--spacing-sm) 0;
+  margin: 0;
+  color: #24324a;
 }
 
 .label {
-  color: var(--text-tertiary);
+  color: #6f7d92;
   display: inline-block;
   width: 80px;
   flex-shrink: 0;
 }
 
+.label-top {
+  padding-top: 2px;
+}
+
 .detail-block {
   display: flex;
   align-items: flex-start;
+  gap: 8px;
 }
 
 .detail-content {
@@ -274,7 +317,7 @@ onMounted(() => {
   font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
   font-size: 14px;
   line-height: 1.6;
-  color: var(--text-main);
+  color: #24324a;
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0 0 8px 0;
@@ -286,55 +329,54 @@ onMounted(() => {
   font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
   font-size: 13px;
   line-height: 1.7;
-  color: #555;
+  color: #4d5a70;
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
   padding: 12px;
-  background: #f5f7fa;
-  border-radius: 6px;
-  border-left: 3px solid var(--primary);
+  background: rgba(246, 249, 253, 0.9);
+  border-radius: 10px;
+  border-left: 3px solid rgba(79, 124, 255, 0.5);
 }
 
-.ai-analysis-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-base);
-}
-
-.ai-button {
-  align-self: flex-start;
-}
-
-.ai-result-card {
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-}
-
-.ai-result-header {
+.card-header {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  justify-content: space-between;
+  gap: 12px;
   font-weight: 600;
+  color: #172033;
 }
 
 .ai-result-content {
-  padding: var(--spacing-sm);
-  background-color: var(--primary-light);
-  border-radius: var(--radius-sm);
-  line-height: 1.5;
+  padding: 4px 0 0;
+  line-height: 1.65;
+  color: #24324a;
 }
 
 :deep(.el-card__header) {
-  padding: var(--spacing-sm) var(--spacing-base);
-  border-bottom: 1px solid var(--border-light);
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
 }
 
 :deep(.el-card__body) {
-  padding: var(--spacing-base);
+  padding: 18px;
 }
 
 :deep(.el-divider--horizontal) {
-  border-color: var(--border-light);
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+@media (max-width: 900px) {
+  .page-header,
+  .card-header,
+  .detail-block {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
