@@ -8,6 +8,7 @@ interface RagflowConfig {
     apiKey: string;
     analysisChatId: string;
     qaChatId: string;
+    datasetId?: string;
 }
 
 interface OpenAIChatMessage {
@@ -33,6 +34,14 @@ function loadConfig(): RagflowConfig {
 class RagflowClient {
     private client: any;
     private config: RagflowConfig;
+
+    private getDatasetId(): string {
+        const datasetId = this.config.datasetId;
+        if (!datasetId || !String(datasetId).trim()) {
+            throw new Error('RAGFlow datasetId 未配置，请在 websocket-server/config.json 的 ragflow.datasetId 中设置');
+        }
+        return String(datasetId).trim();
+    }
 
     constructor() {
         this.config = loadConfig();
@@ -227,6 +236,62 @@ class RagflowClient {
             throw new Error('RAGFlow 未返回有效回答');
         }
         return answer;
+    }
+
+    async uploadDatasetDocument(filename: string, fileBuffer: Buffer): Promise<any> {
+        const datasetId = this.getDatasetId();
+        const form = new (require('form-data'))();
+        form.append('file', fileBuffer, { filename });
+
+        const response = await this.client.post(
+            `/api/v1/datasets/${datasetId}/documents`,
+            form,
+            {
+                headers: {
+                    ...form.getHeaders(),
+                    Authorization: `Bearer ${this.config.apiKey}`
+                },
+                maxContentLength: Infinity,
+                maxBodyLength: Infinity
+            }
+        );
+
+        const data = response.data?.data;
+        if (Array.isArray(data) && data.length > 0) return data[0];
+        if (data && typeof data === 'object') return data;
+        return response.data;
+    }
+
+    async listDatasetDocuments(params: Record<string, any> = {}): Promise<any> {
+        const datasetId = this.getDatasetId();
+        const response = await this.client.get(`/api/v1/datasets/${datasetId}/documents`, {
+            params
+        });
+        return response.data?.data ?? response.data;
+    }
+
+    async parseDatasetDocuments(documentIds: string[]): Promise<any> {
+        if (!Array.isArray(documentIds) || documentIds.length === 0) {
+            throw new Error('document_ids 不能为空');
+        }
+        const datasetId = this.getDatasetId();
+        const response = await this.client.post(`/api/v1/datasets/${datasetId}/chunks`, {
+            document_ids: documentIds
+        });
+        return response.data?.data ?? response.data;
+    }
+
+    async deleteDatasetDocuments(documentIds: string[]): Promise<any> {
+        if (!Array.isArray(documentIds) || documentIds.length === 0) {
+            throw new Error('ids 不能为空');
+        }
+        const datasetId = this.getDatasetId();
+        const response = await this.client.delete(`/api/v1/datasets/${datasetId}/documents`, {
+            data: {
+                ids: documentIds
+            }
+        });
+        return response.data?.data ?? response.data;
     }
 }
 

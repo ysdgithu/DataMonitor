@@ -12,6 +12,7 @@ import aiAnalysisRoutes from './routes/ai-analysis';
 import qaChatRoutes from './routes/qa-chat';
 import alarmRuleRoutes from './routes/alarm-rule';
 import deviceRoutes from './routes/device';
+import knowledgeDocumentRoutes from './routes/knowledge-document';
 
 const app = express();
 const PORT = process.env.API_PORT || 3002;
@@ -32,6 +33,7 @@ app.use('/api/ai-analysis', aiAnalysisRoutes);
 app.use('/api/qa/chat', qaChatRoutes);
 app.use('/api/alarm-rules', alarmRuleRoutes);
 app.use('/api/devices', deviceRoutes);
+app.use('/api/knowledge/documents', knowledgeDocumentRoutes);
 
 // 健康检查接口
 app.get('/api/health', (req, res) => {
@@ -660,8 +662,6 @@ app.post('/api/trigger-diagnosis', authMiddleware, async (req, res) => {
             return;
         }
 
-        console.log('[AI 诊断] 收到请求:', { timestamp, deviceId, diagnosisTaskId, anomalyInfo });
-
         // 1. 构建 AI 上下文（收集异常前后5分钟的所有数据）
         const buildParams: BuildContextParams = {
             timestamp: Number(timestamp),
@@ -678,9 +678,7 @@ app.post('/api/trigger-diagnosis', authMiddleware, async (req, res) => {
             buildParams.anomalyInfo = anomalyInfo;
         }
 
-        console.log('[AI 诊断] 开始构建上下文...');
         const context = await buildAIContext(buildParams);
-        console.log('[AI 诊断] 上下文构建完成，数据统计:', context.statistics);
 
         // 2. 准备传给 AI 服务的数据结构
         // ai-client.js 期望的格式：{ metrics, device, context }
@@ -701,14 +699,11 @@ app.post('/api/trigger-diagnosis', authMiddleware, async (req, res) => {
         // ai-client.js 导出的是单例实例，直接使用
         const aiClient = require('../services/ai-client');
 
-        console.log('[AI 诊断] 调用 AI 服务...');
         const diagnosis = await aiClient.generateDiagnosis(anomalyEvent);
 
         if (!diagnosis) {
             throw new Error('AI 服务未返回诊断结果');
         }
-
-        console.log('[AI 诊断] AI 服务返回成功');
 
         // 4. 返回上下文与诊断结果给前端
         res.json({
@@ -827,8 +822,6 @@ app.post('/api/test/generate-anomaly', async (req, res) => {
             [JSON.stringify(monitorData), deviceId]
         );
 
-        console.log(`[Test API] 生成异常数据: ${targetParam} = ${abnormalValues[targetParam]}`);
-
         res.json({
             code: 200,
             msg: '异常数据已生成',
@@ -862,22 +855,6 @@ app.use('*', (req, res) => {
 function startApiServer() {
     app.listen(PORT, () => {
         console.log(`API服务器运行在 http://localhost:${PORT}`);
-        console.log('可用接口:');
-        console.log('  GET /health - 健康检查');
-        console.log('  POST /api/login - 用户登录 (获取 JWT token)');
-        console.log('  POST /api/register - 用户注册');
-        console.log('  GET /api/device-history - 设备历史数据查询 (需要认证)');
-        console.log('  GET /api/device-status - 设备状态统计与列表 (需要认证)');
-        console.log('  GET /api/statistics/:dataType - 统计数据 (需要认证)');
-        console.log('  GET /api/overview - 数据概览 (需要认证)');
-        console.log('  GET /api/diagnosis-tasks - 诊断任务列表 (需要认证)');
-        console.log('  GET /api/diagnosis-tasks/:id - 诊断任务详情 (需要认证)');
-        console.log('  POST /api/diagnosis-tasks - 创建诊断任务 (需要认证)');
-        console.log('  PUT /api/diagnosis-tasks/:id - 更新诊断任务 (需要认证)');
-        console.log('  DELETE /api/diagnosis-tasks/:id - 删除诊断任务 (需要认证)');
-        console.log('  GET /api/diagnosis-tasks-stats - 诊断任务统计 (需要认证)');
-        console.log('  POST /api/qa/chat - AI 智能问答 (需要认证, SSE)');
-        console.log('  GET /api/dashboard?device_id=1001 - 监控大屏数据 (需要认证)');
     });
 }
 

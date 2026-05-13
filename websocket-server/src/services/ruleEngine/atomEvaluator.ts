@@ -75,7 +75,6 @@ export class AtomEvaluator {
         const paramValue = getNestedValue(currentData, param);
 
         if (paramValue === undefined) {
-            console.log(`      [Threshold] ❌ 参数 ${param} 不存在`);
             return {
                 triggered: false,
                 message: `参数 ${param} 不存在`
@@ -83,7 +82,6 @@ export class AtomEvaluator {
         }
 
         if (typeof paramValue !== 'number') {
-            console.log(`      [Threshold] ❌ 参数 ${param} 不是数值类型: ${typeof paramValue}`);
             return {
                 triggered: false,
                 message: `参数 ${param} 不是数值类型`
@@ -117,7 +115,6 @@ export class AtomEvaluator {
         const paramValue = getNestedValue(currentData, param);
 
         if (paramValue === undefined) {
-            console.log(`      [ThresholdRange] ❌ 参数 ${param} 不存在`);
             return {
                 triggered: false,
                 message: `参数 ${param} 不存在`
@@ -125,7 +122,6 @@ export class AtomEvaluator {
         }
 
         if (typeof paramValue !== 'number') {
-            console.log(`      [ThresholdRange] ❌ 参数 ${param} 不是数值类型: ${typeof paramValue}`);
             return {
                 triggered: false,
                 message: `参数 ${param} 不是数值类型`
@@ -134,8 +130,6 @@ export class AtomEvaluator {
 
         // 判断是否超出范围
         const triggered = paramValue < min || paramValue > max;
-
-        console.log(`      [ThresholdRange] 参数 ${param} = ${paramValue}, 范围 [${min}, ${max}], 触发=${triggered}`);
 
         return {
             triggered,
@@ -160,8 +154,6 @@ export class AtomEvaluator {
         const { baseAtom, duration, minCount } = config;
         const { historyData, timestamp } = context;
 
-        console.log(`    [Duration] 检查开始: timestamp=${new Date(timestamp).toLocaleTimeString()}, duration=${duration}ms, minCount=${minCount || 0}`);
-        console.log(`    [Duration] 历史数据共 ${historyData.length} 条`);
 
         if (historyData.length === 0) {
             return {
@@ -172,14 +164,10 @@ export class AtomEvaluator {
 
         // 计算时间窗口
         const windowStart = timestamp - duration;
-        console.log(`    [Duration] 时间窗口: ${new Date(windowStart).toLocaleTimeString()} ~ ${new Date(timestamp).toLocaleTimeString()}`);
-
         // 筛选时间窗口内的数据
         const windowData = historyData.filter(d => d.timestamp >= windowStart && d.timestamp <= timestamp);
-        console.log(`    [Duration] 窗口内数据: ${windowData.length} 条`);
 
         if (windowData.length === 0) {
-            console.log(`    [Duration] ❌ 时间窗口内无数据`);
             return {
                 triggered: false,
                 message: '时间窗口内无数据'
@@ -207,11 +195,9 @@ export class AtomEvaluator {
         }
 
         const anomalyCount = anomalyPoints.length;
-        console.log(`    [Duration] 窗口内异常点: ${anomalyCount} 个 (总数据: ${windowData.length} 条)`);
 
         // 如果没有异常点，直接返回
         if (anomalyCount === 0) {
-            console.log(`    [Duration] ❌ 窗口内无异常点`);
             return {
                 triggered: false,
                 message: '窗口内无异常点'
@@ -220,7 +206,6 @@ export class AtomEvaluator {
 
         // 如果设置了 minCount，检查是否达标
         if (minCount && anomalyCount < minCount) {
-            console.log(`    [Duration] ❌ 异常次数不足，需要 ${minCount} 次，实际 ${anomalyCount} 次`);
             return {
                 triggered: false,
                 message: `异常次数不足，需要 ${minCount} 次，实际 ${anomalyCount} 次`
@@ -232,16 +217,11 @@ export class AtomEvaluator {
         const lastAnomalyTime = anomalyPoints[anomalyCount - 1].timestamp;
         const timeSpan = lastAnomalyTime - firstAnomalyTime;
 
-        console.log(`    [Duration] 首尾时间跨度: ${(timeSpan / 1000).toFixed(1)}s (首次: ${new Date(firstAnomalyTime).toLocaleTimeString()}, 末次: ${new Date(lastAnomalyTime).toLocaleTimeString()})`);
-        console.log(`    [Duration] 时间窗口: ${(duration / 1000).toFixed(1)}s`);
-
         // 【关键判断】首尾时间跨度 ≤ duration（允许跨度小于duration，说明异常密集）
         const timeSpanValid = timeSpan <= duration;
 
         // 触发条件：异常次数达标 && 时间跨度有效
         const triggered = anomalyCount >= (minCount || 1) && timeSpanValid;
-
-        console.log(`    [Duration] 结果: anomalyCount=${anomalyCount} (需要≥${minCount || 1}), timeSpan=${(timeSpan / 1000).toFixed(1)}s (需要≤${(duration / 1000).toFixed(1)}s), triggered=${triggered}`);
 
         // 【新增】提取最新异常点的上下文信息（用于前端显示）
         const latestAnomalyContext = anomalyPoints.length > 0

@@ -111,9 +111,6 @@ export class DataProcessor {
             count: deviceDataList.length
         });
 
-        const clientCount = this.wsClients.size;
-        console.log(`[DataProcessor] 推送数据到 ${clientCount} 个客户端, 数据量: ${deviceDataList.length}`);
-
         for (const ws of this.wsClients) {
             if (ws.readyState === WebSocket.OPEN) {
                 try {
@@ -127,12 +124,7 @@ export class DataProcessor {
 
     // 处理规则引擎告警
     private handleRuleAlarm(event: AlarmEvent) {
-        console.log(`\n📢 [DataProcessor] 收到告警事件:`);
-        console.log(`   设备: ${event.deviceId} (${event.deviceType})`);
-        console.log(`   参数: ${event.parameterName} = ${event.currentValue}`);
-        console.log(`   阈值: ${event.threshold}`);
-        console.log(`   规则: ${event.ruleName}`);
-        console.log(`   等级: ${event.severity}`);
+        // 告警事件仍然广播，但不再输出逐项调试日志
 
         // 广播告警事件给所有WebSocket客户端
         const message = {
@@ -155,6 +147,5 @@ export class DataProcessor {
             }
         }
 
-        console.log(`   ✅ 已推送给 ${successCount}/${this.wsClients.size} 个客户端\n`);
     }
 }

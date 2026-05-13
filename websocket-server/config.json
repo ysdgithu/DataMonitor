@@ -103,7 +103,8 @@
     "baseURL": "http://localhost:9380",
     "apiKey": "ragflow-4KoiygPBHJII-w2F0h5OudSJPMJV9XITcUPMCpi_KLk",
     "analysisChatId": "35ec891e358611f180d46988dbe8f3ea",
-    "qaChatId": "46fb6734358611f180d46988dbe8f3ea"
+    "qaChatId": "46fb6734358611f180d46988dbe8f3ea",
+    "datasetId":"546bfc8c358411f180d46988dbe8f3ea"
   },
   "monitoring": {
     "healthCheck": {
