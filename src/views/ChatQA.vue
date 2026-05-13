@@ -115,7 +115,7 @@
                         >
                           Fig. {{ part.refId }} 
                         </button>
-                        <span v-else>{{ part.text }}</span>
+                        <span v-else v-html="renderMarkdownInline(part.text || '')"></span>
                       </template>
                     </p>
                   </div>
@@ -355,10 +355,27 @@ const loadHistorySessions = async () => {
   }
 }
 
-const loadSessionDetail = (item: HistorySession) => {
-  ElMessage.info(`已选择会话：${item.question}`)
-  if (item.raw?.session_id || item.raw?.id) {
-    console.log('历史会话详情', item.raw)
+const loadSessionDetail = async (item: HistorySession) => {
+  const sessionId = getSessionId(item)
+  if (!sessionId) {
+    ElMessage.warning('无法识别会话ID')
+    return
+  }
+
+  try {
+    const res: any = await request.get(`/ai-analysis/history/${encodeURIComponent(sessionId)}`, {
+      params: { chatId: '46fb6734358611f180d46988dbe8f3ea' }
+    })
+
+    if (!res?.success) {
+      throw new Error(res?.message || '获取会话详情失败')
+    }
+
+    console.log('历史会话详情', res.data)
+    ElMessage.success(`已加载会话：${item.question}`)
+  } catch (error: any) {
+    console.error('获取会话详情失败:', error)
+    ElMessage.error(error.message || '获取会话详情失败')
   }
 }
 
@@ -468,7 +485,30 @@ const normalizeReference = (ref: any, index = 0): ReferenceItem => {
   }
 }
 
-const formatAnswerContent = (text: string) => text
+const escapeHtml = (text: string) => {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+const normalizeWrappedText = (text: string) => {
+  return String(text || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/([^\n])\n([^\n])/g, '$1 $2')
+    .replace(/\n{3,}/g, '\n\n')
+}
+
+const renderMarkdownInline = (text: string) => {
+  const escaped = escapeHtml(text)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__(.+?)__/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/_(.+?)_/g, '<em>$1</em>')
+  return escaped
+}
 
 const renderAnswerParts = (text: string) => {
   const parts: Array<{ type: 'text' | 'reference'; text?: string; refId?: string }> = []
@@ -571,10 +611,11 @@ const streamQuestion = async (question: string) => {
           const reasoning = parsed.reasoningContent || parsed?.choices?.[0]?.delta?.reasoning_content
           if (reasoning) {
             const current = messageList.value.find(item => item.id === aiMsg.id)
+            const normalizedReasoning = normalizeWrappedText(reasoning)
             updateAiMessage(aiMsg.id, {
               reasoningContent: current?.reasoningContent
-                ? `${current.reasoningContent}\n${reasoning}`
-                : reasoning
+                ? `${current.reasoningContent} ${normalizedReasoning}`
+                : normalizedReasoning
             })
           }
           if (deltaContent !== undefined && deltaContent !== null) {
@@ -1020,6 +1061,8 @@ onMounted(() => {
 
 .reasoning-content {
   margin-bottom: var(--spacing-base);
+  width: 100%;
+  box-sizing: border-box;
   padding: var(--spacing-base);
   border-radius: var(--radius-base);
   background: linear-gradient(180deg, #f7faff 0%, #f3f7fb 100%);
@@ -1037,6 +1080,8 @@ onMounted(() => {
   font-size: var(--font-sm);
   line-height: 1.7;
   white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .answer-content {
@@ -1050,6 +1095,7 @@ onMounted(() => {
 
 .answer-text {
   white-space: pre-wrap;
+  max-width: 100%;
 }
 
 .inline-reference {

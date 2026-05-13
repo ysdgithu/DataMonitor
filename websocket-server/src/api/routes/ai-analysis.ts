@@ -123,6 +123,44 @@ router.get('/history', authMiddleware, roleMiddleware(['admin', 'user']), async 
     }
 });
 
+router.get('/history/:sessionId', authMiddleware, roleMiddleware(['admin', 'user']), async (req: Request, res: Response) => {
+    try {
+        const chatId = String(req.query.chatId || ragflowClient.getQaChatId()).trim();
+        const sessionId = String(req.params.sessionId || '').trim();
+
+        if (!chatId) {
+            return res.status(400).json({
+                success: false,
+                error: '参数错误',
+                message: '缺少 chatId'
+            });
+        }
+
+        if (!sessionId) {
+            return res.status(400).json({
+                success: false,
+                error: '参数错误',
+                message: '缺少 sessionId'
+            });
+        }
+
+        const session = await ragflowClient.getSession(chatId, sessionId);
+        res.json({
+            success: true,
+            data: session,
+            chatId,
+            sessionId
+        });
+    } catch (error: any) {
+        console.error('[AI 分析] 获取会话详情失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '获取会话详情失败',
+            message: error.message || '未知错误'
+        });
+    }
+});
+
 router.delete('/history', authMiddleware, roleMiddleware(['admin', 'user']), async (req: Request, res: Response) => {
     try {
         const chatId = String(req.query.chatId || req.body?.chatId || ragflowClient.getQaChatId()).trim();

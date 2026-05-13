@@ -428,10 +428,9 @@ onMounted(() => {
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
-  padding: 12px;
-  background: rgba(246, 249, 253, 0.9);
-  border-radius: 10px;
-  border-left: 3px solid rgba(79, 124, 255, 0.5);
+  padding: 0;
+  background: transparent;
+  border: 0;
 }
 
 .card-header {

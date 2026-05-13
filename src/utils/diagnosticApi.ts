@@ -171,6 +171,7 @@ export class DiagnosticApi {
         taskId: number,
         callbacks: {
             onMessage: (content: string) => void;
+            onReferences?: (references: any[]) => void;
             onError?: (error: string) => void;
             onDone?: () => void;
         }
@@ -224,6 +225,10 @@ export class DiagnosticApi {
                         if (parsed.content !== undefined) {
                             callbacks.onMessage(parsed.content)
                         }
+                        if (parsed.references) {
+                            const refs = Array.isArray(parsed.references) ? parsed.references : [parsed.references]
+                            callbacks.onReferences?.(refs)
+                        }
                         if (parsed.error) {
                             callbacks.onError?.(parsed.error)
                         }
@@ -245,6 +250,10 @@ export class DiagnosticApi {
                             const parsed = JSON.parse(jsonStr)
                             if (parsed.content !== undefined) {
                                 callbacks.onMessage(parsed.content)
+                            }
+                            if (parsed.references) {
+                                const refs = Array.isArray(parsed.references) ? parsed.references : [parsed.references]
+                                callbacks.onReferences?.(refs)
                             }
                         } catch (e) {
                             // 忽略

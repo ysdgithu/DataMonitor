@@ -58,7 +58,7 @@
           </div>
         </template>
 
-        <VirtualTable :data="taskList" :columns="columns" :height="400" :loading="loading" style="width: 100%"
+        <VirtualTable :data="taskList" :columns="columns" :height="tableHeight" :loading="loading" style="width: 100%"
           class="task-table" />
 
         <!-- 分页 -->
@@ -86,7 +86,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import MainLayout from '../components/layout/MainLayout.vue'
 import TaskDetailsComponent from './TaskDetails.vue'
 import AddTask from './AddTask.vue'
@@ -156,6 +156,7 @@ const dateRange = ref<[Date, Date] | null>(null)
 // 分页
 const currentPage = ref(1)
 const pageSize = ref(20)
+const tableHeight = computed(() => Math.max(400, pageSize.value * 52 + 100))
 
 // 查询参数
 const queryParams = ref<QueryParams>({})

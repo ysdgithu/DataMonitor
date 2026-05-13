@@ -89,6 +89,12 @@ class RagflowClient {
         return [];
     }
 
+    async getSession(chatId: string, sessionId: string): Promise<any> {
+        const url = `/api/v1/chats/${String(chatId).trim()}/sessions/${String(sessionId).trim()}`;
+        const response = await this.client.get(url);
+        return response.data?.data ?? response.data;
+    }
+
     async streamChat(question: string, res: Response, options?: StreamOptions): Promise<void> {
         const chatId = options?.chatId || this.config.qaChatId;
         const url = `/api/v1/chats_openai/${chatId}/chat/completions`;
