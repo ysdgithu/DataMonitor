@@ -123,4 +123,53 @@ router.get('/history', authMiddleware, roleMiddleware(['admin', 'user']), async 
     }
 });
 
+router.delete('/history', authMiddleware, roleMiddleware(['admin', 'user']), async (req: Request, res: Response) => {
+    try {
+        const chatId = String(req.query.chatId || req.body?.chatId || ragflowClient.getQaChatId()).trim();
+        const ids = Array.isArray(req.body?.ids) ? req.body.ids.map((id: any) => String(id).trim()).filter(Boolean) : [];
+        const deleteAll = Boolean(req.body?.delete_all);
+
+        if (!chatId) {
+            return res.status(400).json({
+                success: false,
+                error: '参数错误',
+                message: '缺少 chatId'
+            });
+        }
+
+        if (!deleteAll && ids.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: '参数错误',
+                message: '请提供要删除的会话 id，或设置 delete_all=true'
+            });
+        }
+
+        const sessions = await ragflowClient.listSessions(chatId, { page: 1, pageSize: 1000 });
+        const rawSessions = Array.isArray(sessions) ? sessions : [];
+        const sessionIds = deleteAll
+            ? rawSessions.map((item: any) => String(item?.id || item?.session_id || '').trim()).filter(Boolean)
+            : ids;
+
+        if (sessionIds.length === 0) {
+            return res.json({ success: true, message: '没有可删除的会话', data: { deleted: 0 } });
+        }
+
+        await ragflowClient.deleteSessions(chatId, sessionIds);
+
+        res.json({
+            success: true,
+            message: '历史会话删除成功',
+            data: { deleted: sessionIds.length }
+        });
+    } catch (error: any) {
+        console.error('[AI 分析] 删除历史会话失败:', error);
+        res.status(500).json({
+            success: false,
+            error: '删除历史会话失败',
+            message: error.message || '未知错误'
+        });
+    }
+});
+
 export default router;

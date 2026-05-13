@@ -64,14 +64,9 @@ export class RuleEngine {
     async start(): Promise<void> {
         if (this.isRunning) return;
 
-        console.log('[RuleEngine] 启动规则引擎（事件驱动模式）...');
-
-        // 1. 加载规则
         await this.loadRules();
 
         this.isRunning = true;
-
-        console.log('[RuleEngine] 规则引擎已启动');
     }
 
     /**
@@ -83,7 +78,6 @@ export class RuleEngine {
             this.intervalId = null;
         }
         this.isRunning = false;
-        console.log('[RuleEngine] 规则引擎已停止');
     }
 
     /**
@@ -106,8 +100,6 @@ export class RuleEngine {
 
             // 将数据库规则转换为 RuleAtom 结构
             this.rules = rows.map(row => this.parseDbRuleToAtom(row));
-
-            console.log(`[RuleEngine] 从数据库加载了 ${this.rules.length} 条规则`);
         } catch (error) {
             console.error('[RuleEngine] 加载规则失败:', error);
             this.rules = [];
@@ -251,7 +243,6 @@ export class RuleEngine {
 
                 // 触发告警
                 if (result.triggered) {
-                    console.log(`[RuleEngine] 🔔 实时检测到告警: 规则[${rule.id}] ${rule.name}, 设备${deviceId}`);
                     await this.triggerAlarm(rule, { deviceId, deviceType }, result, timestamp);
                 }
 
@@ -472,7 +463,6 @@ export class RuleEngine {
                     currentValue = result.context.paramValue;
                 }
 
-                console.log(`[RuleEngine] 提取参数值: ${parameterName} = ${currentValue}`);
             } catch (e) {
                 console.warn('[RuleEngine] 提取参数值失败:', e);
             }

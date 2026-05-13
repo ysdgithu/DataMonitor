@@ -144,6 +144,8 @@ class RagflowClient {
 
                         try {
                             const parsed = JSON.parse(jsonStr);
+                            console.log('[RAGFlow stream raw]', JSON.stringify(parsed, null, 2));
+
                             const choice = parsed?.choices?.[0] ?? {};
                             const delta = choice?.delta;
                             const message = choice?.message;
@@ -153,13 +155,27 @@ class RagflowClient {
                                 delta?.reference ?? delta?.references ??
                                 message?.reference ?? message?.references ??
                                 parsed?.references ?? parsed?.data?.references ?? parsed?.data?.reference;
+                            const finalContent = delta?.final_content ?? message?.final_content ?? parsed?.final_content ?? parsed?.data?.final_content;
                             const usage = parsed?.usage;
+
+                            if (references || finalContent) {
+                                console.log('[RAGFlow stream refs/final]', JSON.stringify({
+                                    hasReferences: Boolean(references),
+                                    hasFinalContent: Boolean(finalContent),
+                                    finalContent,
+                                    references,
+                                }, null, 2));
+                            }
 
                             const payload: Record<string, any> = {};
 
                             if (content !== undefined && content !== null) {
                                 payload.content = content;
                                 options?.onChunk?.(String(content));
+                            }
+
+                            if (finalContent !== undefined && finalContent !== null) {
+                                payload.final_content = finalContent;
                             }
 
                             if (reasoningContent) {
@@ -289,6 +305,21 @@ class RagflowClient {
         const response = await this.client.delete(`/api/v1/datasets/${datasetId}/documents`, {
             data: {
                 ids: documentIds
+            }
+        });
+        return response.data?.data ?? response.data;
+    }
+
+    async deleteSessions(chatId: string, sessionIds: string[]): Promise<any> {
+        if (!chatId || !String(chatId).trim()) {
+            throw new Error('chatId 不能为空');
+        }
+        if (!Array.isArray(sessionIds) || sessionIds.length === 0) {
+            throw new Error('ids 不能为空');
+        }
+        const response = await this.client.delete(`/api/v1/chats/${String(chatId).trim()}/sessions`, {
+            data: {
+                ids: sessionIds
             }
         });
         return response.data?.data ?? response.data;

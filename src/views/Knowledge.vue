@@ -115,12 +115,29 @@ const parseStatusTypeMap: Record<number, '' | 'info' | 'warning' | 'success' | '
   3: 'danger'
 }
 
+const formatDateTime = (value: string) => {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  const year = date.getFullYear()
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  const hour = date.getHours()
+  const minute = String(date.getMinutes()).padStart(2, '0')
+  const second = String(date.getSeconds()).padStart(2, '0')
+  return `${year}/${month}/${day} ${hour}:${minute}:${second}`
+}
+
 const columns: DataColumn[] = [
   { prop: 'id', label: 'ID', width: 90 },
   { prop: 'doc_name', label: '文档名称', width: 260 },
   { prop: 'upload_user_id', label: '上传人ID', width: 120 },
-  { prop: 'upload_time', label: '上传时间', width: 200 },
-  { prop: 'chunk_count', label: '分块数', width: 110 },
+  {
+    prop: 'upload_time',
+    label: '上传时间',
+    width: 200,
+    customRender: ({ row }) => formatDateTime(row.upload_time)
+  },
   {
     prop: 'parse_status',
     label: '解析状态',

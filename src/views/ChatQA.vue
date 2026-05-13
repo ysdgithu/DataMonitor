@@ -12,16 +12,38 @@
           <div v-else-if="!historyList.length" class="history-state empty">暂无历史会话</div>
           <template v-else v-for="date in ['today', 'yesterday', 'earlier']" :key="date">
             <div class="date-group">
-              <p class="date-label">{{ date === 'today' ? '今天' : date === 'yesterday' ? '昨天' : '更早' }}</p>
+              <div class="date-group-header">
+                <p class="date-label">{{ date === 'today' ? '今天' : date === 'yesterday' ? '昨天' : '更早' }}</p>
+                <button
+                  v-if="getHistoryByDate(date).length"
+                  type="button"
+                  class="group-delete-btn"
+                  @click.stop="handleDeleteSessions(getHistoryByDate(date))"
+                  aria-label="删除本组会话"
+                  title="删除本组会话"
+                >
+                  <el-icon><CloseBold /></el-icon>
+                </button>
+              </div>
               <ul class="history-list">
                 <li
                   v-for="item in getHistoryByDate(date)"
                   :key="item.id"
                   class="history-item"
-                  @click="loadSessionDetail(item)"
                 >
-                  <p class="history-question">{{ item.question }}</p>
-                  <p class="history-time">{{ item.time }}</p>
+                  <div class="history-item-main" @click="loadSessionDetail(item)">
+                    <p class="history-question">{{ item.question }}</p>
+                    <p class="history-time">{{ item.time }}</p>
+                  </div>
+                  <button
+                    type="button"
+                    class="history-delete-btn"
+                    @click.stop="handleDeleteSession(item)"
+                    aria-label="删除会话"
+                    title="删除会话"
+                  >
+                    <el-icon><CloseBold /></el-icon>
+                  </button>
                 </li>
               </ul>
             </div>
@@ -83,16 +105,28 @@
                   </div>
 
                   <div class="answer-content">
-                    <p style="white-space: pre-wrap;">{{ formatAnswerContent(msg.content) }}</p>
+                    <p class="answer-text">
+                      <template v-for="(part, index) in renderAnswerParts(msg.displayContent || msg.content)" :key="index">
+                        <button
+                          v-if="part.type === 'reference'"
+                          type="button"
+                          class="inline-reference"
+                          @click="openReferenceById(msg, part.refId)"
+                        >
+                          Fig. {{ part.refId }} 
+                        </button>
+                        <span v-else>{{ part.text }}</span>
+                      </template>
+                    </p>
                   </div>
 
                   <div v-if="msg.references && msg.references.length > 0" class="references">
                     <p class="text-sm" style="margin-bottom: var(--spacing-xs); color: var(--text-secondary);">参考来源：</p>
                     <ul class="reference-list">
                       <li v-for="(ref, idx) in msg.references" :key="idx" class="reference-item">
-                        <button class="reference-pill" type="button" @click="openReference(ref)">
+                        <span class="reference-pill">
                           {{ ref.name || ref.figureLabel || `来源 ${idx + 1}` }}
-                        </button>
+                        </span>
                         <p v-if="ref.figureLabel || ref.page !== undefined" class="reference-meta">
                           <span v-if="ref.figureLabel">{{ ref.figureLabel }}</span>
                           <span v-if="ref.page !== undefined">第 {{ ref.page }} 页</span>
@@ -168,7 +202,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import MainLayout from '../components/layout/MainLayout.vue'
-import { Position, Search, Refresh, CopyDocument } from '@element-plus/icons-vue'
+import { Position, Search, Refresh, CopyDocument, CloseBold } from '@element-plus/icons-vue'
+import { ElMessageBox } from 'element-plus'
 import { TokenManager } from '../utils/tokenManager'
 import request from '../utils/request'
 import { ElMessage } from 'element-plus'
@@ -192,6 +227,7 @@ interface Message {
   id: number
   type: 'user' | 'ai'
   content: string
+  displayContent?: string
   time: string
   searchKeywords?: string[]
   reasoningContent?: string
@@ -201,6 +237,7 @@ interface Message {
     figureLabel?: string
     snippet?: string
     page?: number
+    refId?: string | number
   }>
   usage?: {
     prompt_tokens?: number
@@ -250,6 +287,20 @@ const normalizeHistory = (items: any[]): HistorySession[] => {
   })
 }
 
+const extractChunkContent = (parsed: any) => {
+  const choice = parsed?.choices?.[0] ?? {}
+  const delta = choice?.delta ?? {}
+  const message = choice?.message ?? {}
+  return delta?.content ?? message?.content ?? parsed?.content ?? parsed?.final_content ?? delta?.final_content ?? message?.final_content ?? ''
+}
+
+const extractReferences = (parsed: any) => {
+  const choice = parsed?.choices?.[0] ?? {}
+  const delta = choice?.delta ?? {}
+  const message = choice?.message ?? {}
+  return delta?.reference ?? delta?.references ?? message?.reference ?? message?.references ?? parsed?.references ?? parsed?.data?.references ?? parsed?.data?.reference
+}
+
 const pushUserMessage = (content: string) => {
   const userMsg: Message = {
     id: nextMessageId(),
@@ -267,6 +318,7 @@ const pushAiMessage = () => {
     id: nextMessageId(),
     type: 'ai',
     content: '正在为您分析，请稍候...',
+    displayContent: '正在为您分析，请稍候...',
     time: currentTime(),
     searchKeywords: ['RAGFlow', '智能问答']
   }
@@ -310,6 +362,84 @@ const loadSessionDetail = (item: HistorySession) => {
   }
 }
 
+const getSessionId = (item: HistorySession) => String(item.raw?.session_id || item.raw?.id || item.id || '').trim()
+
+const handleDeleteSession = async (item: HistorySession) => {
+  const sessionId = getSessionId(item)
+  if (!sessionId) {
+    ElMessage.warning('无法识别会话ID')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(`确认删除会话「${item.question}」吗？此操作不可恢复。`, '删除会话', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消'
+    })
+
+    const token = TokenManager.getAccessToken()
+    const response = await fetch(`${qaApiBase}/ai-analysis/history?chatId=46fb6734358611f180d46988dbe8f3ea`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ ids: [sessionId] })
+    })
+
+    const res = await response.json().catch(() => ({}))
+    if (!response.ok || !res?.success) {
+      throw new Error(res?.message || '删除失败')
+    }
+
+    ElMessage.success('删除成功')
+    await loadHistorySessions()
+  } catch (error: any) {
+    if (error !== 'cancel' && error !== 'close') {
+      ElMessage.error(error.message || '删除失败')
+    }
+  }
+}
+
+const handleDeleteSessions = async (items: HistorySession[]) => {
+  const ids = items.map(getSessionId).filter(Boolean)
+  if (!ids.length) {
+    ElMessage.warning('没有可删除的会话')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(`确认删除该组 ${ids.length} 条会话吗？此操作不可恢复。`, '批量删除会话', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消'
+    })
+
+    const token = TokenManager.getAccessToken()
+    const response = await fetch(`${qaApiBase}/ai-analysis/history?chatId=46fb6734358611f180d46988dbe8f3ea`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ ids })
+    })
+
+    const res = await response.json().catch(() => ({}))
+    if (!response.ok || !res?.success) {
+      throw new Error(res?.message || '删除失败')
+    }
+
+    ElMessage.success('删除成功')
+    await loadHistorySessions()
+  } catch (error: any) {
+    if (error !== 'cancel' && error !== 'close') {
+      ElMessage.error(error.message || '删除失败')
+    }
+  }
+}
+
 interface ReferenceItem {
   name?: string
   url?: string
@@ -318,6 +448,7 @@ interface ReferenceItem {
   page?: number
   source?: string
   title?: string
+  refId?: string | number
 }
 
 const referenceDialogVisible = ref(false)
@@ -332,13 +463,33 @@ const normalizeReference = (ref: any, index = 0): ReferenceItem => {
     snippet: ref?.snippet || ref?.content || ref?.text || ref?.chunk || ref?.excerpt,
     page: ref?.page ?? ref?.page_no ?? ref?.pageNumber,
     source: ref?.source || ref?.file_path || ref?.path,
-    title: ref?.title || ref?.doc_title || ref?.document_title
+    title: ref?.title || ref?.doc_title || ref?.document_title,
+    refId: ref?.refId ?? ref?.id ?? ref?.chunk_id ?? ref?.chunkId ?? ref?.reference_id
   }
 }
 
-const sanitizeAnswer = (text: string) => text.replace(/\s*\[ID:\s*\d+\]\s*/g, ' ').replace(/\s+/g, ' ').trim()
+const formatAnswerContent = (text: string) => text
 
-const formatAnswerContent = (text: string) => sanitizeAnswer(text)
+const renderAnswerParts = (text: string) => {
+  const parts: Array<{ type: 'text' | 'reference'; text?: string; refId?: string }> = []
+  const regex = /\[ID:\s*(\d+)\]/g
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push({ type: 'text', text: text.slice(lastIndex, match.index) })
+    }
+    parts.push({ type: 'reference', refId: match[1] })
+    lastIndex = regex.lastIndex
+  }
+
+  if (lastIndex < text.length) {
+    parts.push({ type: 'text', text: text.slice(lastIndex) })
+  }
+
+  return parts.length ? parts : [{ type: 'text', text }]
+}
 
 const openSourceLink = (ref: ReferenceItem) => {
   if (ref?.url) {
@@ -350,6 +501,23 @@ const openReference = (ref: any) => {
   activeReference.value = normalizeReference(ref)
   referenceDialogVisible.value = true
 }
+
+const openReferenceById = (msg: Message, refId: string) => {
+  const target = msg.references?.find(ref => String(ref.refId ?? '').trim() === String(refId).trim())
+  if (target) {
+    openReference(target)
+    return
+  }
+
+  const byIndex = msg.references?.[Number(refId)] || msg.references?.[Number(refId) - 1]
+  if (byIndex) {
+    openReference(byIndex)
+    return
+  }
+
+  ElMessage.warning(`未找到对应引用 [ID:${refId}]`)
+}
+
 
 const streamQuestion = async (question: string) => {
   const token = TokenManager.getAccessToken()
@@ -398,29 +566,30 @@ const streamQuestion = async (question: string) => {
 
         try {
           const parsed = JSON.parse(jsonStr)
-          if (parsed.reasoningContent) {
+          const deltaContent = extractChunkContent(parsed)
+          const finalContent = parsed.final_content || parsed?.choices?.[0]?.delta?.final_content || parsed?.choices?.[0]?.message?.final_content
+          const reasoning = parsed.reasoningContent || parsed?.choices?.[0]?.delta?.reasoning_content
+          if (reasoning) {
             const current = messageList.value.find(item => item.id === aiMsg.id)
             updateAiMessage(aiMsg.id, {
               reasoningContent: current?.reasoningContent
-                ? `${current.reasoningContent}\n${parsed.reasoningContent}`
-                : parsed.reasoningContent
+                ? `${current.reasoningContent}\n${reasoning}`
+                : reasoning
             })
           }
-          if (parsed.content !== undefined) {
-            answer += parsed.content
-            updateAiMessage(aiMsg.id, { content: answer })
+          if (deltaContent !== undefined && deltaContent !== null) {
+            answer += String(deltaContent)
+            updateAiMessage(aiMsg.id, { content: answer, displayContent: answer })
           }
-          if (parsed.references) {
-            const rawReferences = Array.isArray(parsed.references)
-              ? parsed.references
-              : (parsed.references?.items || parsed.references?.list || parsed.references?.data || [parsed.references])
-            const normalized = rawReferences.map((ref: any, index: number) => normalizeReference(ref, index))
-            updateAiMessage(aiMsg.id, { references: normalized })
+          if (finalContent) {
+            answer = String(finalContent)
+            updateAiMessage(aiMsg.id, { content: answer, displayContent: answer })
           }
-          if (parsed.references) {
-            const rawReferences = Array.isArray(parsed.references)
-              ? parsed.references
-              : (parsed.references?.items || parsed.references?.list || parsed.references?.data || [parsed.references])
+          const refs = extractReferences(parsed)
+          if (refs) {
+            const rawReferences = Array.isArray(refs)
+              ? refs
+              : (refs?.items || refs?.list || refs?.data || [refs])
             const normalized = rawReferences.map((ref: any, index: number) => normalizeReference(ref, index))
             updateAiMessage(aiMsg.id, { references: normalized })
           }
@@ -441,14 +610,21 @@ const streamQuestion = async (question: string) => {
       if (jsonStr !== '[DONE]') {
         try {
           const parsed = JSON.parse(jsonStr)
-          if (parsed.content !== undefined) {
-            answer += parsed.content
-            updateAiMessage(aiMsg.id, { content: answer })
+          const deltaContent = extractChunkContent(parsed)
+          const finalContent = parsed.final_content || parsed?.choices?.[0]?.delta?.final_content || parsed?.choices?.[0]?.message?.final_content
+          if (deltaContent !== undefined && deltaContent !== null) {
+            answer += String(deltaContent)
+            updateAiMessage(aiMsg.id, { content: answer, displayContent: answer })
           }
-          if (parsed.references) {
-            const rawReferences = Array.isArray(parsed.references)
-              ? parsed.references
-              : (parsed.references?.items || parsed.references?.list || parsed.references?.data || [parsed.references])
+          if (finalContent) {
+            answer = String(finalContent)
+            updateAiMessage(aiMsg.id, { content: answer, displayContent: answer })
+          }
+          const refs = extractReferences(parsed)
+          if (refs) {
+            const rawReferences = Array.isArray(refs)
+              ? refs
+              : (refs?.items || refs?.list || refs?.data || [refs])
             const normalized = rawReferences.map((ref: any, index: number) => normalizeReference(ref, index))
             updateAiMessage(aiMsg.id, { references: normalized })
           }
@@ -526,13 +702,16 @@ onMounted(() => {
 <style scoped>
 .chat-container-wrapper {
   display: flex;
+  align-items: stretch;
   height: 100%;
   gap: var(--spacing-base);
   padding: var(--spacing-base);
 }
 
 .sidebar {
+  flex: 0 0 280px;
   width: 280px;
+  min-width: 280px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -564,6 +743,7 @@ onMounted(() => {
 
 .sidebar-content {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: var(--spacing-sm);
   background-color: transparent;
@@ -585,11 +765,40 @@ onMounted(() => {
   margin-bottom: var(--spacing-base);
 }
 
+.date-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: var(--spacing-xs);
+}
+
+.group-delete-btn {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0;
+  flex: 0 0 auto;
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.group-delete-btn:hover {
+  background: rgba(248, 113, 113, 0.08);
+  color: #ef4444;
+  transform: translateY(-1px);
+}
+
 .date-label {
   font-size: var(--font-xs);
   font-weight: 600;
   padding: var(--spacing-xs) var(--spacing-sm);
-  margin-bottom: var(--spacing-xs);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -601,11 +810,14 @@ onMounted(() => {
 }
 
 .history-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
   padding: var(--spacing-sm);
   background-color: #ffffff;
   border: 1px solid #e4eaf1;
   border-radius: 12px;
-  cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 1px 2px rgba(25, 36, 52, 0.04);
 }
@@ -615,6 +827,34 @@ onMounted(() => {
   background-color: #f5f8fb;
   border-color: #d9e3ee;
   box-shadow: 0 2px 8px rgba(25, 36, 52, 0.05);
+}
+
+.history-item-main {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.history-delete-btn {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0;
+  flex: 0 0 auto;
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.history-delete-btn:hover {
+  background: rgba(248, 113, 113, 0.08);
+  color: #ef4444;
+  transform: translateY(-1px);
 }
 
 .history-question {
@@ -630,7 +870,8 @@ onMounted(() => {
 }
 
 .chat-main {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -652,6 +893,7 @@ onMounted(() => {
 
 .chat-body {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: var(--spacing-xl);
   background-color: transparent;
@@ -710,10 +952,13 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  align-items: center;
 }
 
 .message-wrapper {
   display: flex;
+  width: 100%;
+  justify-content: center;
   animation: fadeIn 0.3s ease;
 }
 
@@ -731,10 +976,12 @@ onMounted(() => {
 }
 
 .user-bubble {
-  max-width: 70%;
+  width: min(680px, calc(100vw - 360px));
+  max-width: 680px;
+  min-width: 520px;
   padding: var(--spacing-base) var(--spacing-lg);
   border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
-  background-color:white;
+  background-color: white;
   box-shadow: 0 4px 12px rgba(47, 70, 104, 0.18);
 }
 
@@ -744,7 +991,9 @@ onMounted(() => {
 }
 
 .ai-bubble {
-  max-width: 80%;
+  width: min(680px, calc(100vw - 360px));
+  max-width: 680px;
+  min-width: 520px;
   padding: var(--spacing-lg);
   border: 1px solid #e4eaf1;
   border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-sm);
@@ -795,11 +1044,44 @@ onMounted(() => {
   color: #2a3746;
   font-size: var(--font-base);
   line-height: 1.8;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.answer-text {
+  white-space: pre-wrap;
+}
+
+.inline-reference {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d4d9df;
+  background: #f6f7f8;
+  color: #5f666f;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  border-radius: 4px;
+  padding: 0 6px;
+  margin: 0 2px;
+  min-height: 20px;
+  cursor: pointer;
+  vertical-align: baseline;
+  box-shadow: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.inline-reference:hover {
+  border-color: #c2c8cf;
+  background: #eef0f2;
+  color: #3f4750;
 }
 
 .references {
   margin-bottom: var(--spacing-base);
-  padding: var(--spacing-base);
+  padding: 10px 12px;
   border-radius: var(--radius-base);
   background-color: #f6f8fb;
   color: #516173;
@@ -840,22 +1122,32 @@ onMounted(() => {
 
 .reference-list {
   display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  align-items: flex-start;
 }
 
 .reference-item {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  margin: 0;
   font-size: var(--font-sm);
 }
 
 .reference-pill {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
   border: 1px solid #cfd9e4;
   background: #fff;
   color: #4f6b8a;
   border-radius: 999px;
-  padding: 6px 12px;
+  padding: 5px 12px;
   cursor: pointer;
   transition: all 0.2s ease;
+  line-height: 1.2;
 }
 
 .reference-pill:hover {
@@ -865,7 +1157,7 @@ onMounted(() => {
 }
 
 .reference-meta {
-  margin-top: 6px;
+  margin-top: 0;
   color: #7d8a97;
   font-size: var(--font-xs);
 }

@@ -286,11 +286,7 @@ export class DeviceSimulator {
                 await this.dataProcessor.processAndPushBatch(allData);
             }
 
-            // 打印进度
-            const blender = allData.find(d => d.deviceId === '1001');
-            const filler = allData.find(d => d.deviceId === '1003');
-
-            console.log(`[${progress}][${phase}] 调配罐: temp=${blender?.payload.temp.value}℃ level=${blender?.payload.level.value}L current=${blender?.payload.current.value}A | 灌装机: fill=${filler?.payload.fill_volume.value}ml speed=${filler?.payload.speed.value}瓶/分`);
+            // 进度日志已关闭，避免每秒刷屏
 
             // 4. 推进到下一秒
             this.scenarioGenerator.nextTick();
