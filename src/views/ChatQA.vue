@@ -255,6 +255,7 @@ interface Message {
 const messageList = ref<Message[]>([])
 const userQValue = ref('')
 const qaApiBase = import.meta.env.VITE_API_URL || 'http://localhost:3002/api'
+const qaChatId = '46fb6734358611f180d46988dbe8f3ea'
 let messageIdSeed = 0
 
 const nextMessageId = () => Date.now() * 1000 + (messageIdSeed++ % 1000)
@@ -320,6 +321,10 @@ const pushUserMessage = (content: string) => {
 }
 
 const startNewSession = async () => {
+  console.log('[ChatQA][startNewSession] 进入新会话流程', {
+    currentSessionId: currentSessionId.value,
+    messageCount: messageList.value.length
+  })
   currentSessionId.value = ''
   replaceCurrentSessionMessages([])
   userQValue.value = ''
@@ -380,25 +385,41 @@ const updateAiMessage = (id: number, patch: Partial<Message>) => {
 
 const loadHistorySessions = async () => {
   historyLoading.value = true
+  console.log('[ChatQA][loadHistorySessions] 开始加载历史列表', {
+    chatId: '46fb6734358611f180d46988dbe8f3ea'
+  })
   try {
     const res: any = await request.get('/ai-analysis/history', {
-      params: { chatId: '46fb6734358611f180d46988dbe8f3ea' }
+      params: { chatId: qaChatId }
     })
+    console.log('[ChatQA][loadHistorySessions] 原始响应', res)
     if (res?.success) {
-      historyList.value = normalizeHistory(res.data || [])
+      const normalized = normalizeHistory(res.data || [])
+      console.log('[ChatQA][loadHistorySessions] 规范化结果', {
+        rawLength: Array.isArray(res.data) ? res.data.length : undefined,
+        normalizedLength: normalized.length,
+        normalized
+      })
+      historyList.value = normalized
     } else {
+      console.warn('[ChatQA][loadHistorySessions] 返回 success=false', res)
       ElMessage.error(res?.message || '获取历史会话失败')
     }
   } catch (error: any) {
-    console.error('获取历史会话失败:', error)
+    console.error('[ChatQA][loadHistorySessions] 获取历史会话失败:', error)
     ElMessage.error(error.message || '获取历史会话失败')
   } finally {
     historyLoading.value = false
+    console.log('[ChatQA][loadHistorySessions] 结束加载历史列表')
   }
 }
 
 const loadSessionDetail = async (item: HistorySession) => {
   const sessionId = getSessionId(item)
+  console.log('[ChatQA][loadSessionDetail] 点击历史会话', {
+    item,
+    sessionId
+  })
   if (!sessionId) {
     ElMessage.warning('无法识别会话ID')
     return
@@ -406,19 +427,28 @@ const loadSessionDetail = async (item: HistorySession) => {
 
   try {
     const res: any = await request.get(`/ai-analysis/history/${encodeURIComponent(sessionId)}`, {
-      params: { chatId: '46fb6734358611f180d46988dbe8f3ea' }
+      params: { chatId: qaChatId }
     })
+
+    console.log('[ChatQA][loadSessionDetail] 原始响应', res)
 
     if (!res?.success) {
       throw new Error(res?.message || '获取会话详情失败')
     }
 
     currentSessionId.value = sessionId
-    replaceCurrentSessionMessages(normalizeSessionMessages(res.data))
-    console.log('历史会话详情', res.data)
+    const normalizedMessages = normalizeSessionMessages(res.data)
+    console.log('[ChatQA][loadSessionDetail] 规范化消息结果', {
+      sessionId,
+      messageCount: normalizedMessages.length,
+      normalizedMessages,
+      rawData: res.data
+    })
+    replaceCurrentSessionMessages(normalizedMessages)
+    console.log('[ChatQA][loadSessionDetail] 历史会话详情加载完成', res.data)
     ElMessage.success(`已加载会话：${item.question}`)
   } catch (error: any) {
-    console.error('获取会话详情失败:', error)
+    console.error('[ChatQA][loadSessionDetail] 获取会话详情失败:', error)
     ElMessage.error(error.message || '获取会话详情失败')
   }
 }
@@ -440,7 +470,7 @@ const handleDeleteSession = async (item: HistorySession) => {
     })
 
     const token = TokenManager.getAccessToken()
-    const response = await fetch(`${qaApiBase}/ai-analysis/history?chatId=46fb6734358611f180d46988dbe8f3ea`, {
+    const response = await fetch(`${qaApiBase}/ai-analysis/history?chatId=${encodeURIComponent(qaChatId)}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -478,7 +508,7 @@ const handleDeleteSessions = async (items: HistorySession[]) => {
     })
 
     const token = TokenManager.getAccessToken()
-    const response = await fetch(`${qaApiBase}/ai-analysis/history?chatId=46fb6734358611f180d46988dbe8f3ea`, {
+    const response = await fetch(`${qaApiBase}/ai-analysis/history?chatId=${encodeURIComponent(qaChatId)}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -530,14 +560,26 @@ const normalizeReference = (ref: any, index = 0): ReferenceItem => {
 }
 
 const normalizeSessionMessages = (sessionData: any): Message[] => {
-  const rawMessages = sessionData?.messages || sessionData?.chat_messages || sessionData?.data?.messages || []
-  if (!Array.isArray(rawMessages)) return []
+  console.log('[ChatQA][normalizeSessionMessages] 入参', sessionData)
+  const rawMessages = sessionData?.messages || sessionData?.message || sessionData?.chat_messages || sessionData?.data?.messages || sessionData?.data?.message || []
+  console.log('[ChatQA][normalizeSessionMessages] 提取到的 rawMessages', rawMessages)
+  if (!Array.isArray(rawMessages)) {
+    console.warn('[ChatQA][normalizeSessionMessages] rawMessages 不是数组，直接返回空数组', rawMessages)
+    return []
+  }
 
-  return rawMessages.map((item: any) => {
+  const normalized = rawMessages.map((item: any, index: number) => {
     const role = item?.role || item?.sender || item?.type
     const isUser = role === 'user' || role === 'human'
     const content = String(item?.content ?? item?.text ?? item?.message ?? '')
-    const references = Array.isArray(item?.references) ? item.references.map((ref: any, index: number) => normalizeReference(ref, index)) : undefined
+    const references = Array.isArray(item?.references) ? item.references.map((ref: any, refIndex: number) => normalizeReference(ref, refIndex)) : undefined
+    console.log('[ChatQA][normalizeSessionMessages] 单条消息解析', {
+      index,
+      role,
+      isUser,
+      content,
+      references
+    })
     return {
       id: nextMessageId(),
       type: isUser ? 'user' : 'ai',
@@ -547,6 +589,12 @@ const normalizeSessionMessages = (sessionData: any): Message[] => {
       references
     }
   }).filter((msg: Message) => msg.content.trim().length > 0)
+
+  console.log('[ChatQA][normalizeSessionMessages] 最终结果', {
+    count: normalized.length,
+    normalized
+  })
+  return normalized
 }
 
 const replaceCurrentSessionMessages = (messages: Message[]) => {
@@ -638,6 +686,13 @@ const streamQuestion = async (question: string) => {
     payload.sessionId = currentSessionId.value
   }
 
+  console.log('[ChatQA][streamQuestion] 开始流式问答', {
+    question,
+    sessionId: currentSessionId.value,
+    payload,
+    tokenExists: Boolean(token)
+  })
+
   const response = await fetch(`${qaApiBase}/qa/chat`, {
     method: 'POST',
     headers: {
@@ -649,10 +704,16 @@ const streamQuestion = async (question: string) => {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
+    console.error('[ChatQA][streamQuestion] 请求失败响应', {
+      status: response.status,
+      errorData
+    })
     throw new Error(errorData.message || `请求失败: ${response.status}`)
   }
 
   if (!response.body) throw new Error('响应体为空')
+
+  console.log('[ChatQA][streamQuestion] 收到响应，开始读取流')
 
   const reader = response.body.getReader()
   const decoder = new TextDecoder('utf-8')
@@ -673,19 +734,34 @@ const streamQuestion = async (question: string) => {
         if (!trimmed.startsWith('data:')) continue
 
         const jsonStr = trimmed.slice(5).trim()
+        console.log('[ChatQA][streamQuestion] 解析到 SSE 行', {
+          trimmed,
+          jsonStr
+        })
         if (jsonStr === '[DONE]') {
+          console.log('[ChatQA][streamQuestion] 收到结束标记 [DONE]')
           loading.value = false
           return
         }
 
         try {
           const parsed = JSON.parse(jsonStr)
+          console.log('[ChatQA][streamQuestion] 解析后的 chunk', parsed)
           if (parsed.sessionId) {
+            console.log('[ChatQA][streamQuestion] 更新 sessionId', parsed.sessionId)
             currentSessionId.value = String(parsed.sessionId)
           }
           const deltaContent = extractChunkContent(parsed)
           const finalContent = parsed.final_content || parsed?.choices?.[0]?.delta?.final_content || parsed?.choices?.[0]?.message?.final_content
           const reasoning = parsed.reasoningContent || parsed?.choices?.[0]?.delta?.reasoning_content
+          console.log('[ChatQA][streamQuestion] 本轮 chunk 摘要', {
+            deltaContent,
+            finalContent,
+            hasReasoning: Boolean(reasoning),
+            hasReferences: Boolean(extractReferences(parsed)),
+            hasUsage: Boolean(parsed.usage),
+            hasError: Boolean(parsed.error)
+          })
           if (reasoning) {
             const current = messageList.value.find(item => item.id === aiMsg.id)
             const normalizedReasoning = normalizeWrappedText(reasoning)
@@ -725,6 +801,7 @@ const streamQuestion = async (question: string) => {
 
     if (buffer.trim().startsWith('data:')) {
       const jsonStr = buffer.trim().slice(5).trim()
+      console.log('[ChatQA][streamQuestion] 处理缓冲区剩余内容', { jsonStr })
       if (jsonStr !== '[DONE]') {
         try {
           const parsed = JSON.parse(jsonStr)
@@ -761,6 +838,14 @@ const streamQuestion = async (question: string) => {
 }
 
 const handleUserQuestion = async (questionInput?: string) => {
+  console.log('[handleUserQuestion]', {
+    questionInput,
+    userQValue: userQValue.value,
+    inputDomValue: (document.querySelector('.chat-input-field input') as HTMLInputElement | null)?.value,
+    loading: loading.value,
+    sessionId: currentSessionId.value
+  })
+
   const question = String(questionInput ?? userQValue.value ?? '').trim()
   if (!question || loading.value) return
 

@@ -129,6 +129,13 @@ router.get('/history/:sessionId', authMiddleware, roleMiddleware(['admin', 'user
         const chatId = String(req.query.chatId || ragflowClient.getQaChatId()).trim();
         const sessionId = String(req.params.sessionId || '').trim();
 
+        console.log('[AI 分析][history/:sessionId] 请求参数', {
+            chatId,
+            sessionId,
+            query: req.query,
+            params: req.params
+        });
+
         if (!chatId) {
             return res.status(400).json({
                 success: false,
@@ -146,6 +153,16 @@ router.get('/history/:sessionId', authMiddleware, roleMiddleware(['admin', 'user
         }
 
         const session = await ragflowClient.getSession(chatId, sessionId);
+        console.log('[AI 分析][history/:sessionId] 上游 session 响应', session);
+
+        if (session?.code === 100 && String(session?.message || '').includes('405')) {
+            return res.status(502).json({
+                success: false,
+                error: '获取会话详情失败',
+                message: session.message || 'RAGFlow 会话详情接口方法不被允许'
+            });
+        }
+
         res.json({
             success: true,
             data: session,

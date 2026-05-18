@@ -96,9 +96,35 @@ class RagflowClient {
     }
 
     async getSession(chatId: string, sessionId: string): Promise<any> {
-        const url = `/api/v1/chats/${String(chatId).trim()}/sessions/${String(sessionId).trim()}`;
-        const response = await this.client.get(url);
-        return response.data?.data ?? response.data;
+        const cleanChatId = String(chatId).trim();
+        const cleanSessionId = String(sessionId).trim();
+        const url = '/v1/conversation/get';
+
+        console.log('[RAGFlow getSession] request', {
+            chatId: cleanChatId,
+            sessionId: cleanSessionId,
+            url,
+            conversation_id: cleanSessionId
+        });
+
+        const response = await this.client.get(url, {
+            params: {
+                conversation_id: cleanSessionId
+            }
+        });
+        console.log('[RAGFlow getSession] raw response', response.data);
+
+        const data = response.data?.data ?? response.data;
+
+        if (data?.code === 100 && String(data?.message || '').includes('405')) {
+            throw new Error(`RAGFlow 会话详情接口不支持当前请求方式: ${data.message}`);
+        }
+
+        if (data?.message && String(data.message).includes('405')) {
+            throw new Error(`RAGFlow 会话详情接口返回错误: ${data.message}`);
+        }
+
+        return data;
     }
 
     async streamChat(question: string, res: Response, options?: StreamOptions): Promise<void> {
