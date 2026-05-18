@@ -3,8 +3,13 @@
     <div class="chat-container-wrapper">
       <aside class="sidebar">
         <div class="sidebar-header">
-          <h3 class="h3">问答历史记录</h3>
-          <p class="text-tip">最近与智能助手的对话记录</p>
+          <div class="sidebar-header-top">
+            <div>
+              <h3 class="h3">问答历史记录</h3>
+              <p class="text-tip">最近与智能助手的对话记录</p>
+            </div>
+            <el-button type="primary" plain size="small" @click="startNewSession">新会话</el-button>
+          </div>
         </div>
 
         <div class="sidebar-content" @scroll="handleScroll">
@@ -156,7 +161,7 @@
               v-model="userQValue"
               placeholder="请输入您的问题，按 Enter 发送"
               class="chat-input-field"
-              @keyup.enter="handleUserQuestion"
+              @keydown.enter.prevent="handleUserQuestion(($event.target as HTMLInputElement | null)?.value ?? userQValue)"
               clearable
             >
               <template #suffix>
@@ -222,6 +227,7 @@ interface HistorySession {
 
 const historyList = ref<HistorySession[]>([])
 const suggestedQuestions = ref(['灌装机常见的故障原因是什么？'])
+const currentSessionId = ref('')
 
 interface Message {
   id: number
@@ -313,6 +319,42 @@ const pushUserMessage = (content: string) => {
   return userMsg
 }
 
+const startNewSession = async () => {
+  currentSessionId.value = ''
+  replaceCurrentSessionMessages([])
+  userQValue.value = ''
+
+  try {
+    const token = TokenManager.getAccessToken()
+    const response = await fetch(`${qaApiBase}/qa/session`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ name: 'new session' })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.message || `创建会话失败: ${response.status}`)
+    }
+
+    const res = await response.json().catch(() => ({}))
+    const sessionId = String(res?.data?.sessionId || res?.data?.id || res?.sessionId || '').trim()
+    if (!sessionId) {
+      throw new Error('RAGFlow 未返回有效 sessionId')
+    }
+
+    currentSessionId.value = sessionId
+    viweState.value = false
+    ElMessage.success('已创建新会话')
+  } catch (error: any) {
+    console.error('创建新会话失败:', error)
+    ElMessage.error(error.message || '创建新会话失败')
+  }
+}
+
 const pushAiMessage = () => {
   const aiMsg: Message = {
     id: nextMessageId(),
@@ -371,6 +413,8 @@ const loadSessionDetail = async (item: HistorySession) => {
       throw new Error(res?.message || '获取会话详情失败')
     }
 
+    currentSessionId.value = sessionId
+    replaceCurrentSessionMessages(normalizeSessionMessages(res.data))
     console.log('历史会话详情', res.data)
     ElMessage.success(`已加载会话：${item.question}`)
   } catch (error: any) {
@@ -485,6 +529,31 @@ const normalizeReference = (ref: any, index = 0): ReferenceItem => {
   }
 }
 
+const normalizeSessionMessages = (sessionData: any): Message[] => {
+  const rawMessages = sessionData?.messages || sessionData?.chat_messages || sessionData?.data?.messages || []
+  if (!Array.isArray(rawMessages)) return []
+
+  return rawMessages.map((item: any) => {
+    const role = item?.role || item?.sender || item?.type
+    const isUser = role === 'user' || role === 'human'
+    const content = String(item?.content ?? item?.text ?? item?.message ?? '')
+    const references = Array.isArray(item?.references) ? item.references.map((ref: any, index: number) => normalizeReference(ref, index)) : undefined
+    return {
+      id: nextMessageId(),
+      type: isUser ? 'user' : 'ai',
+      content,
+      displayContent: content,
+      time: currentTime(),
+      references
+    }
+  }).filter((msg: Message) => msg.content.trim().length > 0)
+}
+
+const replaceCurrentSessionMessages = (messages: Message[]) => {
+  messageList.value = messages
+  viweState.value = messages.length === 0
+}
+
 const escapeHtml = (text: string) => {
   return text
     .replace(/&/g, '&amp;')
@@ -564,13 +633,18 @@ const streamQuestion = async (question: string) => {
   const aiMsg = pushAiMessage()
   loading.value = true
 
+  const payload: Record<string, any> = { question }
+  if (currentSessionId.value) {
+    payload.sessionId = currentSessionId.value
+  }
+
   const response = await fetch(`${qaApiBase}/qa/chat`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {})
     },
-    body: JSON.stringify({ question })
+    body: JSON.stringify(payload)
   })
 
   if (!response.ok) {
@@ -606,6 +680,9 @@ const streamQuestion = async (question: string) => {
 
         try {
           const parsed = JSON.parse(jsonStr)
+          if (parsed.sessionId) {
+            currentSessionId.value = String(parsed.sessionId)
+          }
           const deltaContent = extractChunkContent(parsed)
           const finalContent = parsed.final_content || parsed?.choices?.[0]?.delta?.final_content || parsed?.choices?.[0]?.message?.final_content
           const reasoning = parsed.reasoningContent || parsed?.choices?.[0]?.delta?.reasoning_content
@@ -683,8 +760,8 @@ const streamQuestion = async (question: string) => {
   }
 }
 
-const handleUserQuestion = async () => {
-  const question = userQValue.value.trim()
+const handleUserQuestion = async (questionInput?: string) => {
+  const question = String(questionInput ?? userQValue.value ?? '').trim()
   if (!question || loading.value) return
 
   pushUserMessage(question)
@@ -704,7 +781,7 @@ const handleUserQuestion = async () => {
 
 const handleSuggestedQuestion = (question: string) => {
   userQValue.value = question
-  handleUserQuestion()
+  void handleUserQuestion(question)
 }
 
 

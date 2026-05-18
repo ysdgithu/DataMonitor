@@ -63,14 +63,20 @@ class RagflowClient {
         return this.config.qaChatId;
     }
 
-    async createSession(chatId: string): Promise<string> {
+    async createSession(chatId: string, name = 'new session', userId?: string): Promise<any> {
         const url = `/api/v1/chats/${chatId}/sessions`;
-        const response = await this.client.post(url, {});
-        const sessionId = response.data?.data?.id || response.data?.data?.session_id || response.data?.session_id;
+        const payload: Record<string, any> = { name };
+        if (userId) payload.user_id = userId;
+        const response = await this.client.post(url, payload);
+        const data = response.data?.data ?? response.data;
+        const sessionId = data?.id || data?.session_id || response.data?.session_id;
         if (!sessionId) {
             throw new Error('RAGFlow 未返回有效 sessionId');
         }
-        return String(sessionId);
+        return {
+            sessionId: String(sessionId),
+            data
+        };
     }
 
     async listSessions(chatId: string, params?: { page?: number; pageSize?: number }): Promise<any[]> {
@@ -103,6 +109,15 @@ class RagflowClient {
             const messages: OpenAIChatMessage[] = options?.messages?.length
                 ? options.messages
                 : [{ role: 'user', content: question }];
+
+            const cleanQuestion = String(question || '').trim();
+            console.log('[RAGFlow streamChat] request', {
+                chatId,
+                sessionId: options?.sessionId,
+                question: cleanQuestion,
+                messageCount: messages.length,
+                messages
+            });
 
             const requestBody: Record<string, any> = {
                 model: 'model',

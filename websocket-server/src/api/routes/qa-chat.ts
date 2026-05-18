@@ -13,7 +13,7 @@ const router = Router();
  */
 router.post('/', authMiddleware, roleMiddleware(['admin', 'user']), async (req: Request, res: Response) => {
     try {
-        const { question } = req.body;
+        const { question, sessionId: incomingSessionId } = req.body;
 
         if (!question || typeof question !== 'string' || !question.trim()) {
             res.status(400).json({
@@ -26,13 +26,28 @@ router.post('/', authMiddleware, roleMiddleware(['admin', 'user']), async (req: 
 
         const cleanQuestion = question.trim();
         const qaChatId = ragflowClient.getQaChatId();
-        console.log('[QA 问答] 收到请求:', { question: cleanQuestion });
+        const providedSessionId = typeof incomingSessionId === 'string' ? incomingSessionId.trim() : '';
+        console.log('[QA 问答] 收到请求:', { question: cleanQuestion, sessionId: providedSessionId || undefined, rawBody: req.body });
         console.log('[QA 问答] 使用的 chatId:', qaChatId);
 
-        const sessionId = await ragflowClient.createSession(qaChatId);
-        console.log('[QA 问答] 创建的新 sessionId:', sessionId);
+        const createdSession = providedSessionId
+            ? { sessionId: providedSessionId, data: null }
+            : await ragflowClient.createSession(qaChatId, cleanQuestion.slice(0, 30) || 'new session');
+        const sessionId = createdSession.sessionId;
+        if (providedSessionId) {
+            console.log('[QA 问答] 复用 sessionId:', sessionId);
+        } else {
+            console.log('[QA 问答] 创建的新 sessionId:', sessionId, createdSession.data);
+        }
 
         let fullAnswer = '';
+        let sessionSent = false;
+
+        const sendSessionId = () => {
+            if (sessionSent || res.writableEnded) return;
+            sessionSent = true;
+            res.write(`data: ${JSON.stringify({ sessionId })}\n\n`);
+        };
 
         await ragflowClient.streamChat(cleanQuestion, res, {
             chatId: qaChatId,
@@ -41,9 +56,12 @@ router.post('/', authMiddleware, roleMiddleware(['admin', 'user']), async (req: 
             reference: true,
             referenceMetadata: true,
             onChunk: (chunk: string) => {
+                sendSessionId();
                 fullAnswer += chunk;
             }
         });
+
+        sendSessionId();
 
         // 流结束后补发结束标记，前端兼容现有 SSE 解析
         if (!res.writableEnded) {

@@ -49,8 +49,9 @@ router.post('/', authMiddleware, roleMiddleware(['admin', 'user']), async (req: 
         console.log('[AI 分析] 提示词:', question);
 
         // 3. 先创建新会话，再流式调用 RAGFlow
-        const sessionId = await ragflowClient.createSession(analysisChatId);
-        console.log('[AI 分析] 创建的新 sessionId:', sessionId);
+        const createdSession = await ragflowClient.createSession(analysisChatId, taskName.slice(0, 30) || 'new session');
+        const sessionId = createdSession.sessionId;
+        console.log('[AI 分析] 创建的新 sessionId:', sessionId, createdSession.data);
 
         let fullResult = '';
         await ragflowClient.streamChat(question, res, {

@@ -46,8 +46,41 @@
         </div>
       </template>
 
-      <div class="ai-result-content" v-loading="loading" v-html="aiResultHtml"></div>
+      <div class="ai-result-content" v-loading="loading">
+        <div class="ai-result-inner" v-html="aiResultHtml" @click="handleAiResultClick"></div>
+
+        <div v-if="displayReferences.length" class="references-block">
+          <p class="references-title">参考来源：</p>
+          <ul class="reference-list">
+            <li v-for="(ref, idx) in displayReferences" :key="ref.refId || idx" class="reference-item">
+              <button type="button" class="reference-pill reference-pill-button" @click="openReferenceCard(ref)">
+                {{ ref.name || `来源 ${idx + 1}` }}
+              </button>
+            </li>
+          </ul>
+        </div>
+      </div>
     </el-card>
+
+    <el-dialog v-model="referenceVisible" width="720px" class="reference-dialog" title="参考文本块" @close="closeReferenceDialog">
+      <div v-if="activeReference" class="reference-dialog-content">
+        <div class="reference-dialog-header">
+          <div>
+            <p class="reference-dialog-title">{{ activeReference.name || '参考来源' }}</p>
+            <p class="reference-dialog-subtitle">
+              <span v-if="activeReference.figureLabel">{{ activeReference.figureLabel }}</span>
+              <span v-if="activeReference.page !== undefined"> · 第 {{ activeReference.page }} 页</span>
+            </p>
+          </div>
+          <el-button v-if="activeReference.url" type="primary" link @click="openSourceLink(activeReference)">打开来源</el-button>
+        </div>
+
+        <div class="reference-dialog-snippet">
+          <p class="text-sm" style="margin-bottom: 8px; color: var(--text-secondary);">文本块</p>
+          <p style="white-space: pre-wrap; line-height: 1.8;">{{ activeReference.snippet || '暂无片段内容' }}</p>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -92,6 +125,26 @@ const parsedDetail = computed(() => {
 })
 let aiResult = ref('')
 let aiResultHtml = ref('')
+const references = ref<Array<{ name?: string; url?: string; figureLabel?: string; snippet?: string; page?: number; refId?: string | number }>>([])
+const displayReferences = computed(() => {
+  const seen = new Set<string>()
+  return references.value.filter((ref) => {
+    const dedupeKey = [ref.docId, ref.refId, ref.source, ref.url, ref.title, ref.name]
+      .map((item) => String(item || '').trim())
+      .find((item) => item.length > 0) || ''
+    if (!dedupeKey) return true
+    if (seen.has(dedupeKey)) return false
+    seen.add(dedupeKey)
+    return true
+  }).map((ref, index) => ({
+    ...ref,
+    refId: ref.refId ?? String(index + 1),
+    displayId: String(index + 1),
+    name: ref.name || ref.figureLabel || `来源 ${index + 1}`
+  }))
+})
+const referenceVisible = ref(false)
+const activeReference = ref<{ name?: string; url?: string; figureLabel?: string; snippet?: string; page?: number } | null>(null)
 const loading = ref(true)
 const updatingTask = ref(false)
 const confirmingTask = ref(false)
@@ -114,13 +167,14 @@ const initAIResult = () => {
   if (savedAi) {
     first.value = false
     aiResult.value = savedAi
-    aiResultHtml.value = convertMD(savedAi)
+    aiResultHtml.value = formatAiAnswer(savedAi)
     loading.value = false
     return
   }
 
   first.value = false
   aiResult.value = ''
+  references.value = []
   aiResultHtml.value = '<p style="color: #999;">暂无 AI 分析结果，点击「AI 一键分析」生成。</p>'
   loading.value = false
 }
@@ -131,6 +185,7 @@ const askAI = async () => {
   loading.value = true
   aiResult.value = ''
   aiResultHtml.value = ''
+  references.value = []
 
   const api = new DiagnosticApi()
   const taskId = taskDetail.value?.id
@@ -145,7 +200,21 @@ const askAI = async () => {
     await api.streamAIAnalysis(taskId, {
       onMessage: (content) => {
         aiResult.value += content
-        aiResultHtml.value = convertMD(aiResult.value)
+        aiResultHtml.value = formatAiAnswer(aiResult.value)
+        loading.value = false
+      },
+      onReferences: (refs) => {
+        const normalized = refs.map((ref, index) => normalizeReference(ref, index))
+        const seen = new Set<string>()
+        references.value = normalized.filter((ref) => {
+          const dedupeKey = [ref.refId, ref.source, ref.url, ref.title, ref.name]
+            .map((item) => String(item || '').trim())
+            .find((item) => item.length > 0) || ''
+          if (!dedupeKey) return true
+          if (seen.has(dedupeKey)) return false
+          seen.add(dedupeKey)
+          return true
+        })
         loading.value = false
       },
       onError: (error) => {
@@ -161,18 +230,77 @@ const askAI = async () => {
     loading.value = false
   }
 }
-// md格式转换
-const convertMD = (data: string) => {
-  let raw = data
-  // 1. 每个 #### 前加换行
-  raw = raw.replace(/(####)/g, '\n$1')
-  // 2. 标题后加换行（让标题和内容分开）
-  raw = raw.replace(/(#### .+?)(?=[^#])/g, '$1\n')
-  // 3. 短横线前加换行（让列表项单独一行）
-  raw = raw.replace(/(\s)- /g, '\n- ')
-  // 4. 数字列表前加换行
-  raw = raw.replace(/(\d\.) /g, '\n$1 ')
-  return md.render(raw)
+const formatAiAnswer = (data: string) => {
+  const sourceText = String(data || '')
+  const withLineBreaks = sourceText
+    .replace(/(####)/g, '\n$1')
+    .replace(/(#### .+?)(?=[^#])/g, '$1\n')
+    .replace(/(\s)- /g, '\n- ')
+    .replace(/(\d\.) /g, '\n$1 ')
+
+  const html = md.render(withLineBreaks)
+    .replace(/Fig\.\s*\[ID:\s*(\d+)\]/g, (_match, id) => {
+      return `<button type="button" class="inline-reference" data-ref-id="${id}">Fig. ${id}</button>`
+    })
+    .replace(/\[ID:\s*(\d+)\]/g, (_match, id) => {
+      return `<button type="button" class="inline-reference" data-ref-id="${id}">Fig. ${id}</button>`
+    })
+    .replace(/Fig\.\s*(\d+)/g, (_match, id) => {
+      return `<button type="button" class="inline-reference" data-ref-id="${id}">Fig. ${id}</button>`
+    })
+
+  return html
+}
+
+const normalizeReference = (ref: any, index = 0) => ({
+  name: ref?.name || ref?.title || ref?.doc_name || ref?.document_name || ref?.source_name || `来源 ${index + 1}`,
+  url: ref?.url || ref?.source_url || ref?.link,
+  figureLabel: ref?.figureLabel || ref?.figure || ref?.label || ref?.chunk_label,
+  snippet: ref?.snippet || ref?.content || ref?.text || ref?.chunk || ref?.excerpt,
+  page: ref?.page ?? ref?.page_no ?? ref?.pageNumber,
+  source: ref?.source || ref?.file_path || ref?.path,
+  title: ref?.title || ref?.doc_title || ref?.document_title,
+  refId: ref?.refId ?? ref?.id ?? ref?.chunk_id ?? ref?.chunkId ?? ref?.reference_id,
+  docId: ref?.docId ?? ref?.documentId ?? ref?.fileId ?? ref?.file_id
+})
+
+const openReference = (ref: any) => {
+  activeReference.value = ref || null
+  referenceVisible.value = true
+}
+
+const openReferenceCard = (ref: any) => {
+  openReference(ref)
+}
+
+const openSourceLink = (ref: any) => {
+  if (ref?.url) {
+    window.open(ref.url, '_blank', 'noopener,noreferrer')
+  }
+}
+
+const openReferenceById = (refId: string) => {
+  const id = String(refId || '').trim().replace(/^Fig\.?\s*/i, '').replace(/[^\d]/g, '')
+  const target = displayReferences.value.find(ref => String(ref.displayId ?? '').trim() === id)
+    || displayReferences.value.find(ref => String(ref.refId ?? '').trim() === id)
+  if (target) {
+    openReference(target)
+  }
+}
+
+const closeReferenceDialog = () => {
+  referenceVisible.value = false
+  activeReference.value = null
+}
+
+const handleAiResultClick = (event: MouseEvent) => {
+  const target = event.target as HTMLElement | null
+  const button = target?.closest?.('button[data-ref-id]') as HTMLButtonElement | null
+  if (!button) return
+  const refId = button.getAttribute('data-ref-id')
+  if (refId) {
+    openReferenceById(refId)
+  }
 }
 
 // 确认当前任务（状态 -> 1 进行中）
@@ -301,6 +429,7 @@ const getPriorityText = (priority?: number) => {
   }
   return map[priority || 0] || '未知'
 }
+
 // 监听 taskData 变化：切换任务时重置 AI 分析状态
 watch(() => props.taskData, (newTask, oldTask) => {
   if (newTask?.id !== oldTask?.id) {
@@ -446,6 +575,127 @@ onMounted(() => {
   padding: 4px 0 0;
   line-height: 1.65;
   color: #24324a;
+}
+
+.ai-result-inner {
+  max-width: 680px;
+  margin: 0 auto;
+  line-height: 1.8;
+  font-size: 14px;
+  color: #2a3746;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.ai-result-inner :deep(p) {
+  margin: 0 0 12px;
+}
+
+.ai-result-inner :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.ai-result-inner :deep(ol),
+.ai-result-inner :deep(ul) {
+  margin: 0 0 12px 20px;
+  padding-left: 16px;
+}
+
+.ai-result-inner :deep(li) {
+  margin-bottom: 6px;
+}
+
+.ai-result-inner :deep(strong) {
+  color: #182235;
+  font-weight: 600;
+}
+
+.ai-result-inner :deep(a) {
+  color: #3f5bd8;
+  text-decoration: none;
+}
+
+.ai-result-inner :deep(a:hover) {
+  text-decoration: underline;
+}
+
+.references-block {
+  margin-top: 16px;
+  padding: 10px 12px;
+  border: 1px solid #e4eaf1;
+  border-radius: 12px;
+  background: #f9fbfd;
+}
+
+.references-title {
+  margin: 0 0 10px;
+  color: #6f7d92;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.reference-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  align-items: flex-start;
+  padding-left: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.reference-item {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.reference-pill,
+.reference-pill-button {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  border: 1px solid #cfd9e4;
+  background: #fff;
+  color: #4f6b8a;
+  border-radius: 999px;
+  padding: 5px 12px;
+  line-height: 1.2;
+}
+
+.reference-pill-button {
+  cursor: pointer;
+  font: inherit;
+}
+
+.reference-pill-button:hover {
+  border-color: #b9c7d8;
+  background: #f7faff;
+}
+
+.inline-reference {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d4d9df;
+  background: #f6f7f8;
+  color: #5f666f;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  border-radius: 4px;
+  padding: 0 6px;
+  min-height: 20px;
+  cursor: pointer;
+}
+
+.inline-reference:hover {
+  border-color: #c2c8cf;
+  background: #eef0f2;
+  color: #3f4750;
 }
 
 :deep(.el-card__header) {
