@@ -1,6 +1,7 @@
 <template>
   <main-layout>
     <div class="chat-container-wrapper">
+      <!--
       <aside class="sidebar">
         <div class="sidebar-header">
           <div class="sidebar-header-top">
@@ -55,8 +56,9 @@
           </template>
         </div>
       </aside>
+      -->
 
-      <div class="chat-main">
+      <div class="chat-main chat-main--single-session">
         <header class="chat-header">
           <h2 class="h2">智能运维问答助手</h2>
           <p class="text-sm">基于 RAG 技术的工业设备智能诊断与问答系统</p>
@@ -216,6 +218,8 @@ import { ElMessage } from 'element-plus'
 const viweState = ref(true)
 const loading = ref(false)
 const historyLoading = ref(false)
+// 历史会话列表暂时隐藏，仅保留单会话问答模式
+// 下面相关函数保留但不参与页面交互，方便后续恢复
 
 interface HistorySession {
   id: string | number
@@ -226,7 +230,7 @@ interface HistorySession {
 }
 
 const historyList = ref<HistorySession[]>([])
-const suggestedQuestions = ref(['灌装机常见的故障原因是什么？'])
+const suggestedQuestions = ref(['灌装量偏低通常是什么原因？'])
 const currentSessionId = ref('')
 
 interface Message {
@@ -254,6 +258,9 @@ interface Message {
 
 const messageList = ref<Message[]>([])
 const userQValue = ref('')
+
+// 使用内存缓存当前会话的对话历史（仅正文，不含引用等附加信息）
+const conversationCache = ref<Array<{ role: 'user' | 'assistant'; content: string }>>([])
 const qaApiBase = import.meta.env.VITE_API_URL || 'http://localhost:3002/api'
 const qaChatId = '46fb6734358611f180d46988dbe8f3ea'
 let messageIdSeed = 0
@@ -320,45 +327,45 @@ const pushUserMessage = (content: string) => {
   return userMsg
 }
 
-const startNewSession = async () => {
-  console.log('[ChatQA][startNewSession] 进入新会话流程', {
-    currentSessionId: currentSessionId.value,
-    messageCount: messageList.value.length
-  })
-  currentSessionId.value = ''
-  replaceCurrentSessionMessages([])
-  userQValue.value = ''
-
-  try {
-    const token = TokenManager.getAccessToken()
-    const response = await fetch(`${qaApiBase}/qa/session`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      },
-      body: JSON.stringify({ name: 'new session' })
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.message || `创建会话失败: ${response.status}`)
-    }
-
-    const res = await response.json().catch(() => ({}))
-    const sessionId = String(res?.data?.sessionId || res?.data?.id || res?.sessionId || '').trim()
-    if (!sessionId) {
-      throw new Error('RAGFlow 未返回有效 sessionId')
-    }
-
-    currentSessionId.value = sessionId
-    viweState.value = false
-    ElMessage.success('已创建新会话')
-  } catch (error: any) {
-    console.error('创建新会话失败:', error)
-    ElMessage.error(error.message || '创建新会话失败')
-  }
-}
+// const startNewSession = async () => {
+//   console.log('[ChatQA][startNewSession] 进入新会话流程', {
+//     currentSessionId: currentSessionId.value,
+//     messageCount: messageList.value.length
+//   })
+//   currentSessionId.value = ''
+//   replaceCurrentSessionMessages([])
+//   userQValue.value = ''
+//
+//   try {
+//     const token = TokenManager.getAccessToken()
+//     const response = await fetch(`${qaApiBase}/qa/session`, {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//         ...(token ? { Authorization: `Bearer ${token}` } : {})
+//       },
+//       body: JSON.stringify({ name: 'new session' })
+//     })
+//
+//     if (!response.ok) {
+//       const errorData = await response.json().catch(() => ({}))
+//       throw new Error(errorData.message || `创建会话失败: ${response.status}`)
+//     }
+//
+//     const res = await response.json().catch(() => ({}))
+//     const sessionId = String(res?.data?.sessionId || res?.data?.id || res?.sessionId || '').trim()
+//     if (!sessionId) {
+//       throw new Error('RAGFlow 未返回有效 sessionId')
+//     }
+//
+//     currentSessionId.value = sessionId
+//     viweState.value = false
+//     ElMessage.success('已创建新会话')
+//   } catch (error: any) {
+//     console.error('创建新会话失败:', error)
+//     ElMessage.error(error.message || '创建新会话失败')
+//   }
+// }
 
 const pushAiMessage = () => {
   const aiMsg: Message = {
@@ -383,153 +390,153 @@ const updateAiMessage = (id: number, patch: Partial<Message>) => {
   }
 }
 
-const loadHistorySessions = async () => {
-  historyLoading.value = true
-  console.log('[ChatQA][loadHistorySessions] 开始加载历史列表', {
-    chatId: '46fb6734358611f180d46988dbe8f3ea'
-  })
-  try {
-    const res: any = await request.get('/ai-analysis/history', {
-      params: { chatId: qaChatId }
-    })
-    console.log('[ChatQA][loadHistorySessions] 原始响应', res)
-    if (res?.success) {
-      const normalized = normalizeHistory(res.data || [])
-      console.log('[ChatQA][loadHistorySessions] 规范化结果', {
-        rawLength: Array.isArray(res.data) ? res.data.length : undefined,
-        normalizedLength: normalized.length,
-        normalized
-      })
-      historyList.value = normalized
-    } else {
-      console.warn('[ChatQA][loadHistorySessions] 返回 success=false', res)
-      ElMessage.error(res?.message || '获取历史会话失败')
-    }
-  } catch (error: any) {
-    console.error('[ChatQA][loadHistorySessions] 获取历史会话失败:', error)
-    ElMessage.error(error.message || '获取历史会话失败')
-  } finally {
-    historyLoading.value = false
-    console.log('[ChatQA][loadHistorySessions] 结束加载历史列表')
-  }
-}
+// const loadHistorySessions = async () => {
+//   historyLoading.value = true
+//   console.log('[ChatQA][loadHistorySessions] 开始加载历史列表', {
+//     chatId: '46fb6734358611f180d46988dbe8f3ea'
+//   })
+//   try {
+//     const res: any = await request.get('/ai-analysis/history', {
+//       params: { chatId: qaChatId }
+//     })
+//     console.log('[ChatQA][loadHistorySessions] 原始响应', res)
+//     if (res?.success) {
+//       const normalized = normalizeHistory(res.data || [])
+//       console.log('[ChatQA][loadHistorySessions] 规范化结果', {
+//         rawLength: Array.isArray(res.data) ? res.data.length : undefined,
+//         normalizedLength: normalized.length,
+//         normalized
+//       })
+//       historyList.value = normalized
+//     } else {
+//       console.warn('[ChatQA][loadHistorySessions] 返回 success=false', res)
+//       ElMessage.error(res?.message || '获取历史会话失败')
+//     }
+//   } catch (error: any) {
+//     console.error('[ChatQA][loadHistorySessions] 获取历史会话失败:', error)
+//     ElMessage.error(error.message || '获取历史会话失败')
+//   } finally {
+//     historyLoading.value = false
+//     console.log('[ChatQA][loadHistorySessions] 结束加载历史列表')
+//   }
+// }
 
-const loadSessionDetail = async (item: HistorySession) => {
-  const sessionId = getSessionId(item)
-  console.log('[ChatQA][loadSessionDetail] 点击历史会话', {
-    item,
-    sessionId
-  })
-  if (!sessionId) {
-    ElMessage.warning('无法识别会话ID')
-    return
-  }
-
-  try {
-    const res: any = await request.get(`/ai-analysis/history/${encodeURIComponent(sessionId)}`, {
-      params: { chatId: qaChatId }
-    })
-
-    console.log('[ChatQA][loadSessionDetail] 原始响应', res)
-
-    if (!res?.success) {
-      throw new Error(res?.message || '获取会话详情失败')
-    }
-
-    currentSessionId.value = sessionId
-    const normalizedMessages = normalizeSessionMessages(res.data)
-    console.log('[ChatQA][loadSessionDetail] 规范化消息结果', {
-      sessionId,
-      messageCount: normalizedMessages.length,
-      normalizedMessages,
-      rawData: res.data
-    })
-    replaceCurrentSessionMessages(normalizedMessages)
-    console.log('[ChatQA][loadSessionDetail] 历史会话详情加载完成', res.data)
-    ElMessage.success(`已加载会话：${item.question}`)
-  } catch (error: any) {
-    console.error('[ChatQA][loadSessionDetail] 获取会话详情失败:', error)
-    ElMessage.error(error.message || '获取会话详情失败')
-  }
-}
+// const loadSessionDetail = async (item: HistorySession) => {
+//   const sessionId = getSessionId(item)
+//   console.log('[ChatQA][loadSessionDetail] 点击历史会话', {
+//     item,
+//     sessionId
+//   })
+//   if (!sessionId) {
+//     ElMessage.warning('无法识别会话ID')
+//     return
+//   }
+//
+//   try {
+//     const res: any = await request.get(`/ai-analysis/history/${encodeURIComponent(sessionId)}`, {
+//       params: { chatId: qaChatId }
+//     })
+//
+//     console.log('[ChatQA][loadSessionDetail] 原始响应', res)
+//
+//     if (!res?.success) {
+//       throw new Error(res?.message || '获取会话详情失败')
+//     }
+//
+//     currentSessionId.value = sessionId
+//     const normalizedMessages = normalizeSessionMessages(res.data)
+//     console.log('[ChatQA][loadSessionDetail] 规范化消息结果', {
+//       sessionId,
+//       messageCount: normalizedMessages.length,
+//       normalizedMessages,
+//       rawData: res.data
+//     })
+//     replaceCurrentSessionMessages(normalizedMessages)
+//     console.log('[ChatQA][loadSessionDetail] 历史会话详情加载完成', res.data)
+//     ElMessage.success(`已加载会话：${item.question}`)
+//   } catch (error: any) {
+//     console.error('[ChatQA][loadSessionDetail] 获取会话详情失败:', error)
+//     ElMessage.error(error.message || '获取会话详情失败')
+//   }
+// }
 
 const getSessionId = (item: HistorySession) => String(item.raw?.session_id || item.raw?.id || item.id || '').trim()
 
-const handleDeleteSession = async (item: HistorySession) => {
-  const sessionId = getSessionId(item)
-  if (!sessionId) {
-    ElMessage.warning('无法识别会话ID')
-    return
-  }
+// const handleDeleteSession = async (item: HistorySession) => {
+//   const sessionId = getSessionId(item)
+//   if (!sessionId) {
+//     ElMessage.warning('无法识别会话ID')
+//     return
+//   }
+//
+//   try {
+//     await ElMessageBox.confirm(`确认删除会话「${item.question}」吗？此操作不可恢复。`, '删除会话', {
+//       type: 'warning',
+//       confirmButtonText: '删除',
+//       cancelButtonText: '取消'
+//     })
+//
+//     const token = TokenManager.getAccessToken()
+//     const response = await fetch(`${qaApiBase}/ai-analysis/history?chatId=${encodeURIComponent(qaChatId)}`, {
+//       method: 'DELETE',
+//       headers: {
+//         'Content-Type': 'application/json',
+//         ...(token ? { Authorization: `Bearer ${token}` } : {})
+//       },
+//       body: JSON.stringify({ ids: [sessionId] })
+//     })
+//
+//     const res = await response.json().catch(() => ({}))
+//     if (!response.ok || !res?.success) {
+//       throw new Error(res?.message || '删除失败')
+//     }
+//
+//     ElMessage.success('删除成功')
+//     await loadHistorySessions()
+//   } catch (error: any) {
+//     if (error !== 'cancel' && error !== 'close') {
+//       ElMessage.error(error.message || '删除失败')
+//     }
+//   }
+// }
 
-  try {
-    await ElMessageBox.confirm(`确认删除会话「${item.question}」吗？此操作不可恢复。`, '删除会话', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消'
-    })
-
-    const token = TokenManager.getAccessToken()
-    const response = await fetch(`${qaApiBase}/ai-analysis/history?chatId=${encodeURIComponent(qaChatId)}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      },
-      body: JSON.stringify({ ids: [sessionId] })
-    })
-
-    const res = await response.json().catch(() => ({}))
-    if (!response.ok || !res?.success) {
-      throw new Error(res?.message || '删除失败')
-    }
-
-    ElMessage.success('删除成功')
-    await loadHistorySessions()
-  } catch (error: any) {
-    if (error !== 'cancel' && error !== 'close') {
-      ElMessage.error(error.message || '删除失败')
-    }
-  }
-}
-
-const handleDeleteSessions = async (items: HistorySession[]) => {
-  const ids = items.map(getSessionId).filter(Boolean)
-  if (!ids.length) {
-    ElMessage.warning('没有可删除的会话')
-    return
-  }
-
-  try {
-    await ElMessageBox.confirm(`确认删除该组 ${ids.length} 条会话吗？此操作不可恢复。`, '批量删除会话', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消'
-    })
-
-    const token = TokenManager.getAccessToken()
-    const response = await fetch(`${qaApiBase}/ai-analysis/history?chatId=${encodeURIComponent(qaChatId)}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      },
-      body: JSON.stringify({ ids })
-    })
-
-    const res = await response.json().catch(() => ({}))
-    if (!response.ok || !res?.success) {
-      throw new Error(res?.message || '删除失败')
-    }
-
-    ElMessage.success('删除成功')
-    await loadHistorySessions()
-  } catch (error: any) {
-    if (error !== 'cancel' && error !== 'close') {
-      ElMessage.error(error.message || '删除失败')
-    }
-  }
-}
+// const handleDeleteSessions = async (items: HistorySession[]) => {
+//   const ids = items.map(getSessionId).filter(Boolean)
+//   if (!ids.length) {
+//     ElMessage.warning('没有可删除的会话')
+//     return
+//   }
+//
+//   try {
+//     await ElMessageBox.confirm(`确认删除该组 ${ids.length} 条会话吗？此操作不可恢复。`, '批量删除会话', {
+//       type: 'warning',
+//       confirmButtonText: '删除',
+//       cancelButtonText: '取消'
+//     })
+//
+//     const token = TokenManager.getAccessToken()
+//     const response = await fetch(`${qaApiBase}/ai-analysis/history?chatId=${encodeURIComponent(qaChatId)}`, {
+//       method: 'DELETE',
+//       headers: {
+//         'Content-Type': 'application/json',
+//         ...(token ? { Authorization: `Bearer ${token}` } : {})
+//       },
+//       body: JSON.stringify({ ids })
+//     })
+//
+//     const res = await response.json().catch(() => ({}))
+//     if (!response.ok || !res?.success) {
+//       throw new Error(res?.message || '删除失败')
+//     }
+//
+//     ElMessage.success('删除成功')
+//     await loadHistorySessions()
+//   } catch (error: any) {
+//     if (error !== 'cancel' && error !== 'close') {
+//       ElMessage.error(error.message || '删除失败')
+//     }
+//   }
+// }
 
 interface ReferenceItem {
   name?: string
@@ -675,22 +682,34 @@ const openReferenceById = (msg: Message, refId: string) => {
   ElMessage.warning(`未找到对应引用 [ID:${refId}]`)
 }
 
+const buildFullPrompt = (question: string) => {
+  const historyText = conversationCache.value
+    .map(item => `${item.role === 'user' ? '用户' : '助手'}：${item.content}`)
+    .join('\n')
+
+  if (!historyText.trim()) {
+    return question
+  }
+
+  return `以下是历史对话，请结合上下文连续回答。\n${historyText}\n\n用户最新问题：${question}`
+}
 
 const streamQuestion = async (question: string) => {
   const token = TokenManager.getAccessToken()
   const aiMsg = pushAiMessage()
   loading.value = true
 
-  const payload: Record<string, any> = { question }
-  if (currentSessionId.value) {
-    payload.sessionId = currentSessionId.value
+  const fullPrompt = buildFullPrompt(question)
+  const payload: Record<string, any> = {
+    question: fullPrompt
   }
 
   console.log('[ChatQA][streamQuestion] 开始流式问答', {
     question,
     sessionId: currentSessionId.value,
     payload,
-    tokenExists: Boolean(token)
+    tokenExists: Boolean(token),
+    qaChatId
   })
 
   const response = await fetch(`${qaApiBase}/qa/chat`, {
@@ -747,9 +766,10 @@ const streamQuestion = async (question: string) => {
         try {
           const parsed = JSON.parse(jsonStr)
           console.log('[ChatQA][streamQuestion] 解析后的 chunk', parsed)
-          if (parsed.sessionId) {
-            console.log('[ChatQA][streamQuestion] 更新 sessionId', parsed.sessionId)
-            currentSessionId.value = String(parsed.sessionId)
+          const incomingSessionId = parsed.sessionId || parsed.session_id || parsed?.data?.sessionId || parsed?.data?.session_id
+          if (incomingSessionId) {
+            console.log('[ChatQA][streamQuestion] 更新 sessionId', incomingSessionId)
+            currentSessionId.value = String(incomingSessionId)
           }
           const deltaContent = extractChunkContent(parsed)
           const finalContent = parsed.final_content || parsed?.choices?.[0]?.delta?.final_content || parsed?.choices?.[0]?.message?.final_content
@@ -850,10 +870,16 @@ const handleUserQuestion = async (questionInput?: string) => {
   if (!question || loading.value) return
 
   pushUserMessage(question)
+  conversationCache.value.push({ role: 'user', content: question })
   userQValue.value = ''
 
   try {
     await streamQuestion(question)
+    const latestAi = [...messageList.value].reverse().find(msg => msg.type === 'ai')
+    const aiText = String(latestAi?.content || '').trim()
+    if (aiText) {
+      conversationCache.value.push({ role: 'assistant', content: aiText })
+    }
   } catch (error: any) {
     messageList.value.push({
       id: nextMessageId(),
@@ -883,22 +909,22 @@ const handleRegenerate = (messageId: number) => {
   void streamQuestion(prevUser.content)
 }
 
-const handleScroll = (e: any) => {
-  if (e.target.scrollTop === 0) {
-    console.log('触发刷新历史记录')
-  }
-}
+// const handleScroll = (e: any) => {
+//   if (e.target.scrollTop === 0) {
+//     console.log('触发刷新历史记录')
+//   }
+// }
 
-const groupedHistory = computed(() => ({
-  today: historyList.value.filter(h => h.date === 'today'),
-  yesterday: historyList.value.filter(h => h.date === 'yesterday'),
-  earlier: historyList.value.filter(h => h.date === 'earlier')
-}))
+// const groupedHistory = computed(() => ({
+//   today: historyList.value.filter(h => h.date === 'today'),
+//   yesterday: historyList.value.filter(h => h.date === 'yesterday'),
+//   earlier: historyList.value.filter(h => h.date === 'earlier')
+// }))
 
-const getHistoryByDate = (date: string) => groupedHistory.value[date as keyof typeof groupedHistory.value] || []
+// const getHistoryByDate = (date: string) => groupedHistory.value[date as keyof typeof groupedHistory.value] || []
 
 onMounted(() => {
-  loadHistorySessions()
+  // 历史会话列表已隐藏，单会话模式不再自动加载历史
 })
 </script>
 
@@ -1179,9 +1205,9 @@ onMounted(() => {
 }
 
 .user-bubble {
-  width: min(680px, calc(100vw - 360px));
-  max-width: 680px;
-  min-width: 520px;
+  width: min(1120px, calc(100vw - 320px));
+  max-width: 1120px;
+  min-width: 760px;
   padding: var(--spacing-base) var(--spacing-lg);
   border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
   background-color: white;
@@ -1194,9 +1220,9 @@ onMounted(() => {
 }
 
 .ai-bubble {
-  width: min(680px, calc(100vw - 360px));
-  max-width: 680px;
-  min-width: 520px;
+  width: min(1120px, calc(100vw - 320px));
+  max-width: 1120px;
+  min-width: 760px;
   padding: var(--spacing-lg);
   border: 1px solid #e4eaf1;
   border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-sm);

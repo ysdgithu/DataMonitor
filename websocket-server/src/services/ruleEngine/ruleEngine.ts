@@ -512,6 +512,52 @@ export class RuleEngine {
     }
 
     /**
+     * 生成更具体的任务名称
+     */
+    private buildSpecificTaskName(event: AlarmEvent, rule: AlarmRule): string {
+        const baseName = String(event.ruleName || rule.name || '异常任务').trim();
+        const details = event.details || {};
+
+        const parameterName = String(event.parameterName || '').trim();
+        const currentValue = typeof event.currentValue === 'number' ? event.currentValue : undefined;
+
+        let trendLabel = '';
+        if (parameterName.includes('temp')) {
+            if (currentValue !== undefined) {
+                trendLabel = currentValue >= 0 ? '偏高' : '偏低';
+            }
+            const value = currentValue ?? Number(details.value);
+            const thresholdText = String(event.threshold || '');
+            if (thresholdText.includes('<')) {
+                trendLabel = '偏低';
+            } else if (thresholdText.includes('>')) {
+                trendLabel = '偏高';
+            } else if (typeof value === 'number') {
+                trendLabel = value >= 0 ? '偏高' : '偏低';
+            }
+        } else if (parameterName.includes('fill') || parameterName.includes('volume')) {
+            trendLabel = '偏低';
+        }
+
+        if (!trendLabel) {
+            const message = String(event.message || '');
+            if (message.includes('超出范围')) {
+                trendLabel = '异常';
+            }
+        }
+
+        if (baseName.includes('偏高') || baseName.includes('偏低') || baseName.includes('异常')) {
+            return baseName;
+        }
+
+        if (trendLabel) {
+            return `${baseName}${trendLabel}`;
+        }
+
+        return baseName;
+    }
+
+    /**
      * 创建诊断任务（带去重机制）
      */
     private async createDiagnosisTask(event: AlarmEvent, rule: AlarmRule): Promise<void> {
@@ -527,8 +573,8 @@ export class RuleEngine {
             return; // 跳过重复创建
         }
 
-        // 生成任务名称
-        const taskName = `${event.ruleName}`;
+        // 生成更具体的任务名称（例如：xxx持续温度偏高/偏低）
+        const taskName = this.buildSpecificTaskName(event, rule);
 
         // 构造任务详情
         const detail = `告警规则: ${event.ruleName}\n` +

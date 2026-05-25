@@ -54,7 +54,7 @@ const menuItems = [
     route: null,
     roles: ['admin'],
     children: [
-      { label: '权限管理', route: '/permission' },
+      // { label: '权限管理', route: '/permission' },
       { label: '异常规则', route: '/exception' },
       { label: '知识库管理', route: '/knowledge' }
     ]

@@ -13,7 +13,8 @@ import type { VNode } from 'vue'
 export interface Column {
   prop: string           // 字段名
   label: string          // 列标题
-  width?: number         // 列宽度（可选）
+  width?: number         // 固定列宽（可选）
+  minWidth?: number      // 最小列宽（可选，支持自适应拉伸）
 
   // 特殊列类型（可选，不填就是普通文本列）
   isStatus?: boolean     // 是否是状态列（自动使用 StatusTag）

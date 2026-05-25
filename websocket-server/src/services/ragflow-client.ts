@@ -142,7 +142,8 @@ class RagflowClient {
                 sessionId: options?.sessionId,
                 question: cleanQuestion,
                 messageCount: messages.length,
-                messages
+                messages,
+                requestUrl: url
             });
 
             const requestBody: Record<string, any> = {

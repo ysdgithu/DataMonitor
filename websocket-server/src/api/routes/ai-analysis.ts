@@ -40,12 +40,18 @@ router.post('/', authMiddleware, roleMiddleware(['admin', 'user']), async (req: 
         }
 
         const taskName = task.name || '未知异常';
+        const taskDetail = String(task.detail || '').trim();
         const analysisChatId = ragflowClient.getAnalysisChatId();
         console.log(`[AI 分析] 任务ID: ${taskId}, 任务名称: ${taskName}`);
         console.log('[AI 分析] 使用的 chatId:', analysisChatId);
 
         // 2. 拼接提示词
-        const question = `我出现了${taskName}这个异常，请尽量使用简洁精炼的语言回答，包括可能的原因和处理步骤`;
+        const anomalySummary = `我出现了${taskName}这个异常，请尽量使用简洁精炼的语言回答，包括可能的原因和处理步骤。`;
+        const detailSummary = taskDetail
+            ? `设备异常信息：${taskDetail}`
+            : '';
+        const question = [anomalySummary, detailSummary].filter(Boolean).join('\n');
+        console.log('[AI 分析] 任务详情:', taskDetail);
         console.log('[AI 分析] 提示词:', question);
 
         // 3. 先创建新会话，再流式调用 RAGFlow

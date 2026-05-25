@@ -2,7 +2,7 @@
   <div class="data-table-wrapper">
     <!-- 表格 -->
     <el-table :data="data" v-loading="loading" highlight-current-row class="data-table">
-      <el-table-column v-for="col in columns" :key="col.prop" :prop="col.prop" :label="col.label" :width="col.width">
+      <el-table-column v-for="col in columns" :key="col.prop" :prop="col.prop" :label="col.label" :width="col.width" :min-width="col.minWidth">
         <template #default="{ row }">
           <!-- 自定义渲染 -->
           <template v-if="col.customRender">

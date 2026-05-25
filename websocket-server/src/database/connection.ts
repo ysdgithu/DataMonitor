@@ -58,34 +58,19 @@ class DatabaseConnection {
 
     public async run(sql: string, params: any[] = []): Promise<void> {
         const pool = await this.connect();
-        const connection = await pool.getConnection();
-        try {
-            await connection.execute(sql, params);
-        } finally {
-            connection.release();
-        }
+        await pool.query(sql, params);
     }
 
     public async get(sql: string, params: any[] = []): Promise<any> {
         const pool = await this.connect();
-        const connection = await pool.getConnection();
-        try {
-            const [rows] = await connection.execute(sql, params);
-            return (rows as any[])[0] || null;
-        } finally {
-            connection.release();
-        }
+        const [rows] = await pool.query(sql, params);
+        return (rows as any[])[0] || null;
     }
 
     public async all(sql: string, params: any[] = []): Promise<any[]> {
         const pool = await this.connect();
-        const connection = await pool.getConnection();
-        try {
-            const [rows] = await connection.execute(sql, params);
-            return rows as any[];
-        } finally {
-            connection.release();
-        }
+        const [rows] = await pool.query(sql, params);
+        return rows as any[];
     }
 
     public async close(): Promise<void> {

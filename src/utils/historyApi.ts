@@ -100,36 +100,39 @@ export class HistoryApi {
 
     // ========== 报表相关接口 ==========
 
-    // 生成报表数据（返回JSON用于预览）
+    // 生成历史数据统计报表数据（返回JSON用于预览）
     async generateReport(params: {
-        reportType: 'device-run' | 'alarm-stat';
+        deviceId?: string;
         timeRange: string;
         customRange?: string[];
-        deviceId?: number;
+        metrics?: string[];
+        page?: number;
+        pageSize?: number;
     }): Promise<any> {
         const payload = {
-            reportType: params.reportType,
+            deviceId: params.deviceId || undefined,
             timeRange: params.timeRange,
             customRange: params.customRange || [],
-            deviceId: params.deviceId || undefined
+            metrics: params.metrics || ['fill_volume'],
+            page: params.page || 1,
+            pageSize: params.pageSize || 10
         };
         return await request.post('/report/generate', payload) as any;
     }
 
     // 导出报表为Excel文件
     async exportReport(params: {
-        reportType: 'device-run' | 'alarm-stat';
+        deviceId?: string;
         timeRange: string;
         customRange?: string[];
-        deviceId?: number;
+        metrics?: string[];
     }): Promise<Blob> {
         const payload = {
-            reportType: params.reportType,
+            deviceId: params.deviceId || undefined,
             timeRange: params.timeRange,
             customRange: params.customRange || [],
-            deviceId: params.deviceId || undefined
+            metrics: params.metrics || ['fill_volume']
         };
-        // 使用 responseType: 'blob' 来获取二进制文件
         return await request.post('/report/export', payload, {
             responseType: 'blob'
         }) as any;

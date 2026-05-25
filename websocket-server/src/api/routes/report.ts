@@ -1,27 +1,48 @@
-// 统计报表导出路由 - 基于 device_data 表的实现
+// 历史数据报表导出路由 - 基于 device_data 表的实现
 import { Router, Request, Response } from 'express';
 import ExcelJS from 'exceljs';
 import DatabaseConnection from '../../database/connection';
-import { authMiddleware } from '../middleware';
+import { authMiddleware, roleMiddleware } from '../middleware';
 
 const router = Router();
 
-// 时间范围解析
+const METRIC_LABELS: Record<string, string> = {
+    temp: '温度(℃)',
+    level: '液位(L)',
+    current: '电流(A)',
+    ph: 'pH值',
+    fill_volume: '灌装量(ml)',
+    pressure: '压力(MPa)',
+    speed: '速度(瓶/分)'
+};
+
 function parseTimeRange(body: any): { startTime: number; endTime: number } | null {
     const { timeRange } = body;
     const nowMs = Date.now();
     const oneDayMs = 24 * 60 * 60 * 1000;
-
     let startTime = nowMs;
     let endTime = nowMs;
 
     switch (timeRange) {
-        case 'today':
+        case '1h':
+            startTime = nowMs - 1 * 60 * 60 * 1000;
+            endTime = nowMs;
+            break;
+        case '24h':
+            startTime = nowMs - 24 * 60 * 60 * 1000;
+            endTime = nowMs;
+            break;
+        case '48h':
+            startTime = nowMs - 48 * 60 * 60 * 1000;
+            endTime = nowMs;
+            break;
+        case 'today': {
             const todayStart = new Date();
             todayStart.setHours(0, 0, 0, 0);
             startTime = todayStart.getTime();
             endTime = nowMs;
             break;
+        }
         case '7days':
             startTime = nowMs - 7 * oneDayMs;
             endTime = nowMs;
@@ -31,7 +52,7 @@ function parseTimeRange(body: any): { startTime: number; endTime: number } | nul
             endTime = nowMs;
             break;
         case 'custom':
-            if (body.customRange && Array.isArray(body.customRange) && body.customRange.length === 2) {
+            if (Array.isArray(body.customRange) && body.customRange.length === 2) {
                 const s = new Date(body.customRange[0]);
                 s.setHours(0, 0, 0, 0);
                 const e = new Date(body.customRange[1]);
@@ -49,350 +70,254 @@ function parseTimeRange(body: any): { startTime: number; endTime: number } | nul
     return { startTime, endTime };
 }
 
-// 格式化日期
 function formatDate(time: number): string {
     return new Date(time).toLocaleString('zh-CN', { hour12: false });
 }
 
-// ========== 设备运行统计报表 ==========
-async function generateDeviceRunReport(timeRange: { startTime: number; endTime: number }, deviceId?: string) {
+function translateTimeRange(timeRange: string): string {
+    const map: Record<string, string> = { today: '今日', '7days': '近7天', '30days': '近30天', custom: '自定义' };
+    return map[timeRange] || timeRange;
+}
+
+function toMetricList(raw: any): string[] {
+    if (Array.isArray(raw) && raw.length > 0) return raw.map(String).filter(Boolean);
+    if (typeof raw === 'string' && raw.trim()) return raw.split(',').map(s => s.trim()).filter(Boolean);
+    return ['fill_volume'];
+}
+
+function safeNumber(value: any): number | null {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+}
+
+function calcStats(values: number[]) {
+    if (values.length === 0) return { avg: null, max: null, min: null, std: null };
+    const sum = values.reduce((a, b) => a + b, 0);
+    const avg = sum / values.length;
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    const variance = values.reduce((acc, v) => acc + Math.pow(v - avg, 2), 0) / values.length;
+    return { avg, max, min, std: Math.sqrt(variance) };
+}
+
+async function fetchHistoryData(params: {
+    deviceId?: string;
+    startTime: number;
+    endTime: number;
+    metrics: string[];
+    page: number;
+    pageSize: number;
+}) {
     const db = DatabaseConnection.getInstance();
     const pool = await db.connect();
+    const where: string[] = ['timestamp BETWEEN ? AND ?'];
+    const values: any[] = [params.startTime, params.endTime];
 
-    // 查询设备列表（带 deviceId 过滤）
-    let deviceQuery = `
-        SELECT DISTINCT device_id FROM device_data
-        WHERE timestamp BETWEEN ? AND ?
-    `;
-    const deviceParams: any[] = [timeRange.startTime, timeRange.endTime];
-
-    if (deviceId) {
-        deviceQuery += ` AND device_id = ?`;
-        deviceParams.push(deviceId);
+    if (params.deviceId) {
+        where.push('device_id = ?');
+        values.push(params.deviceId);
     }
-    deviceQuery += ` ORDER BY device_id`;
 
-    const [deviceIds] = (await pool.query(deviceQuery, deviceParams)) as any[];
+    const [countRows] = await pool.query(
+        `SELECT COUNT(*) as total FROM device_data WHERE ${where.join(' AND ')}`,
+        values
+    ) as any[];
 
-    const details = [];
-    let totalDevices = 0;
-    let activeDevices = 0;
+    const total = Number(countRows?.[0]?.total || 0);
+    const offset = (params.page - 1) * params.pageSize;
 
-    for (const row of deviceIds) {
-        const dId = row.device_id;
+    const [rows] = await pool.query(
+        `SELECT device_id, data_type, data_status, timestamp, payload FROM device_data WHERE ${where.join(' AND ')} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
+        [...values, params.pageSize, offset]
+    ) as any[];
 
-        // 查询该设备在时间范围内的数据数量
-        const [countResult] = (await pool.query(`
-            SELECT COUNT(*) as dataCount FROM device_data
-            WHERE device_id = ? AND timestamp BETWEEN ? AND ?
-        `, [dId, timeRange.startTime, timeRange.endTime])) as any[];
+    const list = (rows || []).map((row: any) => {
+        let parsedPayload: any = row.payload;
+        if (typeof row.payload === 'string') {
+            try {
+                parsedPayload = JSON.parse(row.payload);
+            } catch {
+                parsedPayload = {};
+            }
+        }
 
-        const dataCount = countResult[0]?.dataCount || 0;
-        const isOnline = dataCount > 0;
-        const status = isOnline ? '运行中' : '停机';
+        return {
+            deviceId: row.device_id,
+            dataType: row.data_type,
+            dataStatus: row.data_status,
+            timestamp: row.timestamp,
+            payload: parsedPayload
+        };
+    });
 
-        if (isOnline) activeDevices++;
-        totalDevices++;
+    return { total, list };
+}
 
-        // 运行时长：按在线比例估算
-        const totalHours = (timeRange.endTime - timeRange.startTime) / (1000 * 60 * 60);
-        const runTime = isOnline ? totalHours.toFixed(1) : '0.0';
-        const onlineRate = isOnline ? '99.9' : '0.0';
+async function buildReportData(body: any) {
+    const range = parseTimeRange(body);
+    if (!range) throw new Error('时间范围参数错误');
 
-        details.push({
-            deviceName: `设备${dId}`,
-            deviceCode: dId,
-            status,
-            runTime,
-            onlineRate,
+    const metrics = toMetricList(body.metrics);
+    const deviceId = body.deviceId ? String(body.deviceId).trim() : '';
+    const page = Math.max(1, Number(body.page || 1));
+    const pageSize = Math.max(1, Math.min(200, Number(body.pageSize || 10)));
+
+    const { total, list } = await fetchHistoryData({ deviceId, startTime: range.startTime, endTime: range.endTime, metrics, page, pageSize });
+
+    const metricValues: Record<string, number[]> = {};
+    metrics.forEach(m => { metricValues[m] = []; });
+
+    let anomalyCount = 0;
+
+    // 只返回当前页明细，避免前端一次性加载全量数据导致卡死
+    const detailRows = list.map((item: any) => {
+        const payload = item.payload || {};
+        const row: any = {
+            time: formatDate(item.timestamp),
+            deviceId: item.deviceId,
+            dataType: item.dataType || '-',
+            dataStatus: item.dataStatus || 'normal'
+        };
+
+        metrics.forEach(metric => {
+            const val = safeNumber(payload?.[metric]?.value ?? payload?.[metric]);
+            row[metric] = val === null ? '-' : val;
+            if (val !== null) metricValues[metric].push(val);
         });
-    }
 
-    const summary = {
-        totalDevices,
-        runningDevices: activeDevices,
-        stoppedDevices: totalDevices - activeDevices,
-        maintenanceDevices: 0,
-        faultDevices: 0,
-        avgOnlineRate: totalDevices > 0 ? `${Math.round((activeDevices / totalDevices) * 100 * 10) / 10}%` : '0.0%',
+        const hasAnomaly = item.dataStatus === 'warning' || item.dataStatus === 'alarm';
+        if (hasAnomaly) anomalyCount += 1;
+        row.anomaly = hasAnomaly ? '异常' : '正常';
+        return row;
+    });
+
+    const summary = metrics.map(metric => {
+        const stats = calcStats(metricValues[metric] || []);
+        return {
+            metric,
+            metricLabel: METRIC_LABELS[metric] || metric,
+            avg: stats.avg,
+            max: stats.max,
+            min: stats.min,
+            std: stats.std,
+            anomalyCount
+        };
+    });
+
+    return {
+        queryCondition: {
+            deviceId: deviceId || '全部设备',
+            timeRange: translateTimeRange(body.timeRange),
+            customRange: body.customRange || [],
+            metrics,
+            startTime: formatDate(range.startTime),
+            endTime: formatDate(range.endTime)
+        },
+        summary,
+        total,
+        page,
+        pageSize,
+        details: detailRows
     };
-
-    return { summary, details };
 }
 
-// ========== 异常告警统计报表 ==========
-async function generateAlarmStatReport(timeRange: { startTime: number; endTime: number }, deviceId?: string) {
-    const db = DatabaseConnection.getInstance();
-    const pool = await db.connect();
-
-    let alarmQuery = `
-        SELECT device_id, data_status, COUNT(*) as count FROM device_data
-        WHERE data_status != 'normal' AND timestamp BETWEEN ? AND ?
-    `;
-    const alarmParams: any[] = [timeRange.startTime, timeRange.endTime];
-
-    if (deviceId) {
-        alarmQuery += ` AND device_id = ?`;
-        alarmParams.push(deviceId);
-    }
-
-    alarmQuery += ` GROUP BY device_id, data_status ORDER BY count DESC`;
-
-    const [alarmData] = (await pool.query(alarmQuery, alarmParams)) as any[];
-
-    const totalAlarmCount = alarmData.reduce((sum: number, row: any) => sum + row.count, 0);
-
-    const details = alarmData.map((item: any) => ({
-        deviceName: `设备${item.device_id}`,
-        alarmType: item.data_status || '未知异常',
-        alarmLevel: item.count > 10 ? '紧急' : item.count > 5 ? '重要' : '一般',
-        count: item.count,
-        percentage: totalAlarmCount > 0 ? ((item.count / totalAlarmCount) * 100).toFixed(1) : '0.0',
-    }));
-
-    const summary = {
-        totalAlarms: totalAlarmCount,
-        unhandledAlarms: Math.floor(totalAlarmCount * 0.3),
-        processingAlarms: Math.floor(totalAlarmCount * 0.4),
-        handledAlarms: Math.floor(totalAlarmCount * 0.3),
-        level1Alarms: Math.floor(totalAlarmCount * 0.5),
-        level2Alarms: Math.floor(totalAlarmCount * 0.3),
-        level3Alarms: Math.floor(totalAlarmCount * 0.2),
-    };
-
-    return { summary, details };
-}
-
-// ========== 生成报表数据（JSON，供前端预览） ==========
-router.post('/generate', authMiddleware, async (req: Request, res: Response) => {
+router.post('/generate', authMiddleware, roleMiddleware(['admin', 'user']), async (req: Request, res: Response) => {
     try {
-        const { reportType } = req.body;
-        if (!reportType) {
-            return res.json({ success: false, message: '报表类型不能为空' });
-        }
-
-        const timeRange = parseTimeRange(req.body);
-        if (!timeRange) {
-            return res.json({ success: false, message: '时间范围参数错误' });
-        }
-
-        const deviceId = req.body.deviceId || undefined;
-        let result: any;
-        let reportTypeLabel: string;
-
-        if (reportType === 'device-run') {
-            result = await generateDeviceRunReport(timeRange, deviceId);
-            reportTypeLabel = '设备运行统计';
-        } else if (reportType === 'alarm-stat') {
-            result = await generateAlarmStatReport(timeRange, deviceId);
-            reportTypeLabel = '异常告警统计';
-        } else {
-            return res.json({ success: false, message: '不支持的报表类型' });
-        }
-
-        res.json({
-            success: true,
-            data: {
-                reportType,
-                reportTypeLabel,
-                queryCondition: {
-                    reportType: reportTypeLabel,
-                    timeRange: req.body.timeRange,
-                    customRange: req.body.customRange || [],
-                    deviceId: deviceId || null,
-                    startTime: formatDate(timeRange.startTime),
-                    endTime: formatDate(timeRange.endTime),
-                },
-                summary: result.summary,
-                details: result.details,
-            },
-            message: '报表生成成功',
-        });
+        const data = await buildReportData(req.body);
+        res.json({ success: true, data, message: '报表生成成功' });
     } catch (err: any) {
-        console.error('生成报表失败:', err);
-        res.json({ success: false, message: err.message || '生成报表失败' });
+        res.status(400).json({ success: false, message: err.message || '报表生成失败' });
     }
 });
 
-// ========== 导出 Excel 报表（单 Sheet） ==========
-router.post('/export', authMiddleware, async (req: Request, res: Response) => {
+router.post('/export', authMiddleware, roleMiddleware(['admin', 'user']), async (req: Request, res: Response) => {
     try {
-        const { reportType } = req.body;
-        if (!reportType) {
-            return res.json({ success: false, message: '报表类型不能为空' });
-        }
-
-        const timeRange = parseTimeRange(req.body);
-        if (!timeRange) {
-            return res.json({ success: false, message: '时间范围参数错误' });
-        }
-
-        const deviceId = req.body.deviceId || undefined;
-        let result: any;
-        let reportTitle: string;
-
-        if (reportType === 'device-run') {
-            result = await generateDeviceRunReport(timeRange, deviceId);
-            reportTitle = '设备运行统计报表';
-        } else if (reportType === 'alarm-stat') {
-            result = await generateAlarmStatReport(timeRange, deviceId);
-            reportTitle = '异常告警统计报表';
-        } else {
-            return res.json({ success: false, message: '不支持的报表类型' });
-        }
-
+        const data = await buildReportData(req.body);
         const workbook = new ExcelJS.Workbook();
         workbook.creator = '工业设备智能运维平台';
         workbook.created = new Date();
 
-        const sheet = workbook.addWorksheet(reportTitle);
+        const sheet = workbook.addWorksheet('历史数据分析报表');
         let currentRow = 1;
 
-        // ===== 标题 =====
-        sheet.mergeCells(currentRow, 1, currentRow, 5);
-        const titleCell = sheet.getCell(currentRow, 1);
-        titleCell.value = reportTitle;
-        titleCell.font = { size: 16, bold: true };
-        titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+        sheet.getCell(currentRow, 1).value = '查询条件';
+        sheet.getCell(currentRow, 1).font = { bold: true, size: 14 };
         currentRow++;
+        sheet.getCell(currentRow, 1).value = '项目';
+        sheet.getCell(currentRow, 2).value = '值';
+        sheet.getRow(currentRow).font = { bold: true };
         currentRow++;
-
-        // ===== 查询条件区 =====
-        const reportTypeLabel = reportType === 'device-run' ? '设备运行统计' : '异常告警统计';
-        const conditions = [
-            ['报表类型', reportTypeLabel],
-            ['报表生成时间', formatDate(Date.now())],
-            ['时间范围类型', translateTimeRange(req.body.timeRange)],
-            ['开始时间', formatDate(timeRange.startTime)],
-            ['结束时间', formatDate(timeRange.endTime)],
-            ['指定设备', deviceId ? `设备${deviceId}` : '全部设备'],
-            ['操作用户', (req as any).user?.username || '-'],
-        ];
-        conditions.forEach(([label, value]) => {
-            sheet.getCell(currentRow, 1).value = label;
-            sheet.getCell(currentRow, 1).font = { bold: true };
-            sheet.getCell(currentRow, 2).value = value;
+        Object.entries(data.queryCondition).forEach(([key, value]) => {
+            sheet.getCell(currentRow, 1).value = key;
+            sheet.getCell(currentRow, 2).value = Array.isArray(value) ? value.join(', ') : String(value);
             currentRow++;
         });
+
         currentRow++;
 
-        // ===== 数据摘要区 =====
-        sheet.getCell(currentRow, 1).value = '数据摘要';
-        sheet.getCell(currentRow, 1).font = { size: 14, bold: true };
+        sheet.getCell(currentRow, 1).value = '统计摘要';
+        sheet.getCell(currentRow, 1).font = { bold: true, size: 14 };
+        currentRow++;
+        const summaryHeaders = ['指标', '平均值', '最大值', '最小值', '标准差', '异常次数'];
+        summaryHeaders.forEach((header, index) => {
+            sheet.getCell(currentRow, index + 1).value = header;
+        });
+        sheet.getRow(currentRow).font = { bold: true };
+        currentRow++;
+        data.summary.forEach((item: any) => {
+            sheet.getCell(currentRow, 1).value = item.metricLabel;
+            sheet.getCell(currentRow, 2).value = item.avg === null ? '-' : Number(item.avg.toFixed(2));
+            sheet.getCell(currentRow, 3).value = item.max === null ? '-' : Number(item.max.toFixed(2));
+            sheet.getCell(currentRow, 4).value = item.min === null ? '-' : Number(item.min.toFixed(2));
+            sheet.getCell(currentRow, 5).value = item.std === null ? '-' : Number(item.std.toFixed(2));
+            sheet.getCell(currentRow, 6).value = item.anomalyCount;
+            currentRow++;
+        });
+
         currentRow++;
 
-        const summary = result.summary;
-        if (reportType === 'device-run') {
-            const summaryItems = [
-                ['设备总数', summary.totalDevices],
-                ['运行中设备', summary.runningDevices],
-                ['停机设备', summary.stoppedDevices],
-                ['维护中设备', summary.maintenanceDevices],
-                ['故障设备', summary.faultDevices],
-                ['平均在线率', summary.avgOnlineRate],
-            ];
-            summaryItems.forEach(([label, value]) => {
-                sheet.getCell(currentRow, 1).value = label;
-                sheet.getCell(currentRow, 1).font = { bold: true };
-                sheet.getCell(currentRow, 2).value = value as any;
-                currentRow++;
-            });
-        } else {
-            const summaryItems = [
-                ['告警总数', summary.totalAlarms],
-                ['未处理告警', summary.unhandledAlarms],
-                ['处理中告警', summary.processingAlarms],
-                ['已处理告警', summary.handledAlarms],
-                ['一般级别告警', summary.level1Alarms],
-                ['重要级别告警', summary.level2Alarms],
-                ['紧急级别告警', summary.level3Alarms],
-            ];
-            summaryItems.forEach(([label, value]) => {
-                sheet.getCell(currentRow, 1).value = label;
-                sheet.getCell(currentRow, 1).font = { bold: true };
-                sheet.getCell(currentRow, 2).value = value as any;
-                currentRow++;
-            });
-        }
-        currentRow++;
-
-        // ===== 原始数据明细区 =====
         sheet.getCell(currentRow, 1).value = '原始数据明细';
-        sheet.getCell(currentRow, 1).font = { size: 14, bold: true };
+        sheet.getCell(currentRow, 1).font = { bold: true, size: 14 };
         currentRow++;
-
-        // 表头
-        let headers: string[];
-        if (reportType === 'device-run') {
-            headers = ['设备名称', '设备编码', '设备状态', '运行时长(h)', '在线率(%)'];
-        } else {
-            headers = ['设备名称', '异常类型', '告警级别', '告警次数', '占比(%)'];
-        }
-
-        headers.forEach((h, i) => {
-            const cell = sheet.getCell(currentRow, i + 1);
-            cell.value = h;
-            cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
-            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        const detailHeaders = ['采集时间', '设备ID', '数据类型', '数据状态', ...toMetricList(req.body.metrics).map(m => METRIC_LABELS[m] || m), '状态'];
+        detailHeaders.forEach((header, index) => {
+            sheet.getCell(currentRow, index + 1).value = header;
         });
+        sheet.getRow(currentRow).font = { bold: true };
         currentRow++;
-
-        // 数据行
-        result.details.forEach((item: any) => {
-            const rowValues = reportType === 'device-run'
-                ? [item.deviceName, item.deviceCode, item.status, item.runTime, item.onlineRate]
-                : [item.deviceName, item.alarmType, item.alarmLevel, item.count, item.percentage];
-
-            rowValues.forEach((v, i) => {
-                sheet.getCell(currentRow, i + 1).value = v as any;
+        data.details.forEach((row: any) => {
+            const rowValues = [
+                row.time,
+                row.deviceId,
+                row.dataType,
+                row.dataStatus,
+                ...toMetricList(req.body.metrics).map(m => row[m]),
+                row.anomaly
+            ];
+            rowValues.forEach((val, index) => {
+                sheet.getCell(currentRow, index + 1).value = val as any;
             });
             currentRow++;
         });
 
-        // 设置列宽
-        if (reportType === 'device-run') {
-            sheet.columns = [{ width: 30 }, { width: 15 }, { width: 12 }, { width: 15 }, { width: 12 }];
-        } else {
-            sheet.columns = [{ width: 30 }, { width: 20 }, { width: 12 }, { width: 12 }, { width: 12 }];
-        }
+        sheet.columns = [
+            { width: 22 },
+            { width: 16 },
+            { width: 14 },
+            { width: 14 },
+            ...toMetricList(req.body.metrics).map(() => ({ width: 14 })),
+            { width: 12 }
+        ];
 
-        // 给明细区域加边框
-        const dataStartRow = currentRow - result.details.length - 1;
-        for (let r = dataStartRow; r < currentRow; r++) {
-            for (let c = 1; c <= 5; c++) {
-                sheet.getCell(r, c).border = {
-                    top: { style: 'thin' },
-                    left: { style: 'thin' },
-                    bottom: { style: 'thin' },
-                    right: { style: 'thin' },
-                };
-            }
-        }
-
-        // 生成文件名
         const dateStr = new Date().toISOString().split('T')[0];
-        const filename = `${reportTitle}_${dateStr}.xlsx`;
-
+        const filename = `历史数据分析报表_${dateStr}.xlsx`;
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename=${encodeURIComponent(filename)}`);
-
         await workbook.xlsx.write(res);
         res.end();
     } catch (err: any) {
-        console.error('导出报表失败:', err);
-        res.json({ success: false, message: err.message || '导出报表失败' });
+        res.status(400).json({ success: false, message: err.message || '导出报表失败' });
     }
 });
-
-function translateTimeRange(timeRange: string): string {
-    const map: Record<string, string> = {
-        today: '今日',
-        '7days': '近7天',
-        '30days': '近30天',
-        custom: '自定义',
-    };
-    return map[timeRange] || timeRange;
-}
 
 export default router;
