@@ -86,11 +86,11 @@
 
   大屏界面：
 
-![](D:\web_ziliao\work\code\DataMonitor\img\大屏.png)
+![](img\大屏.png)
 
 ​    规则配置界面：
 
-![](D:\web_ziliao\work\code\DataMonitor\img\规则配置.png)
+![](img\规则配置.png)
 
 ### 智能诊断
 - 知识库构建
@@ -110,22 +110,22 @@
 
   诊断任务ai分析：
 
-![](D:\web_ziliao\work\code\DataMonitor\img\ai分析.png)
+![](img\ai分析.png)
 
 召回文本块：
 
-![](D:\web_ziliao\work\code\DataMonitor\img\召回文本块.png)
+![](img\召回文本块.png)
 
 知识库管理：
 
-![](D:\web_ziliao\work\code\DataMonitor\img\知识库管理.png)
+![](img\知识库管理.png)
 
 ### 智能问答
 智能问答模块与诊断模块共享RAG检索与DeepSeek能力，并增加多轮对话上下文管理功能。运维人员可用自然语言提问，如“灌装量偏低是什么原因？”。每轮回答末尾列出引用的知识文档名称，知识不足时模型会如实说明而非编造。模块还提供历史对话记录查看与检索功能，方便知识回溯。这解决了“知识难复用”的痛点，将分散在老师傅头脑或散落文档中的经验转化为可交互、可搜索的数字资产。
 
 智能问答效果：
 
-![](D:\web_ziliao\work\code\DataMonitor\img\智能问答.png)
+![](img\智能问答.png)
 
 ## 项目亮点
 ### ai回答的准确性和速率
